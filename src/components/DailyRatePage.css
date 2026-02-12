@@ -1,0 +1,115 @@
+/* DailyRatePage.css */
+:root {
+    --primary: #0f172a;
+    --accent: #3b82f6;
+    --bg-light: #f8fafc;
+    --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.daily-rate-dashboard {
+    font-family: 'Inter', sans-serif;
+    color: var(--primary);
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.header-card {
+    background: white;
+    padding: 30px;
+    border-radius: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    box-shadow: var(--card-shadow);
+    border: 1px solid #e2e8f0;
+}
+
+.main-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 30px;
+}
+
+.editor-card {
+    background: white;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
+    border: 1px solid #e2e8f0;
+}
+
+.editor-header {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    color: white;
+    padding: 20px 30px;
+}
+
+.form-group {
+    padding: 20px 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.input-styled {
+    width: 100%;
+    padding: 12px 15px;
+    border-radius: 12px;
+    border: 2px solid #f1f5f9;
+    background: #f8fafc;
+    transition: 0.3s;
+}
+
+.input-styled:focus {
+    border-color: var(--accent);
+    outline: none;
+    background: white;
+}
+
+.btn-save {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 15px;
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+    margin-top: 10px;
+}
+
+.btn-save:hover {
+    background: #2563eb;
+    transform: translateY(-2px);
+}
+
+.preview-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.preview-item {
+    background: #f1f5f9;
+    padding: 15px;
+    border-radius: 16px;
+    text-align: center;
+    border: 2px solid transparent;
+}
+
+.preview-item.active {
+    background: #ecfdf5;
+    border-color: #10b981;
+}
+
+.price-card {
+    background: white;
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
