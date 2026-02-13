@@ -5,8 +5,7 @@ import {
   FaChartLine, FaMoneyBillWave, FaBed, FaPercent, FaCalendarAlt, 
   FaReceipt, FaTools, FaLightbulb, FaAdn, FaWallet, FaSuitcaseRolling, 
   FaUtensils, FaTshirt, FaSpa, FaUmbrellaBeach, FaConciergeBell,
-  FaDoorOpen, FaWalking, FaPlaneDeparture, FaCheckCircle, FaRobot, FaGlobe,
-  FaCreditCard, FaBuilding, FaHome // <--- أيقونات جديدة تمت إضافتها
+  FaDoorOpen, FaWalking, FaPlaneDeparture, FaCheckCircle, FaRobot, FaGlobe
 } from "react-icons/fa";
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -62,6 +61,40 @@ const getCountryCode = (countryName) => {
 
 // --- المكون الرئيسي ---
 export default function DashboardPage({ reservations = [], rooms = [], expenses = [], extraRevenues = [] }) {
+  // Ensure we always work with arrays (App may pass objects/maps during cloud sync)
+  const reservationsArr = (() => {
+    const v = reservations;
+    if (Array.isArray(v)) return v;
+    if (!v) return [];
+    if (v instanceof Map) return Array.from(v.values());
+    if (typeof v === "object") return Object.values(v);
+    return [];
+  })();
+  const roomsArr = (() => {
+    const v = rooms;
+    if (Array.isArray(v)) return v;
+    if (!v) return [];
+    if (v instanceof Map) return Array.from(v.values());
+    if (typeof v === "object") return Object.values(v);
+    return [];
+  })();
+  const expensesArr = (() => {
+    const v = expenses;
+    if (Array.isArray(v)) return v;
+    if (!v) return [];
+    if (v instanceof Map) return Array.from(v.values());
+    if (typeof v === "object") return Object.values(v);
+    return [];
+  })();
+  const extraRevenuesArr = (() => {
+    const v = extraRevenues;
+    if (Array.isArray(v)) return v;
+    if (!v) return [];
+    if (v instanceof Map) return Array.from(v.values());
+    if (typeof v === "object") return Object.values(v);
+    return [];
+  })();
+
   const [period, setPeriod] = useState("TODAY"); // Default
   const [customStart, setCustomStart] = useState(new Date().toISOString().split('T')[0]);
   const [customEnd, setCustomEnd] = useState(new Date().toISOString().split('T')[0]);
@@ -103,33 +136,13 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
     const filterByDate = (d) => { const date = new Date(d); return date >= startDate && date <= endDate; };
     const todayStr = new Date().toISOString().split('T')[0];
 
-    const arrivals = reservations.filter(r => r.stay?.checkIn === todayStr && r.status !== "Cancelled").length;
-    const departures = reservations.filter(r => r.stay?.checkOut === todayStr && r.status !== "Cancelled").length;
-    const inHouseCount = reservations.filter(r => r.status === "In House").length;
-    const maintenanceRooms = rooms.filter(room => room.status === "Maintenance" || room.status === "Out of Order" || room.status === "OutOfOrder").length;
-    const availableRooms = Math.max(0, rooms.length - inHouseCount - maintenanceRooms);
+    const arrivals = reservationsArr.filter(r => r.stay?.checkIn === todayStr && r.status !== "Cancelled").length;
+    const departures = reservationsArr.filter(r => r.stay?.checkOut === todayStr && r.status !== "Cancelled").length;
+    const inHouseCount = reservationsArr.filter(r => r.status === "In House").length;
+    const maintenanceRooms = roomsArr.filter(room => room.status === "Maintenance" || room.status === "Out of Order" || room.status === "OutOfOrder").length;
+    const availableRooms = Math.max(0, roomsArr.length - inHouseCount - maintenanceRooms);
 
-    const currentRes = reservations.filter(r => r.status !== "Cancelled" && filterByDate(r.stay?.checkIn));
-    
-    // --- الحسابات الجديدة (Booking, Airbnb, Cash, Credit) ---
-    // ملاحظة: تأكد أن أسماء الحقول source و paymentMethod تطابق قاعدة البيانات لديك
-    const bookingRevenue = currentRes
-      .filter(r => (r.source || "").toLowerCase().includes("booking"))
-      .reduce((sum, r) => sum + Number(r.pricing?.total || 0), 0);
-
-    const airbnbRevenue = currentRes
-      .filter(r => (r.source || "").toLowerCase().includes("airbnb"))
-      .reduce((sum, r) => sum + Number(r.pricing?.total || 0), 0);
-
-    const cashRevenue = currentRes
-      .filter(r => (r.paymentMethod || "").toLowerCase().includes("cash"))
-      .reduce((sum, r) => sum + Number(r.pricing?.total || 0), 0);
-
-    const creditRevenue = currentRes
-      .filter(r => (r.paymentMethod || "").toLowerCase().includes("credit") || (r.paymentMethod || "").toLowerCase().includes("card"))
-      .reduce((sum, r) => sum + Number(r.pricing?.total || 0), 0);
-    // -------------------------------------------------------
-
+    const currentRes = reservationsArr.filter(r => r.status !== "Cancelled" && filterByDate(r.stay?.checkIn));
     const totalTax = currentRes.reduce((sum, r) => sum + Number(r.pricing?.tax || 0), 0);
     const totalServiceCharge = currentRes.reduce((sum, r) => sum + Number(r.pricing?.serviceCharge || 0), 0);
     const totalCityTax = currentRes.reduce((sum, r) => sum + Number(r.pricing?.cityTax || 0), 0);
@@ -156,16 +169,16 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
     }, 0);
 
     const roomNightsSold = currentRes.reduce((sum, r) => sum + calcNights(r?.stay?.checkIn, r?.stay?.checkOut), 0);
-    const totalExp = expenses.filter(e => filterByDate(e.date)).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const totalExp = expensesArr.filter(e => filterByDate(e.date)).reduce((sum, e) => sum + Number(e.amount || 0), 0);
     
-    const getExtra = (cat) => extraRevenues.filter(x => x.type === cat && filterByDate(x.date || x.createdAt)).reduce((sum, x) => sum + Number(x.amount || 0), 0);
+    const getExtra = (cat) => extraRevenuesArr.filter(x => x.type === cat && filterByDate(x.date || x.createdAt)).reduce((sum, x) => sum + Number(x.amount || 0), 0);
     const revData = { "Room Revenue": roomRev, "F&B Revenue": getExtra("F&B"), "Spa Revenue": getExtra("Spa"), "Activities": getExtra("Activities"), "Laundry": getExtra("Laundry"), "Services": getExtra("Services") };
     const totalRev = Object.values(revData).reduce((a, b) => a + b, 0);
     
-    const getExpVal = (cat) => expenses.filter(e => e.category === cat && filterByDate(e.date)).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const getExpVal = (cat) => expensesArr.filter(e => e.category === cat && filterByDate(e.date)).reduce((sum, e) => sum + Number(e.amount || 0), 0);
     const expData = { "Salary": getExpVal("Salary"), "Maintenance": getExpVal("Maintenance"), "Utilities": getExpVal("Utilities"), "Marketing": getExpVal("Marketing"), "F&B Cost": getExpVal("F&B"), "General": getExpVal("General") };
 
-    const totalRooms = Math.max(1, rooms.length);
+    const totalRooms = Math.max(1, roomsArr.length);
     const occ = (roomNightsSold / (totalRooms * totalDays)) * 100;
     const adr = roomNightsSold > 0 ? roomRev / roomNightsSold : 0;
     const revpar = roomRev / (totalRooms * totalDays);
@@ -173,11 +186,10 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
     return { 
         revData, expData, totalRev, totalExp, gop: totalRev - totalExp, 
         totalTax, totalServiceCharge, totalCityTax,
-        bookingRevenue, airbnbRevenue, cashRevenue, creditRevenue, // <--- تصدير القيم الجديدة
         arrivals, departures, availableRooms, maintenanceRooms, inHouseCount,
         occ, adr, revpar, roomNightsSold
     };
-  }, [reservations, rooms, expenses, extraRevenues, period, customStart, customEnd, selectedMonth]);
+  }, [reservations, rooms, expenses, extraRevenuesArr, period, customStart, customEnd, selectedMonth]);
 
   // --- Styles for Header ---
   const headerStyles = {
@@ -192,7 +204,7 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
         alignItems: "center", 
         marginBottom: "25px",
         border: "1px solid #bae6fd",
-        minHeight: "100px" 
+        minHeight: "100px" // لضمان ارتفاع مناسب
     },
     logoImage: {
         width: "80px",
@@ -202,6 +214,7 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
         border: "3px solid #e0f2fe", 
         boxShadow: "0 4px 6px rgba(0,0,0,0.1)", 
     },
+    // تصميم الكبسولة للأزرار
     pillContainer: {
         background: "#fff",
         padding: "4px",
@@ -222,12 +235,13 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
         background: active ? "#0ea5e9" : "transparent",
         color: active ? "#ffffff" : "#64748b"
     }),
+    // حاوية الجزء الأيمن (الأزرار + التاريخ تحتها)
     rightSection: {
         display: "flex",
         flexDirection: "column",
-        alignItems: "flex-end", 
-        gap: "10px", 
-        zIndex: 2 
+        alignItems: "flex-end", // محاذاة لليمين
+        gap: "10px", // مسافة بين الأزرار والتاريخ
+        zIndex: 2 // لضمان ظهورها فوق أي شيء
     },
     dateRow: {
         display: "flex",
@@ -251,9 +265,10 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
   return (
     <div style={{ padding: "30px", background: "#f8fafc", minHeight: "100vh" }}>
       
-      {/* HEADER */}
+      {/* HEADER (نفس هيكلية الملف الأصلي مع تعديل الترتيب العمودي لليمين) */}
       <div style={headerStyles.headerCard}>
         
+        {/* Left: Logo & Hotel Name */}
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
           <img src={HOTEL_LOGO} alt="Ocean Blue Lagoon" style={headerStyles.logoImage} onError={(e) => e.target.style.display='none'} />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -262,12 +277,16 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
           </div>
         </div>
 
+        {/* Center: Intelligence Center (Absolute) */}
         <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "10px" }}>
            <span style={{ fontSize: "24px", fontWeight: "bold", color: "#1e293b", fontFamily: "'Playfair Display', serif", fontStyle: "italic", lineHeight: "1" }}>Intelligence Center</span>
            <FaChartLine style={{ fontSize: "22px", color: "#3b82f6", opacity: 0.9 }} />
         </div>
         
+        {/* Right: Controls (Buttons ABOVE, Inputs BELOW) */}
         <div style={headerStyles.rightSection}>
+            
+            {/* 1. Toggle Buttons (Pill Shape) */}
             <div style={headerStyles.pillContainer}>
                 {["TODAY", "MTD", "YTD", "MONTH", "CUSTOM"].map(p => (
                   <button 
@@ -280,6 +299,7 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
                 ))}
             </div>
 
+            {/* 2. Date Inputs (Stacked Below) */}
             {(period === "CUSTOM" || period === "MONTH") && (
                 <div style={headerStyles.dateRow}>
                     {period === "CUSTOM" && (
@@ -301,8 +321,9 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
         </div>
 
       </div>
+      {/* --- End Header --- */}
 
-      {/* KPI Row */}
+      {/* KPI Row (7 Cards) */}
       <div style={kpiRowStyle}>
         <StatCard icon={<FaMoneyBillWave />} label="Revenue" value={`$${kpi.totalRev.toLocaleString()}`} color={theme.primary} />
         <StatCard icon={<FaReceipt />} label="Expenses" value={`$${kpi.totalExp.toLocaleString()}`} color={theme.danger} />
@@ -335,25 +356,13 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
           </div>
         </div>
 
-        {/* AI Intelligence (UPDATED HERE) */}
+        {/* AI Intelligence (Taxes Only - English) */}
         <div style={{ gridColumn: "span 3", ...cardStyle, padding: "24px", background: `linear-gradient(135deg, #fff 0%, ${theme.bg} 100%)` }}>
           <h3 style={sectionTitle}><FaRobot color={theme.primary} /> Intelligence Data</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-             {/* العناصر الأصلية (الضرائب) */}
              <OpItem icon={<FaReceipt />} label="Total Tax" value={`$${kpi.totalTax.toLocaleString()}`} color={theme.warning} />
              <OpItem icon={<FaConciergeBell />} label="Service Charge" value={`$${kpi.totalServiceCharge.toLocaleString()}`} color={theme.success} />
              <OpItem icon={<FaGlobe />} label="City Tax" value={`$${kpi.totalCityTax.toLocaleString()}`} color={theme.primary} />
-             
-             {/* --- العناصر الجديدة (فاصل بسيط لترتيب العين) --- */}
-             <div style={{ margin: "5px 0", borderTop: `1px dashed ${theme.border}` }}></div>
-
-             {/* Booking & Airbnb */}
-             <OpItem icon={<FaBuilding />} label="Booking.com" value={`$${kpi.bookingRevenue.toLocaleString()}`} color="#003580" />
-             <OpItem icon={<FaHome />} label="Airbnb" value={`$${kpi.airbnbRevenue.toLocaleString()}`} color="#FF5A5F" />
-             
-             {/* Cash & Credit */}
-             <OpItem icon={<FaMoneyBillWave />} label="Cash" value={`$${kpi.cashRevenue.toLocaleString()}`} color={theme.success} />
-             <OpItem icon={<FaCreditCard />} label="Credit Card" value={`$${kpi.creditRevenue.toLocaleString()}`} color={theme.secondary} />
           </div>
         </div>
 

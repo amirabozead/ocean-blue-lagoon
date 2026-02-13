@@ -1,3 +1,5 @@
+
+const toArray = (v) => (Array.isArray(v) ? v : (v && typeof v === "object" ? Object.values(v) : []));
 /* ================= IMPORTS ================= */
 import React, { useEffect, useMemo, useState } from "react";
 import "./app.css";
@@ -48,6 +50,63 @@ import {
   computeSplitPricingSnapshot,
   calcNights,
 } from "./utils/helpers";
+
+
+/* ================= ERROR BOUNDARY ================= */
+class PageErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, info: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    this.setState({ info });
+    // keep console for debugging
+    console.error("Page crashed:", error, info);
+  }
+  render() {
+    if (!this.state.hasError) return this.props.children;
+
+    const msg = String(this.state.error?.message || this.state.error || "Unknown error");
+    return (
+      <div style={{ padding: 16 }}>
+        <div style={{ 
+          padding: 16, borderRadius: 12, border: "1px solid rgba(0,0,0,0.12)", background: "rgba(255,255,255,0.9)",
+          maxWidth: 860
+        }}>
+          <h2 style={{ margin: 0, fontSize: 18 }}>حصل خطأ في الصفحة</h2>
+          <p style={{ marginTop: 8, marginBottom: 8, opacity: 0.9 }}>
+            ده سبب “الشاشة البيضا”. انسخ الرسالة دي وابعتها لي علشان أصلّحها بسرعة.
+          </p>
+          <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0, padding: 12, borderRadius: 10, background: "rgba(0,0,0,0.06)" }}>
+            {msg}
+          </pre>
+          <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button
+              onClick={() => {
+                try { navigator.clipboard.writeText(msg); } catch {}
+                alert("Copied");
+              }}
+              style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.12)", cursor: "pointer" }}
+            >
+              Copy Error
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.12)", cursor: "pointer" }}
+            >
+              Reload
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
+const SafePage = ({ children }) => <PageErrorBoundary>{children}</PageErrorBoundary>;
 
 /* ================= APP COMPONENT ================= */
 export default function App() {
@@ -105,7 +164,7 @@ export default function App() {
 
   // 4. Daily Rates
   const [dailyRates, setDailyRates] = useState(
-    () => storeLoad("oceanstay_daily_rates") || []
+    () => storeLoad("oceanstay_daily_rates_v1") || []
   );
 
   // 5. Store Data
@@ -121,9 +180,9 @@ export default function App() {
 
   // 6. Reservations
   const [reservations, setReservations] = useState(
-    () => storeLoad("oceanstay_reservations") || []
+    () => storeLoad("oceanstay_reservations_v1") || []
   );
-  const LS_KEY_RES = "oceanstay_reservations";
+  const LS_KEY_RES = "oceanstay_reservations_v1";
 
   // Delete a reservation (used by ReservationsPage). Keeps local storage in sync.
   const handleDeleteReservation = (res) => {
@@ -178,6 +237,79 @@ export default function App() {
     setUsers(val);
     storeSave(SEC_LS_USERS, val);
   };
+
+  // ================= CLOUD BOOTSTRAP (DOWNLOAD FROM SUPABASE) =================
+  const [cloudBootstrapped, setCloudBootstrapped] = useState(false);
+
+  useEffect(() => {
+    if (!supabase || !supabaseEnabled) return;
+    if (cloudBootstrapped) return;
+
+    const boot = async () => {
+      try {
+        // 1) Store (Items / Moves / Suppliers)
+        const fetchMaster = async (table, id) => {
+          try {
+            const { data, error } = await supabase
+              .from(table)
+              .select("data")
+              .eq("id", id)
+              .maybeSingle();
+            if (error) return null;
+            return data?.data ?? null;
+          } catch {
+            return null;
+          }
+        };
+
+        if ((storeItems || []).length === 0) {
+          const cloudItems = await fetchMaster("ocean_store_items", "master_items");
+          if (Array.isArray(cloudItems) && cloudItems.length) setStoreItems(cloudItems);
+        }
+        if ((storeMoves || []).length === 0) {
+          const cloudMoves = await fetchMaster("ocean_store_moves", "master_moves");
+          if (Array.isArray(cloudMoves) && cloudMoves.length) setStoreMoves(cloudMoves);
+        }
+        if ((storeSuppliers || []).length === 0) {
+          const cloudSup = await fetchMaster("ocean_store_suppliers", "master_suppliers");
+          if (Array.isArray(cloudSup) && cloudSup.length) setStoreSuppliers(cloudSup);
+        }
+
+        // 2) Expenses
+        if ((expenses || []).length === 0) {
+          const cloudExp = await fetchMaster("ocean_expenses", "master_list");
+          if (Array.isArray(cloudExp) && cloudExp.length) setExpenses(cloudExp);
+        }
+
+        // 3) Reservations (rows per reservation)
+        if ((reservations || []).length === 0) {
+          try {
+            const { data: rows, error } = await supabase
+              .from("reservations")
+              .select("id, data, updated_at")
+              .order("updated_at", { ascending: false });
+
+            if (!error && Array.isArray(rows) && rows.length) {
+              const list = rows
+                .map((r) => {
+                  const obj = r?.data && typeof r.data === "object" ? { ...r.data } : null;
+                  if (!obj) return null;
+                  if (!obj.id) obj.id = r.id;
+                  if (!obj.updatedAt && r.updated_at) obj.updatedAt = r.updated_at;
+                  return obj;
+                })
+                .filter(Boolean);
+              if (list.length) setReservations(list);
+            }
+          } catch {}
+        }
+      } finally {
+        setCloudBootstrapped(true);
+      }
+    };
+
+    boot();
+  }, [supabase, supabaseEnabled, cloudBootstrapped]);
 
   // ✅ دالة الخروج (موجودة بالفعل وتم ربطها الآن)
   const doLogout = async () => {
@@ -263,7 +395,7 @@ export default function App() {
       ];
     }
     setReservations(next);
-    storeSave("oceanstay_reservations", next);
+    storeSave("oceanstay_reservations_v1", next);
     setShowReservationModal(false);
   };
 
@@ -324,33 +456,22 @@ export default function App() {
   useEffect(() => {
     if (!supabase || !supabaseEnabled) return;
     const saveRes = async () => {
-      // ✅ Defensive: in some builds/hydration paths "reservations" can briefly be non-array
-      // (e.g. null/object), which crashes production with "e.filter is not a function".
-      const safeReservations = Array.isArray(reservations) ? reservations : [];
-
-      const rows = safeReservations
+      const rows = reservations
         .filter((r) => r && r.id)
         .map((r) => ({
           id: String(r.id),
           data: r,
           updated_at: r.updatedAt || new Date().toISOString(),
         }));
-      if (!rows.length) return;
-      try {
-        const { error } = await supabase
-          .from("reservations")
-          .upsert(rows, { onConflict: "id" });
-        if (error) console.error("[SB] reservations upsert error", error);
-      } catch (e) {
-        console.error("[SB] reservations upsert exception", e);
-      }
+      if (rows.length)
+        await supabase.from("reservations").upsert(rows, { onConflict: "id" });
     };
     const t = setTimeout(saveRes, 1000);
     return () => clearTimeout(t);
   }, [reservations, supabase, supabaseEnabled]);
 
   useEffect(() => {
-    storeSave("oceanstay_daily_rates", dailyRates);
+    storeSave("oceanstay_daily_rates_v1", dailyRates);
   }, [dailyRates]);
 
   useEffect(() => {
@@ -413,8 +534,8 @@ export default function App() {
     const uniq = (arr) => Array.from(new Set((arr || []).filter(Boolean)));
     return uniq([
       // Core
-      "oceanstay_reservations",
-      "oceanstay_daily_rates",
+      "oceanstay_reservations_v1",
+      "oceanstay_daily_rates_v1",
       "ocean_settings_v1",
       "ocean_expenses_v1",
       "ocean_extra_rev_v1",
@@ -513,11 +634,11 @@ export default function App() {
 
       // Ensure UI state aligns immediately (then hard reload for full consistency)
       try {
-        const nextRes = data.keys["oceanstay_reservations"];
+        const nextRes = data.keys["oceanstay_reservations_v1"];
         if (Array.isArray(nextRes)) setReservations(nextRes);
       } catch {}
       try {
-        const nextRates = data.keys["oceanstay_daily_rates"];
+        const nextRates = data.keys["oceanstay_daily_rates_v1"];
         if (Array.isArray(nextRates)) setDailyRates(nextRates);
       } catch {}
       try {
@@ -690,7 +811,7 @@ export default function App() {
       <main className="main">
         {page === "dashboard" && (
           <DashboardPage
-            reservations={reservations}
+            reservations={toArray(reservations)}
             rooms={BASE_ROOMS}
             expenses={expenses}
             extraRevenues={extraRevenues}
@@ -700,7 +821,7 @@ export default function App() {
 
         {page === "reservations" && (
           <ReservationsPage
-            reservations={reservations}
+            reservations={toArray(reservations)}
             onNewReservation={handleNewReservation}
             onEditReservation={handleEditReservation}
             onInvoice={handleInvoice}
@@ -710,7 +831,7 @@ export default function App() {
 
         {page === "rooms" && (
           <RoomsPage
-            reservations={reservations}
+            reservations={toArray(reservations)}
             roomPhysicalStatus={roomPhysicalStatus}
             updateRoomStatus={updateRoomStatus}
             onEditReservation={handleEditReservation}
@@ -726,7 +847,7 @@ export default function App() {
         {page === "revenue" && (
           <RevenuePage
             data={extraRevenues}
-            reservations={reservations}
+            reservations={toArray(reservations)}
             totalRooms={BASE_ROOMS.length}
             onUpdate={saveRevenue}
             user={currentUser}
@@ -734,33 +855,39 @@ export default function App() {
         )}
 
         {page === "store" && (
-          <StorePage
-            items={storeItems}
-            setItems={setStoreItems}
-            moves={storeMoves}
-            setMoves={setStoreMoves}
-            suppliers={storeSuppliers}
-            setSuppliers={setStoreSuppliers}
-          />
+          <SafePage>
+            <StorePage
+              items={toArray(storeItems)}
+              setItems={setStoreItems}
+              moves={toArray(storeMoves)}
+              setMoves={setStoreMoves}
+              suppliers={toArray(storeSuppliers)}
+              setSuppliers={setStoreSuppliers}
+            />
+          </SafePage>
         )}
 
         {page === "expenses" && (
-          <ExpensesPage
-            paymentMethods={["Cash", "Card"]}
-            expenses={expenses}
-            setExpenses={updateExpenses}
-            supabase={supabase}
-            supabaseEnabled={supabaseEnabled}
-          />
+          <SafePage>
+            <ExpensesPage
+              paymentMethods={["Cash", "Card"]}
+              expenses={toArray(expenses)}
+              setExpenses={updateExpenses}
+              supabase={supabase}
+              supabaseEnabled={supabaseEnabled}
+            />
+          </SafePage>
         )}
 
         {page === "reports" && (
-          <ReportsPage
-            reservations={reservations}
-            expenses={expenses}
-            extraRevenues={extraRevenues}
-            totalRooms={BASE_ROOMS.length}
-          />
+          <SafePage>
+            <ReportsPage
+              reservations={toArray(reservations)}
+              expenses={toArray(expenses)}
+              extraRevenues={toArray(extraRevenues)}
+              totalRooms={BASE_ROOMS.length}
+            />
+          </SafePage>
         )}
 
         {page === "settings" && (
