@@ -185,11 +185,192 @@ export default function App() {
     });
   }, []);
 
-  const supabaseEnabled = !!(sbCfg?.enabled && sbCfg?.url && sbCfg?.anon);
-  const supabase = useMemo(
-    () => (supabaseEnabled ? createClient(sbCfg.url, sbCfg.anon) : null),
-    [supabaseEnabled, sbCfg]
+    const ENV_SB_URL = import.meta.env.VITE_SUPABASE_URL || "";
+  const ENV_SB_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+  const envSupabaseEnabled = !!(ENV_SB_URL && ENV_SB_ANON);
+
+  const supabaseEnabled = envSupabaseEnabled || !!(sbCfg?.enabled && sbCfg?.url && sbCfg?.anon);
+
+  const supabase = useMemo(() => {
+    if (envSupabaseEnabled) return createClient(ENV_SB_URL, ENV_SB_ANON);
+    if (sbCfg?.enabled && sbCfg?.url && sbCfg?.anon) return createClient(sbCfg.url, sbCfg.anon);
+    return null;
+  }, [envSupabaseEnabled, ENV_SB_URL, ENV_SB_ANON, sbCfg?.enabled, sbCfg?.url, sbCfg?.anon]);
+
+  // =========================
+  //  Cloud KV Sync (ocean_kv)
+  // =========================
+  const KV_TABLE = "ocean_kv";
+  const KV_META_KEY = "ocean_kv_meta_v1";
+  const KV_CLIENT_ID_KEY = "ocean_kv_client_id_v1";
+
+  const KV_SYNC_KEYS = useMemo(
+    () => [
+      "oceanstay_reservations",
+      "oceanstay_daily_rates",
+      "ocean_expenses_v1",
+      "ocean_settings_v1",
+      "ocean_extra_rev_v1",
+      "ocean_room_physical_v1",
+      "ocean_security_users_v1",
+      "oceanstay_store_items_v1",
+      "oceanstay_store_moves_v1",
+      "oceanstay_store_suppliers_v1",
+      // EXCLUDED (per-device / sensitive):
+      // "ocean_security_session_v1",
+      // "ocean_supabase_cfg_v1",
+    ],
+    []
   );
+
+  useMemo(() => {
+    try {
+      const existing = localStorage.getItem(KV_CLIENT_ID_KEY);
+      if (existing) return existing;
+      const id = `cid_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
+      localStorage.setItem(KV_CLIENT_ID_KEY, id);
+      return id;
+    } catch {
+      return `cid_${Date.now().toString(16)}`;
+    }
+  }, []);
+
+  const kvReadMeta = () => {
+    try { return JSON.parse(localStorage.getItem(KV_META_KEY) || "{}") || {}; } catch { return {}; }
+  };
+  const kvWriteMeta = (meta) => {
+    try { localStorage.setItem(KV_META_KEY, JSON.stringify(meta || {})); } catch {}
+  };
+
+  const kvLsGet = (k) => {
+    const raw = localStorage.getItem(k);
+    if (raw == null) return null;
+    try { return JSON.parse(raw); } catch { return raw; }
+  };
+  const kvLsSet = (k, v) => {
+    try { localStorage.setItem(k, JSON.stringify(v)); }
+    catch { try { localStorage.setItem(k, String(v)); } catch {} }
+  };
+  const kvNowIso = () => new Date().toISOString();
+
+  const kvPullFromCloud = async () => {
+    if (!supabase) return { ok: false, reason: "no_supabase" };
+    const { data, error } = await supabase
+      .from(KV_TABLE)
+      .select("key,data,updated_at")
+      .in("key", KV_SYNC_KEYS);
+
+    if (error) return { ok: false, reason: "select_error", error };
+
+    const meta = kvReadMeta();
+    for (const row of data || []) {
+      if (!row?.key) continue;
+      kvLsSet(row.key, row.data);
+      meta[row.key] = row.updated_at || kvNowIso();
+    }
+    kvWriteMeta(meta);
+    return { ok: true, count: (data || []).length };
+  };
+
+  const kvPushToCloud = async ({ onlyMissing = false } = {}) => {
+    if (!supabase) return { ok: false, reason: "no_supabase" };
+
+    const { data: cloudRows, error: cloudErr } = await supabase
+      .from(KV_TABLE)
+      .select("key,updated_at")
+      .in("key", KV_SYNC_KEYS);
+
+    if (cloudErr) return { ok: false, reason: "select_error", error: cloudErr };
+
+    const cloudMeta = {};
+    for (const r of cloudRows || []) cloudMeta[r.key] = r.updated_at;
+
+    const meta = kvReadMeta();
+    const upserts = [];
+
+    for (const k of KV_SYNC_KEYS) {
+      const localVal = kvLsGet(k);
+      if (localVal == null) continue;
+
+      const localKnownTs = meta[k] || null;
+      const cloudTs = cloudMeta[k] || null;
+
+      if (onlyMissing && cloudTs) continue;
+
+      if (cloudTs && localKnownTs && new Date(cloudTs).getTime() > new Date(localKnownTs).getTime()) {
+        continue;
+      }
+
+      upserts.push({ key: k, data: localVal, updated_at: kvNowIso() });
+    }
+
+    if (!upserts.length) return { ok: true, count: 0 };
+
+    const { error: upsertErr } = await supabase.from(KV_TABLE).upsert(upserts, { onConflict: "key" });
+    if (upsertErr) return { ok: false, reason: "upsert_error", error: upsertErr };
+
+    const now = kvNowIso();
+    for (const r of upserts) meta[r.key] = now;
+    kvWriteMeta(meta);
+
+    return { ok: true, count: upserts.length };
+  };
+
+  const kvSeedCloudFromThisDevice = async () => {
+    const res = await kvPushToCloud({ onlyMissing: true });
+    await kvPullFromCloud();
+    return res;
+  };
+
+  useEffect(() => {
+    try {
+      window.OceanKV = {
+        pull: kvPullFromCloud,
+        push: kvPushToCloud,
+        seed: kvSeedCloudFromThisDevice,
+        keys: KV_SYNC_KEYS,
+      };
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase]);
+
+  useEffect(() => {
+    if (!supabase) return;
+
+    let lastLocalPushAt = 0;
+    const markLocalPush = () => { lastLocalPushAt = Date.now(); };
+
+    const origPush = window?.OceanKV?.push;
+    if (origPush) {
+      window.OceanKV.push = async (...args) => {
+        markLocalPush();
+        return origPush(...args);
+      };
+    }
+
+    const channel = supabase
+      .channel("ocean_kv_sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: KV_TABLE },
+        async (payload) => {
+          const k = payload?.new?.key || payload?.old?.key;
+          if (!k || !KV_SYNC_KEYS.includes(k)) return;
+
+          if (Date.now() - lastLocalPushAt < 1200) return;
+
+          await kvPullFromCloud();
+
+          try { window.location.reload(); } catch {}
+        }
+      )
+      .subscribe();
+
+    return () => {
+      try { supabase.removeChannel(channel); } catch {}
+    };
+  }, [supabase, KV_SYNC_KEYS]);
+
 
   const sbSaveCfg = (cfg, forceEnabled) => {
     const next = { ...cfg, enabled: forceEnabled ?? cfg.enabled };
