@@ -162,286 +162,11 @@ export default function App() {
       : { enabled: false, url: "", anon: "" };
   });
 
-  // Auto-load Supabase config from environment variables (Vercel) if user didn't set it in Settings.
-  // This avoids having to configure each device manually.
-  useEffect(() => {
-    const envUrl = (import.meta?.env?.VITE_SUPABASE_URL || "").trim();
-    const envAnon =
-      (import.meta?.env?.VITE_SUPABASE_ANON_KEY ||
-        import.meta?.env?.VITE_SUPABASE_PUBLISHABLE_KEY ||
-        "").trim();
-
-    if (!envUrl || !envAnon) return;
-
-    setSbCfg((prev) => {
-      // If user already configured it, don't overwrite.
-      if (prev?.enabled && prev?.url && prev?.anon) return prev;
-
-      const next = { enabled: true, url: envUrl, anon: envAnon };
-      try {
-        localStorage.setItem(SB_LS_CFG, JSON.stringify(next));
-      } catch {}
-      return next;
-    });
-  }, []);
-
-    const ENV_SB_URL = import.meta.env.VITE_SUPABASE_URL || "";
-  const ENV_SB_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-  const envSupabaseEnabled = !!(ENV_SB_URL && ENV_SB_ANON);
-
-  const supabaseEnabled = envSupabaseEnabled || !!(sbCfg?.enabled && sbCfg?.url && sbCfg?.anon);
-
-  const supabase = useMemo(() => {
-    if (envSupabaseEnabled) return createClient(ENV_SB_URL, ENV_SB_ANON);
-    if (sbCfg?.enabled && sbCfg?.url && sbCfg?.anon) return createClient(sbCfg.url, sbCfg.anon);
-    return null;
-  }, [envSupabaseEnabled, ENV_SB_URL, ENV_SB_ANON, sbCfg?.enabled, sbCfg?.url, sbCfg?.anon]);
-
-  // =========================
-  //  Cloud KV Sync (ocean_kv)
-  // =========================
-  const KV_TABLE = "ocean_kv";
-  const KV_META_KEY = "ocean_kv_meta_v1";
-  const KV_CLIENT_ID_KEY = "ocean_kv_client_id_v1";
-
-  const KV_SYNC_KEYS = useMemo(
-    () => [
-      "oceanstay_reservations",
-      "oceanstay_daily_rates",
-      "ocean_expenses_v1",
-      "ocean_settings_v1",
-      "ocean_extra_rev_v1",
-      "ocean_room_physical_v1",
-      "ocean_security_users_v1",
-      "oceanstay_store_items_v1",
-      "oceanstay_store_moves_v1",
-      "oceanstay_store_suppliers_v1",
-      // EXCLUDED (per-device / sensitive):
-      // "ocean_security_session_v1",
-      // "ocean_supabase_cfg_v1",
-    ],
-    []
+  const supabaseEnabled = !!(sbCfg?.enabled && sbCfg?.url && sbCfg?.anon);
+  const supabase = useMemo(
+    () => (supabaseEnabled ? createClient(sbCfg.url, sbCfg.anon) : null),
+    [supabaseEnabled, sbCfg]
   );
-
-  useMemo(() => {
-    try {
-      const existing = localStorage.getItem(KV_CLIENT_ID_KEY);
-      if (existing) return existing;
-      const id = `cid_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
-      localStorage.setItem(KV_CLIENT_ID_KEY, id);
-      return id;
-    } catch {
-      return `cid_${Date.now().toString(16)}`;
-    }
-  }, []);
-
-  const kvReadMeta = () => {
-    try { return JSON.parse(localStorage.getItem(KV_META_KEY) || "{}") || {}; } catch { return {}; }
-  };
-  const kvWriteMeta = (meta) => {
-    try { localStorage.setItem(KV_META_KEY, JSON.stringify(meta || {})); } catch {}
-  };
-
-  const kvLsGet = (k) => {
-    const raw = localStorage.getItem(k);
-    if (raw == null) return null;
-    try { return JSON.parse(raw); } catch { return raw; }
-  };
-  const kvLsSet = (k, v) => {
-    try { localStorage.setItem(k, JSON.stringify(v)); }
-    catch { try { localStorage.setItem(k, String(v)); } catch {} }
-  };
-  const kvNowIso = () => new Date().toISOString();
-
-  const kvPullFromCloud = async () => {
-    if (!supabase) return { ok: false, reason: "no_supabase" };
-    const { data, error } = await supabase
-      .from(KV_TABLE)
-      .select("key,data,updated_at")
-      .in("key", KV_SYNC_KEYS);
-
-    if (error) return { ok: false, reason: "select_error", error };
-
-    const meta = kvReadMeta();
-    for (const row of data || []) {
-      if (!row?.key) continue;
-      kvLsSet(row.key, row.data);
-      meta[row.key] = row.updated_at || kvNowIso();
-    }
-    kvWriteMeta(meta);
-    return { ok: true, count: (data || []).length };
-  };
-
-  const kvPushToCloud = async ({ onlyMissing = false } = {}) => {
-    if (!supabase) return { ok: false, reason: "no_supabase" };
-
-    const { data: cloudRows, error: cloudErr } = await supabase
-      .from(KV_TABLE)
-      .select("key,updated_at")
-      .in("key", KV_SYNC_KEYS);
-
-    if (cloudErr) return { ok: false, reason: "select_error", error: cloudErr };
-
-    const cloudMeta = {};
-    for (const r of cloudRows || []) cloudMeta[r.key] = r.updated_at;
-
-    const meta = kvReadMeta();
-    const upserts = [];
-
-    for (const k of KV_SYNC_KEYS) {
-      const localVal = kvLsGet(k);
-      if (localVal == null) continue;
-
-      const localKnownTs = meta[k] || null;
-      const cloudTs = cloudMeta[k] || null;
-
-      if (onlyMissing && cloudTs) continue;
-
-      if (cloudTs && localKnownTs && new Date(cloudTs).getTime() > new Date(localKnownTs).getTime()) {
-        continue;
-      }
-
-      upserts.push({ key: k, data: localVal, updated_at: kvNowIso() });
-    }
-
-    if (!upserts.length) return { ok: true, count: 0 };
-
-    const { error: upsertErr } = await supabase.from(KV_TABLE).upsert(upserts, { onConflict: "key" });
-    if (upsertErr) return { ok: false, reason: "upsert_error", error: upsertErr };
-
-    const now = kvNowIso();
-    for (const r of upserts) meta[r.key] = now;
-    kvWriteMeta(meta);
-
-    return { ok: true, count: upserts.length };
-  };
-
-  const kvSeedCloudFromThisDevice = async () => {
-    const res = await kvPushToCloud({ onlyMissing: true });
-    await kvPullFromCloud();
-    return res;
-  };
-
-  useEffect(() => {
-    try {
-      window.OceanKV = {
-        pull: kvPullFromCloud,
-        push: kvPushToCloud,
-        seed: kvSeedCloudFromThisDevice,
-        keys: KV_SYNC_KEYS,
-      };
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase]);
-
-  // =========================
-// ✅ Auto-PUSH on any localStorage change (KV keys)
-// + ✅ Polling PULL fallback (in case realtime websocket is flaky)
-// =========================
-useEffect(() => {
-  if (!supabase) return;
-
-  let t = null;
-  const schedulePush = () => {
-    if (t) clearTimeout(t);
-    t = setTimeout(async () => {
-      try {
-        await kvPushToCloud();
-      } catch {}
-    }, 1200);
-  };
-
-  const origSetItem = localStorage.setItem.bind(localStorage);
-  const origRemoveItem = localStorage.removeItem.bind(localStorage);
-
-  const shouldSyncKey = (k) => KV_SYNC_KEYS.includes(k);
-
-  localStorage.setItem = (k, v) => {
-    origSetItem(k, v);
-    if (shouldSyncKey(k)) schedulePush();
-  };
-
-  localStorage.removeItem = (k) => {
-    origRemoveItem(k);
-    if (shouldSyncKey(k)) schedulePush();
-  };
-
-  // Polling pull: keeps devices in sync even if realtime disconnects
-  const intervalMs = 10000; // 10s
-  const poll = setInterval(async () => {
-    try {
-      await kvPullFromCloud();
-    } catch {}
-  }, intervalMs);
-
-  return () => {
-    try {
-      localStorage.setItem = origSetItem;
-      localStorage.removeItem = origRemoveItem;
-    } catch {}
-    if (t) clearTimeout(t);
-    clearInterval(poll);
-  };
-}, [supabase, KV_SYNC_KEYS]);
-
-
-  // ✅ Auto-pull from cloud ONCE on first load (web devices have empty localStorage)
-useEffect(() => {
-  if (!supabase) return;
-
-  const flag = "ocean_kv_autopulled_v1";
-  if (sessionStorage.getItem(flag) === "1") return;
-
-  (async () => {
-    try {
-      const r = await kvPullFromCloud();
-if (r?.ok) {
-  sessionStorage.setItem(flag, "1");
-  // ✅ no reload
-}
-
-    } catch {}
-  })();
-}, [supabase]);
-
-
-  useEffect(() => {
-    if (!supabase) return;
-
-    let lastLocalPushAt = 0;
-    const markLocalPush = () => { lastLocalPushAt = Date.now(); };
-
-    const origPush = window?.OceanKV?.push;
-    if (origPush) {
-      window.OceanKV.push = async (...args) => {
-        markLocalPush();
-        return origPush(...args);
-      };
-    }
-
-    const channel = supabase
-      .channel("ocean_kv_sync")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: KV_TABLE },
-        async (payload) => {
-          const k = payload?.new?.key || payload?.old?.key;
-          if (!k || !KV_SYNC_KEYS.includes(k)) return;
-
-          if (Date.now() - lastLocalPushAt < 1200) return;
-
-          await kvPullFromCloud();
-
-          
-        }
-      )
-      .subscribe();
-
-    return () => {
-      try { supabase.removeChannel(channel); } catch {}
-    };
-  }, [supabase, KV_SYNC_KEYS]);
-
 
   const sbSaveCfg = (cfg, forceEnabled) => {
     const next = { ...cfg, enabled: forceEnabled ?? cfg.enabled };
@@ -599,15 +324,26 @@ if (r?.ok) {
   useEffect(() => {
     if (!supabase || !supabaseEnabled) return;
     const saveRes = async () => {
-      const rows = reservations
+      // ✅ Defensive: in some builds/hydration paths "reservations" can briefly be non-array
+      // (e.g. null/object), which crashes production with "e.filter is not a function".
+      const safeReservations = Array.isArray(reservations) ? reservations : [];
+
+      const rows = safeReservations
         .filter((r) => r && r.id)
         .map((r) => ({
           id: String(r.id),
           data: r,
           updated_at: r.updatedAt || new Date().toISOString(),
         }));
-      if (rows.length)
-        await supabase.from("reservations").upsert(rows, { onConflict: "id" });
+      if (!rows.length) return;
+      try {
+        const { error } = await supabase
+          .from("reservations")
+          .upsert(rows, { onConflict: "id" });
+        if (error) console.error("[SB] reservations upsert error", error);
+      } catch (e) {
+        console.error("[SB] reservations upsert exception", e);
+      }
     };
     const t = setTimeout(saveRes, 1000);
     return () => clearTimeout(t);
@@ -923,20 +659,14 @@ if (r?.ok) {
           onBack={() => setPreAuthScreen("login")}
         />
       );
-    // NOTE: We do NOT use Supabase Auth for login.
-// Access control is handled by the app's local PIN users list (ocean_security_users_v1).
-// Keeping the app usable even when Supabase Auth is not set up.
-/* if (supabaseEnabled && supabase) return (
-  <SupabaseLoginScreen
-    open
-    onClose={() => setLoginOpen(false)}
-    sbCfg={sbCfg}
-    setSbCfg={setSbCfg}
-    supabase={supabase}
-    onLoggedIn={() => {}}
-  />
-); */
-return (
+    if (supabaseEnabled && supabase)
+      return (
+        <SupabaseLoginScreen
+          supabase={supabase}
+          onOpenCloudSettings={() => setPreAuthScreen("cloud")}
+        />
+      );
+    return (
       <SecurityLoginScreen
         users={users}
         onLogin={doLogin}
