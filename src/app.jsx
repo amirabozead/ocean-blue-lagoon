@@ -334,6 +334,25 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]);
 
+  // ✅ Auto-pull from cloud ONCE on first load (web devices have empty localStorage)
+useEffect(() => {
+  if (!supabase) return;
+
+  const flag = "ocean_kv_autopulled_v1";
+  if (sessionStorage.getItem(flag) === "1") return;
+
+  (async () => {
+    try {
+      const r = await kvPullFromCloud();
+      if (r?.ok) {
+        sessionStorage.setItem(flag, "1");
+        window.location.reload(); // reload once so UI reads fresh localStorage
+      }
+    } catch {}
+  })();
+}, [supabase]);
+
+
   useEffect(() => {
     if (!supabase) return;
 
