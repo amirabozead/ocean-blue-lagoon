@@ -167,13 +167,23 @@ export default function App() {
   };
 
   // 4. Daily Rates
-  const [dailyRates, setDailyRates] = useState(
-    () => storeLoad("oceanstay_daily_rates_v1") || []
-  );
-  const updateDailyRates = (newRates) => {
+  const [dailyRates, setDailyRates] = useState(() => {
+    const v1 = storeLoad("oceanstay_daily_rates_v1");
+    if (Array.isArray(v1) && v1.length) return v1;
+    const legacy = storeLoad("oceanstay_daily_rates");
+    if (Array.isArray(legacy) && legacy.length) {
+      // migrate legacy key -> v1
+      try { storeSave("oceanstay_daily_rates_v1", legacy); } catch {}
+      return legacy;
+    }
+    return [];
+  });
+const updateDailyRates = (newRates) => {
     setDailyRates(newRates);
     storeSave("oceanstay_daily_rates_v1", newRates);
-    if (supabase && supabaseEnabled) {
+    // keep legacy key in sync (older code used it)
+    storeSave("oceanstay_daily_rates", newRates);
+if (supabase && supabaseEnabled) {
       (async () => {
         try {
           const { error } = await supabase.from("ocean_daily_rates").upsert({
@@ -286,6 +296,33 @@ export default function App() {
           }
         };
 
+        const ensureMaster = async (table, id, localData) => {
+          // If cloud row missing or empty, push localData once
+          if (!Array.isArray(localData) || localData.length === 0) return false;
+          try {
+            const { data, error } = await supabase
+              .from(table)
+              .select("data")
+              .eq("id", id)
+              .maybeSingle();
+            if (error) return false;
+            const cloudData = data?.data ?? null;
+            const cloudEmpty = !Array.isArray(cloudData) || cloudData.length === 0;
+            if (cloudEmpty) {
+              const { error: upErr } = await supabase.from(table).upsert({
+                id,
+                data: localData,
+                updated_at: new Date().toISOString(),
+              });
+              if (upErr) return false;
+              return true;
+            }
+          } catch {
+            return false;
+          }
+          return false;
+        };
+
         if ((storeItems || []).length === 0) {
           const cloudItems = await fetchMaster("ocean_store_items", "master_items");
           if (Array.isArray(cloudItems) && cloudItems.length) setStoreItems(cloudItems);
@@ -302,13 +339,24 @@ export default function App() {
         // 2) Expenses
         if ((expenses || []).length === 0) {
           const cloudExp = await fetchMaster("ocean_expenses", "master_list");
-          if (Array.isArray(cloudExp) && cloudExp.length) setExpenses(cloudExp);
+          if (Array.isArray(cloudExp) && cloudExp.length) {
+            setExpenses(cloudExp);
+            try { storeSave("ocean_expenses_v1", cloudExp); } catch {}
+          }
         }
+        // If cloud is empty but local has data, push once
+        await ensureMaster("ocean_expenses", "master_list", expenses);
+
         // 2.5) Daily Rates
         if ((dailyRates || []).length === 0) {
           const cloudRates = await fetchMaster("ocean_daily_rates", "master_list");
-          if (Array.isArray(cloudRates) && cloudRates.length) setDailyRates(cloudRates);
+          if (Array.isArray(cloudRates) && cloudRates.length) {
+            setDailyRates(cloudRates);
+            try { storeSave("oceanstay_daily_rates_v1", cloudRates); storeSave("oceanstay_daily_rates", cloudRates); } catch {}
+          }
         }
+        // If cloud is empty but local has data, push once
+        await ensureMaster("ocean_daily_rates", "master_list", dailyRates);
 
 
 
