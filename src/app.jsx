@@ -334,6 +334,57 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]);
 
+  // =========================
+// ✅ Auto-PUSH on any localStorage change (KV keys)
+// + ✅ Polling PULL fallback (in case realtime websocket is flaky)
+// =========================
+useEffect(() => {
+  if (!supabase) return;
+
+  let t = null;
+  const schedulePush = () => {
+    if (t) clearTimeout(t);
+    t = setTimeout(async () => {
+      try {
+        await kvPushToCloud();
+      } catch {}
+    }, 1200);
+  };
+
+  const origSetItem = localStorage.setItem.bind(localStorage);
+  const origRemoveItem = localStorage.removeItem.bind(localStorage);
+
+  const shouldSyncKey = (k) => KV_SYNC_KEYS.includes(k);
+
+  localStorage.setItem = (k, v) => {
+    origSetItem(k, v);
+    if (shouldSyncKey(k)) schedulePush();
+  };
+
+  localStorage.removeItem = (k) => {
+    origRemoveItem(k);
+    if (shouldSyncKey(k)) schedulePush();
+  };
+
+  // Polling pull: keeps devices in sync even if realtime disconnects
+  const intervalMs = 10000; // 10s
+  const poll = setInterval(async () => {
+    try {
+      await kvPullFromCloud();
+    } catch {}
+  }, intervalMs);
+
+  return () => {
+    try {
+      localStorage.setItem = origSetItem;
+      localStorage.removeItem = origRemoveItem;
+    } catch {}
+    if (t) clearTimeout(t);
+    clearInterval(poll);
+  };
+}, [supabase, KV_SYNC_KEYS]);
+
+
   // ✅ Auto-pull from cloud ONCE on first load (web devices have empty localStorage)
 useEffect(() => {
   if (!supabase) return;
