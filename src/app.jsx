@@ -162,9 +162,28 @@ export default function App() {
       : { enabled: false, url: "", anon: "" };
   });
 
-  // ✅ Settings change tick (to trigger repricing on tax/service/city tax/closing changes)
-  const [settingsTick, setSettingsTick] = useState(0);
-  const bumpSettingsTick = () => setSettingsTick((t) => t + 1);
+  // Auto-load Supabase config from environment variables (Vercel) if user didn't set it in Settings.
+  // This avoids having to configure each device manually.
+  useEffect(() => {
+    const envUrl = (import.meta?.env?.VITE_SUPABASE_URL || "").trim();
+    const envAnon =
+      (import.meta?.env?.VITE_SUPABASE_ANON_KEY ||
+        import.meta?.env?.VITE_SUPABASE_PUBLISHABLE_KEY ||
+        "").trim();
+
+    if (!envUrl || !envAnon) return;
+
+    setSbCfg((prev) => {
+      // If user already configured it, don't overwrite.
+      if (prev?.enabled && prev?.url && prev?.anon) return prev;
+
+      const next = { enabled: true, url: envUrl, anon: envAnon };
+      try {
+        localStorage.setItem(SB_LS_CFG, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
 
   const supabaseEnabled = !!(sbCfg?.enabled && sbCfg?.url && sbCfg?.anon);
   const supabase = useMemo(
@@ -351,16 +370,11 @@ export default function App() {
     const taxRate = Number(s?.taxRate ?? 17);
     const serviceCharge = Number(s?.serviceCharge ?? 10);
     const cityTaxFixed = Number(s?.cityTax ?? 0);
-    const closedThrough = String(s?.closedThrough || "2026-01-31");
 
     setReservations((prev) => {
       let changed = false;
       const next = prev.map((r) => {
         if (!r || r.status !== "Booked") return r;
-
-        // 🔒 Month closing: do NOT touch closed reservations (by check-out date)
-        const _co = String(r?.stay?.checkOut || "");
-        if (closedThrough && _co && _co <= closedThrough) return r;
 
         const snap = computeSplitPricingSnapshot({
           roomType: r.room?.roomType,
@@ -402,7 +416,7 @@ export default function App() {
 
       return changed ? next : prev;
     });
-  }, [dailyRates, settingsTick]);
+  }, [dailyRates]);
 
   // ================= RENDER =================
 
@@ -657,14 +671,20 @@ export default function App() {
           onBack={() => setPreAuthScreen("login")}
         />
       );
-    if (supabaseEnabled && supabase)
-      return (
-        <SupabaseLoginScreen
-          supabase={supabase}
-          onOpenCloudSettings={() => setPreAuthScreen("cloud")}
-        />
-      );
-    return (
+    // NOTE: We do NOT use Supabase Auth for login.
+// Access control is handled by the app's local PIN users list (ocean_security_users_v1).
+// Keeping the app usable even when Supabase Auth is not set up.
+/* if (supabaseEnabled && supabase) return (
+  <SupabaseLoginScreen
+    open
+    onClose={() => setLoginOpen(false)}
+    sbCfg={sbCfg}
+    setSbCfg={setSbCfg}
+    supabase={supabase}
+    onLoggedIn={() => {}}
+  />
+); */
+return (
       <SecurityLoginScreen
         users={users}
         onLogin={doLogin}
@@ -773,7 +793,6 @@ export default function App() {
               sbCfg={sbCfg}
               setSbCfg={setSbCfg}
               sbSaveCfg={sbSaveCfg}
-              onSettingsSaved={bumpSettingsTick}
             />
 
             {/* ✅ Backup في آخر الصفحة */}
