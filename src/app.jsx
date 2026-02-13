@@ -142,14 +142,18 @@ export default function App() {
     setExpenses(newExpenses);
     storeSave("ocean_expenses_v1", newExpenses);
     if (supabase && supabaseEnabled) {
-      supabase
-        .from("ocean_expenses")
-        .upsert({
-          id: "master_list",
-          data: newExpenses,
-          updated_at: new Date().toISOString(),
-        })
-        .catch(console.error);
+      (async () => {
+        try {
+          const { error } = await supabase.from("ocean_expenses").upsert({
+            id: "master_list",
+            data: newExpenses,
+            updated_at: new Date().toISOString(),
+          });
+          if (error) console.error(error);
+        } catch (e) {
+          console.error(e);
+        }
+      })();
     }
   };
 
@@ -166,6 +170,26 @@ export default function App() {
   const [dailyRates, setDailyRates] = useState(
     () => storeLoad("oceanstay_daily_rates_v1") || []
   );
+  const updateDailyRates = (newRates) => {
+    setDailyRates(newRates);
+    storeSave("oceanstay_daily_rates_v1", newRates);
+    if (supabase && supabaseEnabled) {
+      (async () => {
+        try {
+          const { error } = await supabase.from("ocean_daily_rates").upsert({
+            id: "master_list",
+            data: newRates,
+            updated_at: new Date().toISOString(),
+          });
+          if (error) console.error(error);
+        } catch (e) {
+          console.error(e);
+        }
+      })();
+    }
+  };
+
+
 
   // 5. Store Data
   const [storeItems, setStoreItems] = useState(() =>
@@ -280,6 +304,13 @@ export default function App() {
           const cloudExp = await fetchMaster("ocean_expenses", "master_list");
           if (Array.isArray(cloudExp) && cloudExp.length) setExpenses(cloudExp);
         }
+        // 2.5) Daily Rates
+        if ((dailyRates || []).length === 0) {
+          const cloudRates = await fetchMaster("ocean_daily_rates", "master_list");
+          if (Array.isArray(cloudRates) && cloudRates.length) setDailyRates(cloudRates);
+        }
+
+
 
         // 3) Reservations (rows per reservation)
         if ((reservations || []).length === 0) {
@@ -473,6 +504,26 @@ export default function App() {
   useEffect(() => {
     storeSave("oceanstay_daily_rates_v1", dailyRates);
   }, [dailyRates]);
+
+  useEffect(() => {
+    if (!supabase || !supabaseEnabled) return;
+    // keep cloud copy of daily rates updated
+    (async () => {
+      try {
+        const { error } = await supabase.from("ocean_daily_rates").upsert({
+          id: "master_list",
+          data: dailyRates || [],
+          updated_at: new Date().toISOString(),
+        });
+        if (error) console.error(error);
+      } catch (e) {
+        // ignore hard fail (e.g., table not created yet)
+        console.error(e);
+      }
+    })();
+  }, [supabase, supabaseEnabled, dailyRates]);
+
+
 
   useEffect(() => {
     const s = storeLoad("ocean_settings_v1");
@@ -841,7 +892,7 @@ export default function App() {
         )}
 
         {page === "dailyRate" && (
-          <DailyRatePage dailyRates={dailyRates} setDailyRates={setDailyRates} />
+          <DailyRatePage dailyRates={dailyRates} setDailyRates={updateDailyRates} />
         )}
 
         {page === "revenue" && (
