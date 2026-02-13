@@ -395,10 +395,11 @@ useEffect(() => {
   (async () => {
     try {
       const r = await kvPullFromCloud();
-      if (r?.ok) {
-        sessionStorage.setItem(flag, "1");
-        window.location.reload(); // reload once so UI reads fresh localStorage
-      }
+if (r?.ok) {
+  sessionStorage.setItem(flag, "1");
+  // ✅ no reload
+}
+
     } catch {}
   })();
 }, [supabase]);
@@ -431,7 +432,7 @@ useEffect(() => {
 
           await kvPullFromCloud();
 
-          try { window.location.reload(); } catch {}
+          
         }
       )
       .subscribe();
