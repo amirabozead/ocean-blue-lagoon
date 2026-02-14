@@ -663,7 +663,7 @@ export default function ReportsPage({ reservations, expenses, extraRevenues, tot
       {renderMonthDetailModal()}
 
       {/* CSS Styles */}
-      <style jsx>{`
+      <style>{`
         .dashboard-container {
           padding: 30px;
           background-color: #f8fafc;

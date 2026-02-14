@@ -108,6 +108,150 @@ class PageErrorBoundary extends React.Component {
 
 const SafePage = ({ children }) => <PageErrorBoundary>{children}</PageErrorBoundary>;
 
+function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
+  const [employeeOrEmail, setEmployeeOrEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const normalizeEmail = (v) => {
+    const s = String(v || "").trim();
+    if (!s) return "";
+    // لو كتب Email صريح
+    if (s.includes("@")) return s.toLowerCase();
+    // لو كتب Employee ID
+    return `${s}@oceanstay.local`;
+  };
+
+  const handleLogin = async () => {
+    setErr("");
+    const email = normalizeEmail(employeeOrEmail);
+    if (!email || !password) {
+      setErr("Please enter Employee ID/Email and Password.");
+      return;
+    }
+    if (!supabase) {
+      setErr("Supabase is not configured. Open Settings and set URL/Anon Key.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+
+      const authUser = data?.user;
+      if (!authUser?.id) throw new Error("Auth user not returned.");
+
+      // اقرأ ملف المستخدم من app_users
+      let profile = null;
+      try {
+        const { data: p, error: pErr } = await supabase
+          .from("app_users")
+          .select("*")
+          .eq("id", authUser.id)
+          .maybeSingle();
+
+        if (pErr) throw pErr;
+        profile = p || null;
+      } catch (e) {
+        // لو الجدول مش جاهز/سياسات… نسيبها هنا
+        console.warn("Profile read error:", e);
+      }
+
+      // لو مفيش profile، اعمل واحد افتراضي (اختياري لكن مفيد)
+      if (!profile) {
+        try {
+          const fallback = {
+            id: authUser.id,
+            email: authUser.email,
+            full_name: authUser.email,
+            role: "viewer",
+            allowed_pages: ["dashboard"],
+          };
+          await supabase.from("app_users").upsert(fallback);
+          profile = fallback;
+        } catch (e) {
+          console.warn("Profile upsert error:", e);
+          profile = { id: authUser.id, email: authUser.email, role: "viewer", allowed_pages: ["dashboard"] };
+        }
+      }
+
+      // دخّل اليوزر في سيشن التطبيق
+      onLogin({
+        id: profile.id,
+        email: profile.email || authUser.email,
+        full_name: profile.full_name || "",
+        role: profile.role || "viewer",
+        allowedPages: profile.allowed_pages || ["dashboard"],
+      });
+    } catch (e) {
+      setErr(String(e?.message || e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#f8fafc", padding: 20 }}>
+      <div style={{ width: 420, maxWidth: "100%", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 18, padding: 22, boxShadow: "0 12px 30px rgba(15,23,42,0.08)" }}>
+        <div style={{ fontSize: 28, fontFamily: "'Brush Script MT', cursive", textAlign: "center", color: "#0ea5e9" }}>
+          Cloud Login
+        </div>
+        <div style={{ textAlign: "center", marginTop: 6, color: "#64748b", fontWeight: 700, fontSize: 12 }}>
+          Sign in to continue
+        </div>
+
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#475569", marginBottom: 6 }}>Employee ID or Email</div>
+          <input
+            value={employeeOrEmail}
+            onChange={(e) => setEmployeeOrEmail(e.target.value)}
+            className="input"
+            style={{ width: "100%" }}
+            placeholder="admin  OR  admin@oceanstay.local"
+          />
+        </div>
+
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#475569", marginBottom: 6 }}>Password</div>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="input"
+            style={{ width: "100%" }}
+            placeholder="••••••••"
+          />
+        </div>
+
+        {err && (
+          <div style={{ marginTop: 12, background: "#fff1f2", border: "1px solid #fecaca", padding: 10, borderRadius: 12, color: "#9f1239", fontWeight: 800, fontSize: 12 }}>
+            {err}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+          <button
+            onClick={handleLogin}
+            disabled={busy}
+            style={{ flex: 1, background: "#0ea5e9", color: "#fff", border: "none", padding: "12px 14px", borderRadius: 12, fontWeight: 900, cursor: "pointer" }}
+          >
+            {busy ? "Signing in..." : "LOGIN"}
+          </button>
+          <button
+            onClick={onOpenCloudSettings}
+            style={{ background: "#f1f5f9", color: "#0f172a", border: "1px solid #e2e8f0", padding: "12px 14px", borderRadius: 12, fontWeight: 900, cursor: "pointer" }}
+          >
+            SETTINGS
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 /* ================= APP COMPONENT ================= */
 export default function App() {
   const [page, setPage] = useState("dashboard");
@@ -880,12 +1024,14 @@ if (supabase && supabaseEnabled) {
         />
       );
     if (supabaseEnabled && supabase)
-      return (
-        <SupabaseLoginScreen
-          supabase={supabase}
-          onOpenCloudSettings={() => setPreAuthScreen("cloud")}
-        />
-      );
+  return (
+    <SupabaseLoginInline
+      supabase={supabase}
+      onLogin={doLogin}
+      onOpenCloudSettings={() => setPreAuthScreen("cloud")}
+    />
+  );
+
     return (
       <SecurityLoginScreen
         users={users}
