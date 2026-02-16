@@ -6,7 +6,7 @@ import {
 } from "react-icons/fa";
 
 // تأكد من المسارات دي عندك
-import { money, uid, isoNow } from "../utils/helpers"; 
+import { money, uid, isoNow, roundTo2 } from "../utils/helpers"; 
 
 const HOTEL_LOGO = "/logo.png"; 
 
@@ -51,7 +51,7 @@ export default function StorePage({ items, setItems, moves, setMoves, suppliers,
     const list = items || [];
     const totalItems = list.length;
     const totalUnits = list.reduce((a, it) => a + Number(it.stock || 0), 0);
-    const invValue = list.reduce((a, it) => a + Number(it.stock || 0) * Number(it.cost || 0), 0);
+    const invValue = roundTo2(list.reduce((a, it) => a + Number(it.stock || 0) * Number(it.cost || 0), 0));
     const lowCount = list.filter((it) => Number(it.stock || 0) <= Number(it.minStock || 0)).length;
     return { totalItems, totalUnits, invValue, lowCount };
   }, [items]);

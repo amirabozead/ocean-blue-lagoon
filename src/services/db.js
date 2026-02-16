@@ -141,22 +141,76 @@ async function cloudSetReservations(list) {
 
 /** -------------------------
  * Daily Rates (ROWS) — ocean_daily_rates
- * Each row: { id, data, updated_at }
+ * Table columns: room_type, date_from, date_to, nightly_rate, pkg_bb, pkg_hb, pkg_fb, updated_at
+ * NOTE: Upsert uses onConflict: "room_type,date_from,date_to" -> requires UNIQUE constraint on (room_type,date_from,date_to)
  * -------------------------- */
+function _normIsoDate(v) {
+  if (!v) return null;
+  if (typeof v === "string") return v.slice(0, 10);
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  return null;
+}
+function _num(v, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+function _readPkg(r, keyLower) {
+  // supports: r.packages.{BB,HB,FB} OR r.pkg_bb/r.bb etc.
+  const k = String(keyLower || "").toLowerCase();
+  if (r?.packages && typeof r.packages === "object") {
+    if (k === "bb") return _num(r.packages.BB ?? r.packages.bb ?? 0, 0);
+    if (k === "hb") return _num(r.packages.HB ?? r.packages.hb ?? 0, 0);
+    if (k === "fb") return _num(r.packages.FB ?? r.packages.fb ?? 0, 0);
+  }
+  if (k === "bb") return _num(r.bb ?? r.pkg_bb ?? 0, 0);
+  if (k === "hb") return _num(r.hb ?? r.pkg_hb ?? 0, 0);
+  if (k === "fb") return _num(r.fb ?? r.pkg_fb ?? 0, 0);
+  return 0;
+}
+
 async function cloudGetDailyRates() {
   const supa = getClient();
   if (!supa) throw new Error("Supabase not configured");
 
   const { data, error } = await supa
     .from("ocean_daily_rates")
-    .select("id, data, updated_at")
-    .order("updated_at", { ascending: false });
+    .select("room_type,date_from,date_to,nightly_rate,pkg_bb,pkg_hb,pkg_fb,updated_at")
+    .limit(10000);
 
   if (error) throw error;
 
-  // return array of payloads
   return (data || [])
-    .map((r) => (r?.data && typeof r.data === "object" ? { ...r.data, id: r.data.id || r.id } : null))
+    .map((r) => {
+      const roomType = r.room_type;
+      const from = _normIsoDate(r.date_from);
+      const to = _normIsoDate(r.date_to);
+      if (!roomType || !from || !to) return null;
+
+      return {
+        id: `${roomType}__${from}__${to}`, // stable local id
+        roomType,
+        room_type: roomType,
+        from,
+        to,
+        date_from: from,
+        date_to: to,
+        rate: _num(r.nightly_rate ?? 0, 0),
+        nightlyRate: _num(r.nightly_rate ?? 0, 0),
+        nightly_rate: _num(r.nightly_rate ?? 0, 0),
+        pkg_bb: _num(r.pkg_bb ?? 0, 0),
+        pkg_hb: _num(r.pkg_hb ?? 0, 0),
+        pkg_fb: _num(r.pkg_fb ?? 0, 0),
+        bb: _num(r.pkg_bb ?? 0, 0),
+        hb: _num(r.pkg_hb ?? 0, 0),
+        fb: _num(r.pkg_fb ?? 0, 0),
+        packages: {
+          BB: _num(r.pkg_bb ?? 0, 0),
+          HB: _num(r.pkg_hb ?? 0, 0),
+          FB: _num(r.pkg_fb ?? 0, 0),
+        },
+        updatedAt: r.updated_at || null,
+      };
+    })
     .filter(Boolean);
 }
 
@@ -165,44 +219,41 @@ async function cloudSetDailyRates(rates) {
   if (!supa) throw new Error("Supabase not configured");
 
   const arr = Array.isArray(rates) ? rates : [];
-  const normalized = arr.map((x) => {
-    const id = x?.id || (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
-    return { id, data: { ...x, id }, updated_at: new Date().toISOString() };
-  });
+  const rows = arr
+    .map((r) => {
+      const room_type = String(r.roomType ?? r.room_type ?? "").trim();
+      const date_from = _normIsoDate(r.from ?? r.date_from ?? r.dateFrom);
+      const date_to_raw = _normIsoDate(r.to ?? r.date_to ?? r.dateTo) || date_from;
+      const date_to = date_from && date_to_raw && date_to_raw < date_from ? date_from : date_to_raw;
 
-  if (normalized.length) {
-    const { error: upErr } = await supa
-      .from("ocean_daily_rates")
-      .upsert(normalized, { onConflict: "id" });
-    if (upErr) throw upErr;
-  }
+      if (!room_type || !date_from || !date_to) return null;
 
-  // delete removed
-  const keepIds = normalized.map((x) => x.id);
+      return {
+        room_type,
+        date_from,
+        date_to,
+        nightly_rate: _num(r.nightlyRate ?? r.nightly_rate ?? r.rate ?? 0, 0),
+        pkg_bb: _readPkg(r, "bb"),
+        pkg_hb: _readPkg(r, "hb"),
+        pkg_fb: _readPkg(r, "fb"),
+        updated_at: new Date().toISOString(),
+      };
+    })
+    .filter(Boolean);
 
-  const { data: existing, error: exErr } = await supa
+  if (!rows.length) return true;
+
+  const { error } = await supa
     .from("ocean_daily_rates")
-    .select("id");
+    .upsert(rows, { onConflict: "room_type,date_from,date_to" });
 
-  if (exErr) throw exErr;
-
-  const existingIds = (existing || []).map((x) => x.id).filter(Boolean);
-  const toDelete = existingIds.filter((id) => !keepIds.includes(id));
-
-  if (toDelete.length) {
-    const { error: delErr } = await supa
-      .from("ocean_daily_rates")
-      .delete()
-      .in("id", toDelete);
-
-    if (delErr) throw delErr;
-  }
-
+  if (error) throw error;
   return true;
 }
+
 /* --------------------------
  * Expenses (ROWS) — ocean_expenses
- * Each row: { id, data, updated_at }
+ * Table columns: id, expense_date, category, vendor, description, amount, method, ref, updated_at
  * -------------------------- */
 async function cloudGetExpenses() {
   const supa = getClient();
@@ -210,13 +261,29 @@ async function cloudGetExpenses() {
 
   const { data, error } = await supa
     .from("ocean_expenses")
-    .select("id, data, updated_at")
-    .order("updated_at", { ascending: false });
+    .select("id,expense_date,category,vendor,description,amount,method,ref,updated_at")
+    .limit(10000);
 
   if (error) throw error;
 
   return (data || [])
-    .map((r) => (r?.data && typeof r.data === "object" ? { ...r.data, id: r.data.id || r.id } : null))
+    .map((r) => {
+      const id = r.id || null;
+      const date = _normIsoDate(r.expense_date);
+      if (!id || !date) return null;
+      return {
+        id,
+        date, // app uses `date`
+        expense_date: date,
+        category: r.category || "",
+        vendor: r.vendor || "",
+        description: r.description || "",
+        amount: _num(r.amount ?? 0, 0),
+        method: r.method || "",
+        ref: r.ref || "",
+        updatedAt: r.updated_at || null,
+      };
+    })
     .filter(Boolean);
 }
 
@@ -225,93 +292,36 @@ async function cloudSetExpenses(expenses) {
   if (!supa) throw new Error("Supabase not configured");
 
   const arr = Array.isArray(expenses) ? expenses : [];
-  const normalized = arr.map((x) => {
-    const id = x?.id || (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
-    return { id, data: { ...x, id }, updated_at: new Date().toISOString() };
-  });
+  const rows = arr
+    .map((x) => {
+      const id = x?.id || (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
+      const expense_date = _normIsoDate(x.expense_date || x.date);
+      if (!expense_date) return null;
+      return {
+        id,
+        expense_date,
+        category: x.category || "",
+        vendor: x.vendor || "",
+        description: x.description || "",
+        amount: _num(x.amount ?? 0, 0),
+        method: x.method || "",
+        ref: x.ref || "",
+        updated_at: new Date().toISOString(),
+      };
+    })
+    .filter(Boolean);
 
-  if (normalized.length) {
-    const { error: upErr } = await supa
-      .from("ocean_expenses")
-      .upsert(normalized, { onConflict: "id" });
-    if (upErr) throw upErr;
-  }
+  if (!rows.length) return true;
 
-  // delete removed
-  const keepIds = normalized.map((x) => x.id);
-
-  const { data: existing, error: exErr } = await supa
+  const { error } = await supa
     .from("ocean_expenses")
-    .select("id");
+    .upsert(rows, { onConflict: "id" });
 
-  if (exErr) throw exErr;
-
-  const existingIds = (existing || []).map((x) => x.id).filter(Boolean);
-  const toDelete = existingIds.filter((id) => !keepIds.includes(id));
-
-  if (toDelete.length) {
-    const { error: delErr } = await supa
-      .from("ocean_expenses")
-      .delete()
-      .in("id", toDelete);
-
-    if (delErr) throw delErr;
-  }
-
+  if (error) throw error;
   return true;
 }
 
-const LS_DAILY_RATES = "oceanstay_daily_rates";
-const LS_EXPENSES = "ocean_expenses_v1";
-const LS_SETTINGS = "ocean_settings_v1";
 
-function lsGet(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw);
-  } catch {
-    return fallback;
-  }
-}
-function lsSet(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {}
-}
-
-function localGetDailyRates() {
-  const v = lsGet(LS_DAILY_RATES, []);
-  return Array.isArray(v) ? v : [];
-}
-function localSetDailyRates(rates) {
-  lsSet(LS_DAILY_RATES, Array.isArray(rates) ? rates : []);
-  return true;
-}
-
-function localGetExpenses() {
-  const v = lsGet(LS_EXPENSES, []);
-  return Array.isArray(v) ? v : [];
-}
-function localSetExpenses(expenses) {
-  lsSet(LS_EXPENSES, Array.isArray(expenses) ? expenses : []);
-  return true;
-}
-
-function localGetSettings() {
-  const v = lsGet(LS_SETTINGS, {});
-  return v && typeof v === "object" ? v : {};
-}
-function localSetSettings(settingsObj) {
-  const obj = settingsObj && typeof settingsObj === "object" ? settingsObj : {};
-  lsSet(LS_SETTINGS, obj);
-  return true;
-}
-
-/* --------------------------
- * Settings (ROWS) — ocean_settings
- * Each row: { id: setting_key, data: { value }, updated_at }
- * -------------------------- */
 async function cloudGetSettings() {
   const supa = getClient();
   if (!supa) throw new Error("Supabase not configured");
@@ -378,22 +388,83 @@ async function cloudSetSettings(settingsObj) {
 }
 
 /** -------------------------
- * Local fallback (window.db)
+ * Local fallback (window.db + localStorage)
  * -------------------------- */
+const LS_SETTINGS = "ocean_settings_v1";
+const LS_DAILY_RATES = "oceanstay_daily_rates_v1";
+const LS_EXPENSES = "ocean_expenses_v1";
+
 function localGetAll() {
   if (!window?.db?.getAll) return [];
   return window.db.getAll();
 }
 
 function localSetAll(list) {
-  // if your local db supports bulk replace, use it.
-  // fallback: naive clear+add if exists
   if (window?.db?.setAll) return window.db.setAll(list);
   if (window?.db?.clear && window?.db?.bulkAdd) {
     return window.db.clear().then(() => window.db.bulkAdd(list));
   }
-  // last resort: do nothing
   return list;
+}
+
+function localGetSettings() {
+  try {
+    const raw = localStorage.getItem(LS_SETTINGS);
+    const data = raw ? safeJsonParse(raw) : null;
+    return data && typeof data === "object" ? data : {};
+  } catch {
+    return {};
+  }
+}
+
+function localSetSettings(settingsObj) {
+  try {
+    const obj = settingsObj && typeof settingsObj === "object" ? settingsObj : {};
+    localStorage.setItem(LS_SETTINGS, JSON.stringify(obj));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function localGetDailyRates() {
+  try {
+    const raw = localStorage.getItem(LS_DAILY_RATES);
+    const data = raw ? safeJsonParse(raw) : null;
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+function localSetDailyRates(rates) {
+  try {
+    const arr = Array.isArray(rates) ? rates : [];
+    localStorage.setItem(LS_DAILY_RATES, JSON.stringify(arr));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function localGetExpenses() {
+  try {
+    const raw = localStorage.getItem(LS_EXPENSES);
+    const data = raw ? safeJsonParse(raw) : null;
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+function localSetExpenses(expenses) {
+  try {
+    const arr = Array.isArray(expenses) ? expenses : [];
+    localStorage.setItem(LS_EXPENSES, JSON.stringify(arr));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export const db = {

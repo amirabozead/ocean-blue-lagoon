@@ -37,12 +37,13 @@ export default function DailyRatePage({ dailyRates, setDailyRates }) {
       const dayStr = d.toISOString().slice(0, 10);
       
       const safeRates = Array.isArray(dailyRates) ? dailyRates : [];
-      const match = safeRates.find((r) => r.roomType === previewType && rateCoversDay(r, dayStr));
+      const match = safeRates.find((r) => (r.roomType ?? r.room_type) === previewType && rateCoversDay(r, dayStr));
       
+      const rateVal = match ? (match.rate ?? match.nightlyRate ?? match.nightly_rate ?? null) : null;
       return {
         date: dayStr,
         label: d.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short" }),
-        rate: match ? match.rate : null,
+        rate: rateVal,
         status: match ? "Set" : "Empty",
       };
     });
@@ -50,8 +51,10 @@ export default function DailyRatePage({ dailyRates, setDailyRates }) {
 
   const filteredRates = useMemo(() => {
     return (dailyRates || []).filter(r => {
-      if (filterRoom !== "All" && r.roomType !== filterRoom) return false;
-      const rateDate = new Date(r.from);
+      const roomType = r.roomType ?? r.room_type;
+      const from = r.from ?? r.date_from;
+      if (filterRoom !== "All" && roomType !== filterRoom) return false;
+      const rateDate = new Date(from);
       if (filterMonth !== "All" && (rateDate.getMonth() + 1) !== Number(filterMonth)) return false;
       if (filterYear !== "All" && rateDate.getFullYear() !== Number(filterYear)) return false;
       return true;
@@ -86,15 +89,23 @@ export default function DailyRatePage({ dailyRates, setDailyRates }) {
   };
 
   const handleEdit = (r) => {
-    setEditingRateId(r.id);
+    const id = r.id ?? `${r.roomType ?? r.room_type}__${r.from ?? r.date_from}__${r.to ?? r.date_to}`;
+    setEditingRateId(id);
+    const roomType = r.roomType ?? r.room_type;
+    const from = r.from ?? r.date_from;
+    const to = r.to ?? r.date_to;
+    const rate = r.rate ?? r.nightlyRate ?? r.nightly_rate ?? "";
+    const pkgBB = r.packages?.BB ?? r.pkg_bb ?? r.bb ?? "";
+    const pkgHB = r.packages?.HB ?? r.pkg_hb ?? r.hb ?? "";
+    const pkgFB = r.packages?.FB ?? r.pkg_fb ?? r.fb ?? "";
     setRateForm({
-      roomType: r.roomType,
-      from: r.from,
-      to: r.to,
-      rate: r.rate,
-      pkgBB: r.packages?.BB || "",
-      pkgHB: r.packages?.HB || "",
-      pkgFB: r.packages?.FB || "",
+      roomType: roomType || "Standard Double Room",
+      from: from || "",
+      to: to || "",
+      rate: rate,
+      pkgBB: pkgBB !== undefined && pkgBB !== null ? pkgBB : "",
+      pkgHB: pkgHB !== undefined && pkgHB !== null ? pkgHB : "",
+      pkgFB: pkgFB !== undefined && pkgFB !== null ? pkgFB : "",
     });
   };
 
@@ -310,27 +321,40 @@ export default function DailyRatePage({ dailyRates, setDailyRates }) {
               {filteredRates.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "30px", color: "#94a3b8" }}>No rates found matching filters.</div>
               ) : (
-                filteredRates.map((r) => (
-                  <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "15px", marginBottom: "10px", background: "white", border: "1px solid #f1f5f9", borderRadius: "12px", boxShadow: "0 2px 5px rgba(0,0,0,0.02)" }}>
+                filteredRates.map((r) => {
+                  const rId = r.id ?? `${r.roomType ?? r.room_type ?? "rt"}__${r.from ?? r.date_from ?? ""}__${r.to ?? r.date_to ?? ""}`;
+                  const roomType = r.roomType ?? r.room_type ?? "";
+                  const from = r.from ?? r.date_from ?? "";
+                  const to = r.to ?? r.date_to ?? "";
+                  const rate = r.rate ?? r.nightlyRate ?? r.nightly_rate ?? 0;
+                  const bb = r.packages?.BB ?? r.pkg_bb ?? r.bb ?? 0;
+                  const hb = r.packages?.HB ?? r.pkg_hb ?? r.hb ?? 0;
+                  const fb = r.packages?.FB ?? r.pkg_fb ?? r.fb ?? 0;
+                  return (
+                  <div key={rId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "15px", marginBottom: "10px", background: "white", border: "1px solid #f1f5f9", borderRadius: "12px", boxShadow: "0 2px 5px rgba(0,0,0,0.02)" }}>
                     <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
-                      <div style={{ height: "40px", width: "4px", background: r.roomType.includes("Standard") ? "#06b6d4" : "#8b5cf6", borderRadius: "2px" }}></div>
+                      <div style={{ height: "40px", width: "4px", background: roomType.includes("Standard") ? "#06b6d4" : "#8b5cf6", borderRadius: "2px" }}></div>
                       <div>
-                        <div style={{ fontWeight: "bold", color: "#1e293b" }}>{r.roomType}</div>
-                        <div style={{ fontSize: "12px", color: "#64748b" }}>{r.from} ➔ {r.to}</div>
+                        <div style={{ fontWeight: "bold", color: "#1e293b" }}>{roomType}</div>
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>{from} ➔ {to}</div>
                         <div style={{ fontSize: "14px", color: "#64748b", marginTop: "5px", fontWeight: "normal" }}>
-                          Add-ons: BB ${r.packages?.BB || 0} • HB ${r.packages?.HB || 0} • FB ${r.packages?.FB || 0}
+                          Add-ons: BB ${bb} • HB ${hb} • FB ${fb}
                         </div>
                       </div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-                      <span style={{ fontSize: "18px", fontWeight: "bold", color: "#0f172a" }}>${r.rate}</span>
+                      <span style={{ fontSize: "18px", fontWeight: "bold", color: "#0f172a" }}>${rate}</span>
                       <div style={{ display: "flex", gap: "10px" }}>
                         <button onClick={() => handleEdit(r)} style={{ background: "#eff6ff", color: "#3b82f6", border: "none", padding: "8px", borderRadius: "8px", cursor: "pointer" }}><FaEdit /></button>
-                        <button onClick={() => setDailyRates(prev => prev.filter(x => x.id !== r.id))} style={{ background: "#fef2f2", color: "#ef4444", border: "none", padding: "8px", borderRadius: "8px", cursor: "pointer" }}><FaTrash /></button>
+                        <button onClick={() => {
+                          const getId = (x) => x.id != null ? x.id : (x.roomType ?? x.room_type) + "__" + (x.from ?? x.date_from) + "__" + (x.to ?? x.date_to);
+                          setDailyRates(prev => prev.filter(x => getId(x) !== rId));
+                        }} style={{ background: "#fef2f2", color: "#ef4444", border: "none", padding: "8px", borderRadius: "8px", cursor: "pointer" }}><FaTrash /></button>
                       </div>
                     </div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

@@ -32,6 +32,7 @@ import {
   Cell,
   Legend,
 } from "recharts";
+import { roundTo2 } from "../utils/helpers";
 
 const HOTEL_LOGO = "/logo.png";
 
@@ -308,15 +309,17 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
         return d >= startDate && d <= endDate;
       });
 
-    const manualTotal = manualTransactions.reduce((sum, i) => sum + Number(i?.amount || 0), 0);
+    const manualTotal = roundTo2(manualTransactions.reduce((sum, i) => sum + Number(i?.amount || 0), 0));
 
     const calcManual = (type) =>
-      manualTransactions
-        .filter((i) => i?.type === type)
-        .reduce((sum, i) => sum + Number(i?.amount || 0), 0);
+      roundTo2(
+        manualTransactions
+          .filter((i) => i?.type === type)
+          .reduce((sum, i) => sum + Number(i?.amount || 0), 0)
+      );
 
     const revenue = {
-      rooms: roomRevenue,
+      rooms: roundTo2(roomRevenue),
       fb: calcManual("F&B"),
       laundry: calcManual("Laundry"),
       spa: calcManual("Spa"),
@@ -324,7 +327,7 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
       services: calcManual("Services"),
     };
 
-    const totalRevenue = roomRevenue + manualTotal;
+    const totalRevenue = roundTo2(roomRevenue + manualTotal);
 
     const chartData = Object.keys(timelineMap)
       .map((date) => ({

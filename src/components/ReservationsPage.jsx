@@ -22,23 +22,27 @@ import {
   FaListUl,
   FaLayerGroup,
   FaChartPie,
+  FaGlobeAmericas,
+  FaCreditCard,
 } from "react-icons/fa";
-import { FILTER_TABS, BASE_ROOMS } from "../data/constants";
-import { statusPillClass, isDateBetween, storeLoad } from "../utils/helpers";
+import { FILTER_TABS, BASE_ROOMS, BOOKING_CHANNELS, PAYMENT_METHODS } from "../data/constants";
+import { statusPillClass, isDateBetween, storeLoad, calcNights as calcNightsHelper } from "../utils/helpers";
 import SearchModal from "./SearchModal";
 
 const HOTEL_LOGO = "/logo.png";
 
-const TH = ({ icon, label, title, center }) => (
+const cellPadding = "8px 5px";
+const TH = ({ icon, label, title, center, right }) => (
   <th
     style={{
-      padding: "14px 16px",
-      textAlign: center ? "center" : "left",
+      padding: cellPadding,
+      textAlign: right ? "right" : center ? "center" : "left",
       color: "#475569",
       fontSize: "0.82rem",
       textTransform: "uppercase",
       letterSpacing: "0.5px",
       whiteSpace: "nowrap",
+      verticalAlign: "middle",
     }}
     title={title || label}
   >
@@ -117,14 +121,20 @@ const norm = (s) => String(s ?? "").trim().toLowerCase();
 const isBooked = (status) => norm(status) === "booked";
 
 const normStatus = (s) => norm(s || "");
+/** Include any status that represents a real stay (for room nights sold / occupancy). Exclude only Cancelled and Out of Service. */
 const statusCountsForSales = (status) => {
   const t = normStatus(status);
+  if (t === "cancelled" || t === "canceled") return false;
+  if (/out\s*of\s*service|oos|maintenance/i.test(t)) return false;
   return (
     t === "booked" ||
     t === "confirmed" ||
     t === "in house" ||
     t === "checked in" ||
+    t === "checked out" ||
+    t === "checked-out" ||
     (t.includes("check") && t.includes("in")) ||
+    (t.includes("check") && t.includes("out")) ||
     (t.includes("in") && t.includes("house"))
   );
 };
@@ -139,6 +149,16 @@ const getRoomNumber = (r) =>
   r?.room?.roomNumber ?? r?.roomNumber ?? r?.room_no ?? r?.room?.number ?? r?.room?.no ?? "";
 
 const getPaymentMethod = (r) => r?.paymentMethod ?? r?.payment?.method ?? r?.payment_method ?? "";
+const getChannel = (r) => r?.channel ?? r?.source ?? "";
+const channelDisplayLabel = (ch) => (ch === "Direct booking" || !ch) ? "Direct" : ch;
+const normPayment = (p) => (/credit\s*card|card/i.test(String(p || "")) ? "Credit Card" : "Cash");
+
+const statusDisplayLabel = (s) => {
+  const t = String(s ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+  if (/check[- ]?out|checkout|checked[- ]?out/.test(t)) return "C-Out";
+  if (/check[- ]?in|checkin|checked[- ]?in/.test(t)) return "C-In";
+  return s ?? "";
+};
 
 const getTotal = (r) => toNumber(r?.pricing?.total ?? r?.total ?? r?.amount ?? 0, 0);
 
@@ -176,11 +196,18 @@ const calcPax = (r) => {
   return 0;
 };
 
+// Room revenue = room only (exclude F&B and all tax). F&B shown separately; Total = Room + F&B.
 const calcRoomRevenue = (r) => {
-  const direct = r?.pricing?.roomRevenue ?? r?.pricing?.roomTotal ?? r?.pricing?.roomAmount ?? r?.roomRevenue ?? null;
+  const p = r?.pricing;
+  const roomBase = p?.roomBase;
+  if (roomBase !== null && roomBase !== undefined) {
+    return Math.max(0, toNumber(roomBase, 0));
+  }
+
+  const direct = p?.roomRevenue ?? p?.roomTotal ?? p?.roomAmount ?? r?.roomRevenue ?? null;
   if (direct !== null && direct !== undefined && String(direct) !== "") return Math.max(0, toNumber(direct, 0));
 
-  const nightly = r?.pricing?.nightly;
+  const nightly = p?.nightly;
   if (Array.isArray(nightly) && nightly.length) {
     return Math.max(
       0,
@@ -192,15 +219,23 @@ const calcRoomRevenue = (r) => {
     );
   }
 
-  return Math.max(0, toNumber(r?.pricing?.total, 0));
+  // Fallback: use pre-tax subtotal (total minus tax/service/city) so Room $ never includes tax
+  const totalVal = toNumber(p?.total, 0);
+  const taxVal = toNumber(p?.taxAmount, 0);
+  const serviceVal = toNumber(p?.serviceAmount, 0);
+  const cityVal = toNumber(p?.cityTaxAmount, 0);
+  if (totalVal > 0 && (taxVal > 0 || serviceVal > 0 || cityVal > 0)) {
+    return Math.max(0, totalVal - taxVal - serviceVal - cityVal);
+  }
+  return Math.max(0, totalVal);
 };
 
 const calcFnbRevenue = (r) => {
   const direct =
     r?.pricing?.fnbRevenue ??
-    r?.pricing?.fnbRevenue ??
     r?.pricing?.foodBeverageRevenue ??
     r?.pricing?.foodRevenue ??
+    r?.pricing?.mealBase ??
     r?.pricing?.packageRevenue ??
     r?.pricing?.packagesTotal ??
     r?.pricing?.extras?.foodBeverage ??
@@ -275,7 +310,12 @@ export default function ReservationsPage({
     }
 
     if (f.paymentMethod && f.paymentMethod !== "All") {
-      if (norm(pm) !== norm(f.paymentMethod)) return false;
+      const filterPm = normPayment(f.paymentMethod);
+      if (normPayment(pm) !== filterPm) return false;
+    }
+    if (f.channel && f.channel !== "All") {
+      const resChannel = String(getChannel(r)).trim() || "Direct booking";
+      if (resChannel !== f.channel) return false;
     }
 
     const total = getTotal(r);
@@ -364,12 +404,18 @@ export default function ReservationsPage({
   const headerKpis = useMemo(() => {
     const today = new Date().toISOString().split("T")[0];
     const safe = Array.isArray(reservations) ? reservations : [];
-    const totalRooms = Array.isArray(BASE_ROOMS) ? BASE_ROOMS.length : 0;
+    const totalRoomsBase = Array.isArray(BASE_ROOMS) ? BASE_ROOMS.length : 0;
+    const roomPhysicalStatus = storeLoad("ocean_room_physical_v1", {}) || {};
+    const oosCount = Object.values(roomPhysicalStatus).filter((v) => {
+      const s = String(v || "").toLowerCase();
+      return /out\s*of\s*service|oos|maintenance/i.test(s);
+    }).length;
+    const totalRooms = Math.max(0, totalRoomsBase - oosCount);
 
     const rangeStart = kpiMode === "MTD" ? startOfMonthYMD(today) : kpiMode === "YTD" ? startOfYearYMD(today) : today;
     const rangeEndExclusive = addDays(today, 1);
-    const rangeNights = diffDays(rangeStart, rangeEndExclusive);
-    const totalCapacityNights = totalRooms * Math.max(1, rangeNights);
+    const rangeNights = Math.max(1, diffDays(rangeStart, rangeEndExclusive));
+    const totalCapacityNights = totalRooms * rangeNights;
 
     const inHouseRoomSetToday = new Set();
     let soldRoomNights = 0;
@@ -384,22 +430,23 @@ export default function ReservationsPage({
       const roomNo = String(getRoomNumber(r) ?? "").trim();
       if (!ci || !co) continue;
 
-      if (isDateBetween(today, ci, co) && roomNo) {
+      const ciYMD = String(ci).slice(0, 10);
+      const coYMD = String(co).slice(0, 10);
+
+      if (isDateBetween(today, ciYMD, coYMD) && roomNo) {
         inHouseRoomSetToday.add(roomNo);
       }
 
-      const ciYMD = String(ci || "").slice(0, 10);
-      const coYMD = String(co || "").slice(0, 10);
       const overlapStart = ciYMD > rangeStart ? ciYMD : rangeStart;
       const overlapEnd = coYMD < rangeEndExclusive ? coYMD : rangeEndExclusive;
-      const nights = diffDays(overlapStart, overlapEnd);
-      soldRoomNights += nights;
+      if (overlapStart < overlapEnd) {
+        const nights = diffDays(overlapStart, overlapEnd);
+        soldRoomNights += nights;
+      }
 
-      const tCI = new Date(ci).getTime();
-      const tToday = new Date(today).getTime();
-      if (Number.isFinite(tCI) && Number.isFinite(tToday) && tCI > tToday) {
+      if (ciYMD > today) {
         futureResCount += 1;
-        futureRoomNights += calcRoomNights(r);
+        futureRoomNights += calcNightsHelper(ci, co);
       }
     }
 
@@ -407,7 +454,7 @@ export default function ReservationsPage({
     const roomsAvailableToday = Math.max(0, totalRooms - roomsSoldToday);
     const occPctToday = totalRooms > 0 ? (roomsSoldToday / totalRooms) * 100 : 0;
 
-    const capacityNightsSafe = Math.max(1, totalCapacityNights);
+    const capacityNightsSafe = Math.max(0, totalCapacityNights);
     const availableRoomNights = Math.max(0, capacityNightsSafe - soldRoomNights);
     const occPctRange = capacityNightsSafe > 0 ? (soldRoomNights / capacityNightsSafe) * 100 : 0;
 
@@ -416,7 +463,7 @@ export default function ReservationsPage({
       mode: kpiMode,
       rangeStart,
       rangeEnd: today,
-      rangeNights: Math.max(1, rangeNights),
+      rangeNights,
       roomsSoldToday,
       roomsAvailableToday,
       occPctToday,
@@ -483,10 +530,15 @@ export default function ReservationsPage({
   return (
     <div
       style={{
-        padding: "30px",
+        padding: "24px 20px",
         background: "#f8fafc",
         minHeight: "100vh",
         fontFamily: "Segoe UI, Inter, sans-serif",
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
+        overflowX: "hidden",
       }}
     >
       {/* HEADER */}
@@ -709,35 +761,66 @@ export default function ReservationsPage({
         ))}
       </div>
 
-      {/* Table */}
+      {/* Table: fit horizontally, sticky header on vertical scroll */}
       <div
         style={{
           background: "#fff",
           borderRadius: 16,
           boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
           border: "1px solid #f1f5f9",
-          overflowX: "auto",
-          overflowY: "hidden",
+          overflowX: "hidden",
+          overflowY: "auto",
           width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          maxHeight: "calc(100vh - 280px)",
         }}
       >
-        <table style={{ width: "100%", minWidth: 1250, borderCollapse: "collapse" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
           <thead style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-            <tr>
+            <tr
+              style={{
+                position: "sticky",
+                top: 0,
+                zIndex: 2,
+                background: "#f8fafc",
+                boxShadow: "0 1px 0 0 #e2e8f0",
+              }}
+            >
               <TH icon={<FaUser size={14} />} label="Guest" title="Guest Info" />
-              <TH icon={<FaDoorOpen size={14} />} label="Room" title="Room" />
-              <TH icon={<FaTag size={14} />} label="Sts" title="Status" />
-              <TH icon={<FaSignInAlt size={14} />} label="C/In" title="Check-in Date" />
-              <TH icon={<FaSignOutAlt size={14} />} label="C/Out" title="Check-out Date" />
-              <TH icon={<FaMoon size={14} />} label="RN" title="Total Room Nights" />
-              <TH icon={<FaUsers size={14} />} label="Pax" title="Number of Pax" />
+              <th
+                style={{
+                  padding: cellPadding,
+                  paddingLeft: "16px",
+                  textAlign: "center",
+                  color: "#475569",
+                  fontSize: "0.82rem",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                  whiteSpace: "nowrap",
+                  verticalAlign: "middle",
+                }}
+                title="Room"
+              >
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ color: "#94a3b8", display: "inline-flex" }}><FaDoorOpen size={14} /></span>
+                  <span>Room</span>
+                </span>
+              </th>
+              <TH icon={<FaGlobeAmericas size={14} />} label="Channel" title="Booking channel" center />
+              <TH icon={<FaCreditCard size={14} />} label="Pay" title="Payment method" center />
+              <TH icon={<FaTag size={14} />} label="Sts" title="Status" center />
+              <TH icon={<FaSignInAlt size={14} />} label="C/In" title="Check-in Date" right />
+              <TH icon={<FaSignOutAlt size={14} />} label="C/Out" title="Check-out Date" right />
+              <TH icon={<FaMoon size={14} />} label="RN" title="Total Room Nights" center />
+              <TH icon={<FaUsers size={14} />} label="Pax" title="Number of Pax" center />
+              <TH icon={<FaUtensils size={14} />} label="F&B" title="Meal Plan (BO/BB/HB/FB)" center />
 
-              {/* NEW COLUMN: Rate */}
-              <TH icon={<FaTag size={14} />} label="Rate" title="Avg Nightly Rate" />
+              <TH icon={<FaTag size={14} />} label="Rate" title="Room rate per night (excl. F&B and tax)" right />
 
-              <TH icon={<FaBed size={14} />} label="Room $" title="Room Revenue" />
-              <TH icon={<FaUtensils size={14} />} label="F&B $" title="Food & Beverage Revenue" />
-              <TH icon={<FaCoins size={14} />} label="Total $" title="Total Revenue" />
+              <TH icon={<FaBed size={14} />} label="Room $" title="Room revenue (excl. tax)" right />
+              <TH icon={<FaUtensils size={14} />} label="F&B $" title="F&B revenue (excl. tax)" right />
+              <TH icon={<FaCoins size={14} />} label="Total $" title="Room + F&B revenue (excl. tax)" right />
               <TH icon={<FaBolt size={14} />} label="Act" title="Actions" center />
             </tr>
           </thead>
@@ -749,9 +832,9 @@ export default function ReservationsPage({
                 const pax = calcPax(r);
                 const roomRev = calcRoomRevenue(r);
                 const fnbRev = calcFnbRevenue(r);
-                const totalRev = getTotal(r);
-
-                // Calculate Average Rate
+                // Total = room revenue + F&B revenue (pre-tax, no tax included)
+                const totalRev = roomRev + fnbRev;
+                // Rate = room rate only per night (excl. F&B packages and tax)
                 const avgRate = nights > 0 ? roomRev / nights : 0;
 
                 const first = getGuestFirstName(r);
@@ -766,90 +849,112 @@ export default function ReservationsPage({
                 return (
                   <tr
                     key={r?.id || i}
-                    style={{ borderBottom: "1px solid #f1f5f9", transition: "background 0.1s" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                    style={{
+                      borderBottom: "1px solid #f1f5f9",
+                      transition: "background 0.1s",
+                      cursor: isEditLocked(r) ? "default" : "pointer",
+                    }}
+                    onClick={(e) => {
+                      if (!isEditLocked(r)) {
+                        onEditReservation?.(r);
+                      }
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isEditLocked(r)) {
+                        e.currentTarget.style.background = "#f8fafc";
+                      }
+                    }}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
                   >
-                    <td style={{ padding: 16 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <td style={{ padding: cellPadding, verticalAlign: "middle", fontSize: "0.8rem" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div
                           style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 10,
+                            width: 32,
+                            height: 32,
+                            borderRadius: 8,
                             background: "#e0f2fe",
                             color: "#0369a1",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            fontWeight: 900,
-                            fontSize: "1.05rem",
+                            fontWeight: 400,
+                            fontSize: "0.85rem",
+                            flexShrink: 0,
                           }}
                         >
                           {(String(first || "G").charAt(0) || "G").toUpperCase()}
                         </div>
-                        <div>
-                          <div style={{ fontWeight: 900, color: "#1e293b" }}>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontWeight: 400, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                             {first} {last}
                           </div>
-                          <small style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
+                          <small style={{ color: "#94a3b8", fontSize: "0.7rem", whiteSpace: "nowrap" }}>
                             ID: {String(r?.id || "").substring(0, 8)}
                           </small>
                         </div>
                       </div>
                     </td>
 
-                    <td style={{ padding: 16 }}>
+                    <td style={{ padding: cellPadding, paddingLeft: "16px", verticalAlign: "middle", textAlign: "center" }}>
                       <span
                         style={{
-                          background: "#f1f5f9",
-                          padding: "6px 12px",
-                          borderRadius: 8,
-                          fontWeight: 900,
-                          color: "#475569",
+                          background: "#e0f2fe",
+                          padding: "4px 12px",
+                          borderRadius: 20,
+                          fontWeight: 400,
+                          color: "#0369a1",
                           display: "inline-flex",
                           alignItems: "center",
+                          justifyContent: "center",
                           gap: 6,
                           whiteSpace: "nowrap",
+                          fontSize: "0.8rem",
                         }}
                       >
-                        <FaDoorOpen size={12} /> Room {roomNo}
+                        <FaBed size={12} /> {roomNo}
                       </span>
                     </td>
 
-                    <td style={{ padding: 16 }}>
+                    <td style={{ ...tdStrongCenter, fontSize: "0.8rem" }}>{channelDisplayLabel(getChannel(r) || "Direct booking")}</td>
+                    <td style={{ ...tdStrongCenter, fontSize: "0.8rem" }}>{normPayment(getPaymentMethod(r))}</td>
+
+                    <td style={{ ...tdStrongCenter, padding: cellPadding }}>
                       <span
                         className={statusPillClass(r?.status)}
                         style={{
                           fontSize: "0.8rem",
                           padding: "4px 12px",
                           borderRadius: 20,
-                          fontWeight: 900,
+                          fontWeight: 400,
                           textTransform: "capitalize",
                           whiteSpace: "nowrap",
+                          display: "inline-block",
                         }}
                       >
-                        {r?.status}
+                        {statusDisplayLabel(r?.status)}
                       </span>
                     </td>
 
-                    <td style={tdStrong}>{ciYMD || "—"}</td>
-                    <td style={tdStrong}>{coYMD || "—"}</td>
+                    <td style={{ ...tdStrongRight, fontSize: "0.8rem" }}>{ciYMD || "—"}</td>
+                    <td style={{ ...tdStrongRight, fontSize: "0.8rem" }}>{coYMD || "—"}</td>
 
-                    <td style={tdStrong}>{nights || "—"}</td>
-                    <td style={tdStrong}>{pax || "—"}</td>
+                    <td style={{ ...tdStrongCenter, fontSize: "0.8rem" }}>{nights || "—"}</td>
+                    <td style={{ ...tdStrongCenter, fontSize: "0.8rem" }}>{pax || "—"}</td>
 
-                    {/* NEW RATE CELL */}
-                    <td style={tdStrongMoney}>{formatMoney(avgRate)}</td>
+                    <td style={{ ...tdStrongCenter, fontSize: "0.8rem" }}>{String(r?.mealPlan ?? "BO").toUpperCase()}</td>
 
-                    <td style={tdStrongMoney}>{Number.isFinite(roomRev) ? formatMoney(roomRev) : "—"}</td>
-                    <td style={tdStrongMoney}>{Number.isFinite(fnbRev) ? formatMoney(fnbRev) : "—"}</td>
-                    <td style={tdStrongMoney}>{Number.isFinite(totalRev) ? formatMoney(totalRev) : "—"}</td>
+                    <td style={{ ...tdStrongMoney, fontSize: "0.8rem" }}>{formatMoney(avgRate)}</td>
 
-                    <td style={{ padding: 16, textAlign: "center" }}>
+                    <td style={{ ...tdStrongMoney, fontSize: "0.8rem" }}>{Number.isFinite(roomRev) ? formatMoney(roomRev) : "—"}</td>
+                    <td style={{ ...tdStrongMoney, fontSize: "0.8rem" }}>{Number.isFinite(fnbRev) ? formatMoney(fnbRev) : "—"}</td>
+                    <td style={{ ...tdStrongMoney, fontSize: "0.8rem" }}>{Number.isFinite(totalRev) ? formatMoney(totalRev) : "—"}</td>
+
+                    <td style={{ padding: cellPadding, textAlign: "center", verticalAlign: "middle" }}>
                       <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (isEditLocked(r)) return;
                             onEditReservation?.(r);
                           }}
@@ -864,13 +969,21 @@ export default function ReservationsPage({
                           <FaEdit />
                         </button>
 
-                        <button onClick={() => onInvoice?.(r)} style={iconBtn("#3b82f6")} title="Invoice">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onInvoice?.(r);
+                          }}
+                          style={iconBtn("#3b82f6")}
+                          title="Invoice"
+                        >
                           <FaFileInvoiceDollar />
                         </button>
 
                         {isBooked(r?.status) && (
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               if (!onDeleteReservation) {
                                 alert("Delete is not wired yet. Please pass onDeleteReservation from App.jsx.");
                                 return;
@@ -904,7 +1017,7 @@ export default function ReservationsPage({
               })
             ) : (
               <tr>
-                <td colSpan="12" style={{ padding: 50, textAlign: "center", color: "#94a3b8" }}>
+                <td colSpan={15} style={{ padding: 50, textAlign: "center", color: "#94a3b8", verticalAlign: "middle" }}>
                   <div style={{ marginBottom: 10, fontSize: "2rem", opacity: 0.5 }}>
                     <FaSearch />
                   </div>
@@ -924,14 +1037,18 @@ export default function ReservationsPage({
 }
 
 const tdStrong = {
-  padding: 16,
-  fontWeight: 900,
+  padding: cellPadding,
+  fontWeight: 400,
   color: "#0f172a",
   whiteSpace: "nowrap",
+  verticalAlign: "middle",
 };
 
+const tdStrongRight = { ...tdStrong, textAlign: "right" };
+const tdStrongCenter = { ...tdStrong, textAlign: "center" };
 const tdStrongMoney = {
   ...tdStrong,
+  textAlign: "right",
   fontFeatureSettings: '"tnum" 1',
 };
 

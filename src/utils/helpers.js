@@ -84,6 +84,13 @@ export const storeMoney = (n) => {
   return x.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+/** Round to 2 decimal places for money; avoids floating-point drift. */
+export const roundTo2 = (n) => {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return 0;
+  return Math.round(x * 100) / 100;
+};
+
 export const pct = (n) => {
   const x = Number(n || 0);
   return `${Math.max(0, Math.min(100, Math.round(x)))}%`;
@@ -167,8 +174,10 @@ export const headerGradientClass = (kind) => {
 
 /* ================= DAILY RATE HELPERS ================= */
 export const rateCoversDay = (rate, dayStr) => {
-  if (!rate?.from || !rate?.to) return false;
-  return dayStr >= rate.from && dayStr < rate.to;
+  const from = rate?.from ?? rate?.date_from;
+  const to = rate?.to ?? rate?.date_to;
+  if (!from || !to) return false;
+  return dayStr >= from && dayStr < to;
 };
 
 export const rateCanEdit = (rate) => {
@@ -213,86 +222,79 @@ export function computeSplitPricingSnapshot({
   mealPlan,
   pax
 }) {
-  const start = new Date(checkIn);
-  const end = new Date(checkOut);
-  
-  // حساب عدد الليالي
-  const diffTime = Math.abs(end - start);
-  const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-
-  if (!roomType || !checkIn || !checkOut || nights <= 0) {
+  const start = parseYMD(checkIn);
+  const end = parseYMD(checkOut);
+  if (!start || !end || end <= start) {
+    return { ok: false, nightly: [], breakdown: [], subtotal: 0, taxAmount: 0, serviceAmount: 0, total: 0, avgNightly: 0 };
+  }
+  const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+  if (!roomType || nights <= 0) {
     return { ok: false, nightly: [], breakdown: [], subtotal: 0, taxAmount: 0, serviceAmount: 0, total: 0, avgNightly: 0 };
   }
 
   const calculatedNightly = [];
   const missingDates = [];
-
-  for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
-    const nightStr = d.toISOString().slice(0, 10);
-    const rateMatch = (dailyRates || []).find(r => 
-        r.roomType === roomType && nightStr >= r.from && nightStr < r.to
+  for (let d = new Date(start.getTime()); d < end; d.setDate(d.getDate() + 1)) {
+    const nightStr = ymd(d);
+    const rateMatch = (dailyRates || []).find(r =>
+      (r.roomType === roomType || r.room_type === roomType) && nightStr >= (r.from || r.date_from || "") && nightStr < (r.to || r.date_to || "")
     );
-
     if (!rateMatch) {
-        missingDates.push(nightStr);
-        continue;
+      missingDates.push(nightStr);
+      continue;
     }
-
-    const base = Number(rateMatch.rate || 0);
-    const pkg = rateMatch.packages || {};
+    const base = Number(rateMatch.rate ?? rateMatch.nightlyRate ?? rateMatch.nightly_rate ?? 0);
+    const pkg = rateMatch.packages || rateMatch.packageRates || {};
     const mp = String(mealPlan || "BO").toUpperCase();
     let addon = 0;
-    
-    if (mp === "BB") addon = Number(pkg.BB || 0);
-    else if (mp === "HB") addon = Number(pkg.HB || 0);
-    else if (mp === "FB") addon = Number(pkg.FB || 0);
+    if (mp === "BB") addon = Number(pkg.BB ?? pkg.bb ?? rateMatch.pkg_bb ?? rateMatch.bb ?? 0);
+    else if (mp === "HB") addon = Number(pkg.HB ?? pkg.hb ?? rateMatch.pkg_hb ?? rateMatch.hb ?? 0);
+    else if (mp === "FB") addon = Number(pkg.FB ?? pkg.fb ?? rateMatch.pkg_fb ?? rateMatch.fb ?? 0);
 
     const totalPax = Math.max(1, Number(pax || 1));
     const totalAddon = addon * totalPax;
-
+    const rate = roundTo2(base + totalAddon);
     calculatedNightly.push({
-        date: nightStr,
-        rate: base + totalAddon,
-        baseRate: base,
-        packageAddon: totalAddon,
-        mealPlan: mp
+      date: nightStr,
+      rate,
+      baseRate: base,
+      packageAddon: totalAddon,
+      mealPlan: mp
     });
   }
 
   if (missingDates.length > 0) {
-      return { ok: false, missing: missingDates, nightly: [], breakdown: [], subtotal: 0, total: 0 };
+    return { ok: false, missing: missingDates, nightly: [], breakdown: [], subtotal: 0, total: 0 };
   }
 
-  const subtotal = calculatedNightly.reduce((acc, curr) => acc + curr.rate, 0);
+  const rawSubtotal = calculatedNightly.reduce((acc, curr) => acc + curr.rate, 0);
+  const subtotal = roundTo2(rawSubtotal);
   const tr = Number(taxRate || 0);
   const sc = Number(serviceCharge || 0);
-  
-  const taxAmount = subtotal * (tr / 100);
-  const serviceAmount = subtotal * (sc / 100);
-  
-  // ملاحظة: ضريبة المدينة يتم حسابها في app.jsx منفصلة، هنا نرجع الإجمالي بدونها كما يتوقع الكود
-  const total = subtotal + taxAmount + serviceAmount;
+  const taxAmount = roundTo2(subtotal * (tr / 100));
+  const serviceAmount = roundTo2(subtotal * (sc / 100));
+  const total = roundTo2(subtotal + taxAmount + serviceAmount);
 
   const breakdownMap = {};
   calculatedNightly.forEach(n => {
-      const r = n.rate;
-      breakdownMap[r] = (breakdownMap[r] || 0) + 1;
+    const r = n.rate;
+    breakdownMap[r] = (breakdownMap[r] || 0) + 1;
   });
   const breakdown = Object.entries(breakdownMap).map(([rate, count]) => ({
-      rate: Number(rate),
-      count,
-      amount: Number(rate) * count
+    rate: Number(rate),
+    count,
+    amount: roundTo2(Number(rate) * count)
   })).sort((a, b) => b.rate - a.rate);
 
   return {
-      ok: true,
-      nightly: calculatedNightly,
-      breakdown,
-      subtotal,
-      taxAmount,
-      serviceAmount,
-      total,
-      avgNightly: nights > 0 ? subtotal / nights : 0
+    ok: true,
+    nightly: calculatedNightly,
+    breakdown,
+    subtotal,
+    taxAmount,
+    serviceAmount,
+    total,
+    avgNightly: nights > 0 ? roundTo2(subtotal / nights) : 0
   };
 }
 // ================= EXPENSES HELPERS =================

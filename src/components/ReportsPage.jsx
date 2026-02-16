@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { 
-  FaDollarSign, FaChartLine, FaBed, FaWallet, FaReceipt, 
+  FaDollarSign, FaChartLine, FaBed, FaWallet, FaReceipt, FaCreditCard,
   FaCalendarAlt, FaHotel, FaGlobeAmericas, 
   FaUtensils, FaTshirt, FaSpa, FaSnowboarding, FaConciergeBell,
   FaBolt, FaTools, FaBroom, FaBullhorn, FaUsers, FaBoxOpen,
   FaCalendarCheck, FaHome, FaDoorOpen, FaPercentage, FaTags, FaGem, FaArrowDown, FaTimes
 } from "react-icons/fa";
-import { ymd, parseYMD, calcNights, storeLoad } from "../utils/helpers";
+import { ymd, parseYMD, calcNights, storeLoad, roundTo2 } from "../utils/helpers";
+import { BOOKING_CHANNELS, PAYMENT_METHODS } from "../data/constants";
 
 // --- Constants ---
 const HOTEL_LOGO = "/logo.png"; 
@@ -86,12 +87,17 @@ export default function ReportsPage({ reservations, expenses, extraRevenues, tot
 
   const computeMetricsForRange = useCallback((fromStr, toStr) => {
     if (!fromStr || !toStr) {
+      const channelZero = {};
+      BOOKING_CHANNELS.forEach((c) => (channelZero[c] = 0));
+      const paymentZero = {};
+      PAYMENT_METHODS.forEach((p) => (paymentZero[p] = 0));
       return { 
         revenue: 0, roomRevenue: 0, 
         revenueBreakdown: {}, expenseBreakdown: {},
         tax: 0, service: 0, cityTax: 0, expenses: 0, net: 0, 
         occupancy: 0, adr: 0, roomsAvailable: 0, roomsSold: 0, 
-        payRevenue: { Cash: 0, Card: 0, "Booking.com": 0, Airbnb: 0 } 
+        channelRevenue: channelZero,
+        paymentRevenue: paymentZero,
       };
     }
 
@@ -119,7 +125,22 @@ export default function ReportsPage({ reservations, expenses, extraRevenues, tot
     expenseBreakdown["Other"] = 0;
 
 
-    const payRevenue = { Cash: 0, Card: 0, "Booking.com": 0, Airbnb: 0 };
+    const channelRevenue = {};
+    BOOKING_CHANNELS.forEach((c) => (channelRevenue[c] = 0));
+    const paymentRevenue = {};
+    PAYMENT_METHODS.forEach((p) => (paymentRevenue[p] = 0));
+    const normalizeChannel = (src) => {
+      const s = String(src || "").trim().toLowerCase();
+      if (s.includes("booking")) return "Booking.com";
+      if (s.includes("airbnb")) return "Airbnb";
+      if (s.includes("agoda")) return "Agoda";
+      return "Direct booking";
+    };
+    const normalizePayment = (pm) => {
+      const p = String(pm || "Cash").trim();
+      if (/credit\s*card|card/i.test(p)) return "Credit Card";
+      return "Cash";
+    };
 
     // 🔒 Physical OOS rooms reduce available capacity (independent of reservations)
     const roomPhysicalStatus = storeLoad("ocean_room_physical_v1", {}) || {};
@@ -150,17 +171,10 @@ export default function ReportsPage({ reservations, expenses, extraRevenues, tot
             sumService += (Number(r.pricing?.serviceAmount || 0) * ratio);
             sumCityTax += (Number(r.pricing?.cityTaxAmount || 0) * ratio);
             
-            const source = r.source || r.channel || ""; 
-            const pm = r.paymentMethod || "Cash";
-
-            if (source.toLowerCase().includes("booking")) {
-                payRevenue["Booking.com"] += perNightRevenue;
-            } else if (source.toLowerCase().includes("airbnb")) {
-                payRevenue["Airbnb"] += perNightRevenue;
-            } else {
-                if (pm === "Card" || pm === "Credit Card") payRevenue["Card"] += perNightRevenue;
-                else payRevenue["Cash"] += perNightRevenue;
-            }
+            const ch = normalizeChannel(r.channel || r.source);
+            const pm = normalizePayment(r.paymentMethod);
+            if (channelRevenue[ch] !== undefined) channelRevenue[ch] += perNightRevenue;
+            if (paymentRevenue[pm] !== undefined) paymentRevenue[pm] += perNightRevenue;
             occupiedNightsCount += 1;
           }
         }
@@ -169,15 +183,14 @@ export default function ReportsPage({ reservations, expenses, extraRevenues, tot
 
     if (extraRevenues && extraRevenues.length > 0) {
       extraRevenues.forEach(item => {
-        const d = item.date;
-        if (d >= fromStr && d <= toStr) {
-          const amt = Number(item.amount || 0);
-          revenue += amt;
-          const cat = item.category || "Services"; 
-          const matchedKey = REVENUE_CATS.find(c => c.key.toLowerCase() === cat.toLowerCase())?.key || "Services";
-          if (revenueBreakdown[matchedKey] !== undefined) revenueBreakdown[matchedKey] += amt;
-          else revenueBreakdown["Services"] += amt;
-        }
+        const d = (item.date || item.revenue_date || "").toString().slice(0, 10);
+        if (!d || d < fromStr || d > toStr) return;
+        const amt = Number(item.amount || 0);
+        revenue += amt;
+        const cat = (item.type || item.category || "Services").toString().trim();
+        const matchedKey = REVENUE_CATS.find(c => c.key.toLowerCase() === cat.toLowerCase())?.key || "Services";
+        if (revenueBreakdown[matchedKey] !== undefined) revenueBreakdown[matchedKey] += amt;
+        else revenueBreakdown["Services"] += amt;
       });
     }
 
@@ -200,13 +213,22 @@ export default function ReportsPage({ reservations, expenses, extraRevenues, tot
     const theoreticalCapacity = nightDays.length * Math.max(0, (totalRooms - oosRoomsCount));
     const netAvailableRooms = Math.max(0, theoreticalCapacity - oosNightsCount);
 
-    return { 
-      revenue, roomRevenue, revenueBreakdown, expenseBreakdown,
-      tax: sumTax, service: sumService, cityTax: sumCityTax,
-      expenses: expensesTotal, net: revenue - expensesTotal, 
-      occupancy: netAvailableRooms > 0 ? occupiedNightsCount / netAvailableRooms : 0, 
-      adr: occupiedNightsCount > 0 ? revenue / occupiedNightsCount : 0,
-      roomsAvailable: netAvailableRooms, roomsSold: occupiedNightsCount, payRevenue,
+    return {
+      revenue: roundTo2(revenue),
+      roomRevenue: roundTo2(roomRevenue),
+      revenueBreakdown,
+      expenseBreakdown,
+      tax: roundTo2(sumTax),
+      service: roundTo2(sumService),
+      cityTax: roundTo2(sumCityTax),
+      expenses: roundTo2(expensesTotal),
+      net: roundTo2(revenue - expensesTotal),
+      occupancy: netAvailableRooms > 0 ? occupiedNightsCount / netAvailableRooms : 0,
+      adr: occupiedNightsCount > 0 ? roundTo2(revenue / occupiedNightsCount) : 0,
+      roomsAvailable: netAvailableRooms,
+      roomsSold: occupiedNightsCount,
+      channelRevenue: Object.fromEntries(Object.entries(channelRevenue).map(([k, v]) => [k, roundTo2(v)])),
+      paymentRevenue: Object.fromEntries(Object.entries(paymentRevenue).map(([k, v]) => [k, roundTo2(v)])),
     };
   }, [cleanReservations, expenses, extraRevenues, totalRooms]);
 
@@ -481,27 +503,40 @@ export default function ReportsPage({ reservations, expenses, extraRevenues, tot
         <div className="card-panel">
           <h4 className="panel-title"><FaGlobeAmericas /> Channels</h4>
           <div className="panel-list">
-            <div className="channel-row">
-                <div className="row-head">
-                    <span className="ch-name"><FaCalendarCheck style={{color:'#003580'}} /> Booking.com</span>
-                    <small>{fmtMoney(metrics.payRevenue?.["Booking.com"])}</small>
+            {BOOKING_CHANNELS.map((ch) => {
+              const val = metrics.channelRevenue?.[ch] ?? 0;
+              const color = ch === "Booking.com" ? "#003580" : ch === "Airbnb" ? "#ff385c" : ch === "Agoda" ? "#ed1c24" : "#10b981";
+              const icon = ch === "Booking.com" ? <FaCalendarCheck style={{ color }} /> : ch === "Airbnb" ? <FaHome style={{ color }} /> : ch === "Agoda" ? <FaGlobeAmericas style={{ color }} /> : <FaDoorOpen style={{ color }} />;
+              return (
+                <div key={ch} className="channel-row">
+                  <div className="row-head">
+                    <span className="ch-name">{icon} {ch}</span>
+                    <small>{fmtMoney(val)}</small>
+                  </div>
+                  <div className="progress-bg"><div className="progress-fill" style={{ width: '100%', backgroundColor: color, opacity: val > 0 ? 1 : 0.2 }}></div></div>
                 </div>
-                <div className="progress-bg"><div className="progress-fill" style={{width: '100%', backgroundColor: '#003580', opacity: metrics.payRevenue?.["Booking.com"] > 0 ? 1 : 0.2}}></div></div>
-            </div>
-            <div className="channel-row">
-                <div className="row-head">
-                    <span className="ch-name"><FaHome style={{color:'#ff385c'}} /> Airbnb</span>
-                    <small>{fmtMoney(metrics.payRevenue?.["Airbnb"])}</small>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Payment method */}
+        <div className="card-panel">
+          <h4 className="panel-title"><FaCreditCard /> Payment method</h4>
+          <div className="panel-list">
+            {PAYMENT_METHODS.map((pm) => {
+              const val = metrics.paymentRevenue?.[pm] ?? 0;
+              const color = pm === "Cash" ? "#10b981" : "#3b82f6";
+              return (
+                <div key={pm} className="channel-row">
+                  <div className="row-head">
+                    <span className="ch-name"><FaWallet style={{ color }} /> {pm}</span>
+                    <small>{fmtMoney(val)}</small>
+                  </div>
+                  <div className="progress-bg"><div className="progress-fill" style={{ width: '100%', backgroundColor: color, opacity: val > 0 ? 1 : 0.2 }}></div></div>
                 </div>
-                <div className="progress-bg"><div className="progress-fill" style={{width: '100%', backgroundColor: '#ff385c', opacity: metrics.payRevenue?.["Airbnb"] > 0 ? 1 : 0.2}}></div></div>
-            </div>
-            <div className="channel-row">
-                <div className="row-head">
-                    <span className="ch-name"><FaWallet style={{color:'#10b981'}} /> Cash & Card</span>
-                    <small>{fmtMoney((metrics.payRevenue?.Cash || 0) + (metrics.payRevenue?.Card || 0))}</small>
-                </div>
-                <div className="progress-bg"><div className="progress-fill" style={{width: '100%', backgroundColor: '#10b981', opacity: (metrics.payRevenue?.Cash + metrics.payRevenue?.Card) > 0 ? 1 : 0.2}}></div></div>
-            </div>
+              );
+            })}
           </div>
         </div>
 

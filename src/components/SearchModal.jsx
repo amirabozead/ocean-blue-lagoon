@@ -1,11 +1,11 @@
 import React, { useMemo } from "react";
 import { 
   FaTimes, FaTrash, FaSearch, FaFilter, 
-  FaCalendarAlt, FaUser, FaCreditCard, FaDoorOpen, FaMoneyBillWave, FaInfoCircle 
+  FaCalendarAlt, FaUser, FaCreditCard, FaDoorOpen, FaMoneyBillWave, FaInfoCircle, FaGlobeAmericas 
 } from "react-icons/fa";
 
 // استيراد الثوابت (Status List + Payment Methods + Rooms)
-import { BASE_ROOMS, PAYMENT_METHODS, STATUS_LIST } from "../data/constants"; 
+import { BASE_ROOMS, PAYMENT_METHODS, STATUS_LIST, BOOKING_CHANNELS } from "../data/constants"; 
 
 export default function SearchModal({ filters, setFilters, onClose }) {
   const f = filters || {};
@@ -24,7 +24,8 @@ export default function SearchModal({ filters, setFilters, onClose }) {
     let c = 0;
     keys.forEach((k) => { if (String(f[k] || "").trim()) c += 1; });
     if (f.paymentMethod && f.paymentMethod !== "All") c += 1;
-    if (f.status && f.status !== "All") c += 1; // عداد الحالة
+    if (f.channel && f.channel !== "All") c += 1;
+    if (f.status && f.status !== "All") c += 1;
     return c;
   }, [f]);
 
@@ -34,7 +35,7 @@ export default function SearchModal({ filters, setFilters, onClose }) {
     setFilters({
       firstName: "", lastName: "", checkInFrom: "", checkInTo: "",
       checkOutFrom: "", checkOutTo: "", rateMin: "", rateMax: "",
-      roomNumber: "", paymentMethod: "All", status: "All", // إعادة تعيين الحالة
+      roomNumber: "", paymentMethod: "All", channel: "All", status: "All",
     });
   };
 
@@ -139,6 +140,13 @@ export default function SearchModal({ filters, setFilters, onClose }) {
                   </select>
                 </div>
                 
+                <div className="field">
+                  <label><span style={{display:'flex', alignItems:'center', gap:'5px'}}><FaGlobeAmericas size={10}/> Channel</span></label>
+                  <select value={f.channel || "All"} onChange={(e) => set("channel", e.target.value)}>
+                    <option value="All">All Channels</option>
+                    {BOOKING_CHANNELS.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
                 <div className="field">
                   <label><span style={{display:'flex', alignItems:'center', gap:'5px'}}><FaCreditCard size={10}/> Payment Method</span></label>
                   <select value={f.paymentMethod || "All"} onChange={(e) => set("paymentMethod", e.target.value)}>

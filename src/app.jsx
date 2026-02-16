@@ -1,9 +1,185 @@
-
-const toArray = (v) => (Array.isArray(v) ? v : (v && typeof v === "object" ? Object.values(v) : []));
 /* ================= IMPORTS ================= */
-import React, { useEffect, useMemo, useState } from "react";
-import "./app.css";
 import { createClient } from "@supabase/supabase-js";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import "./app.css";
+// ================= Daily Rates helpers (Supabase-safe) =================
+// Convert Date | "MM/DD/YYYY" | "YYYY-MM-DD" -> "YYYY-MM-DD" (or null)
+const toISODate = (v) => {
+  if (!v) return null;
+  // Already ISO
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (!s) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // MM/DD/YYYY
+    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) {
+      const mm = String(m[1]).padStart(2, "0");
+      const dd = String(m[2]).padStart(2, "0");
+      const yy = m[3];
+      return `${yy}-${mm}-${dd}`;
+    }
+    // Try Date.parse for other formats
+    const d = new Date(s);
+    if (!Number.isNaN(d.getTime())) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    return null;
+  }
+  if (v instanceof Date && !Number.isNaN(v.getTime())) {
+    const yyyy = v.getFullYear();
+    const mm = String(v.getMonth() + 1).padStart(2, "0");
+    const dd = String(v.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  return null;
+};
+
+const pickNumFirst = (...vals) => {
+  for (const v of vals) {
+    if (v === null || v === undefined) continue;
+    if (typeof v === "string" && v.trim() === "") continue;
+    const n = Number(v);
+    if (!Number.isNaN(n)) return n; // includes 0
+  }
+  return 0;
+};
+
+// Like pickNumFirst, but returns undefined if NOTHING is provided.
+// Use this when syncing to Supabase to avoid overwriting existing values with 0 by accident.
+const pickNumMaybe = (...vals) => {
+  let sawAny = false;
+  for (const v of vals) {
+    if (v === null || v === undefined) continue;
+    if (typeof v === "string" && v.trim() === "") continue;
+    sawAny = true;
+    const n = Number(v);
+    if (!Number.isNaN(n)) return n; // includes 0
+  }
+  return sawAny ? 0 : undefined;
+};
+
+// Packages reader that returns undefined when the field is truly absent (so it won't overwrite in Supabase).
+const readPkgMaybe = (r, key) => {
+  const k = String(key || "").toLowerCase();
+  const kUpper = k.toUpperCase();
+
+  const strongHas =
+    (r?.packages && (Object.prototype.hasOwnProperty.call(r.packages, k) || Object.prototype.hasOwnProperty.call(r.packages, kUpper))) ||
+    (r?.packageRates && Object.prototype.hasOwnProperty.call(r.packageRates, k)) ||
+    (r?.foodPackages && Object.prototype.hasOwnProperty.call(r.foodPackages, k)) ||
+    (r?.food && Object.prototype.hasOwnProperty.call(r.food, k)) ||
+    (r?.pkg && Object.prototype.hasOwnProperty.call(r.pkg, k)) ||
+    (r?.addons && Object.prototype.hasOwnProperty.call(r.addons, k)) ||
+    (r?.addOns && Object.prototype.hasOwnProperty.call(r.addOns, k)) ||
+    Object.prototype.hasOwnProperty.call(r || {}, `pkg_${k}`) ||
+    Object.prototype.hasOwnProperty.call(r || {}, `pkg${k.toUpperCase()}`);
+
+  const legacyHas =
+    Object.prototype.hasOwnProperty.call(r || {}, k) ||
+    Object.prototype.hasOwnProperty.call(r || {}, k.toUpperCase());
+
+  if (!strongHas && !legacyHas) return undefined;
+
+  // If present, use the existing robust reader
+  return readPkg(r, k);
+};
+
+
+
+// Useful when you have legacy "0" placeholders that should NOT override a real non-zero value later.
+const pickNumPreferNonZero = (...vals) => {
+  let sawZero = false;
+  for (const v of vals) {
+    if (v === null || v === undefined) continue;
+    if (typeof v === "string" && v.trim() === "") continue;
+    const n = Number(v);
+    if (Number.isNaN(n)) continue;
+    if (n === 0) { sawZero = true; continue; }
+    return n;
+  }
+  return sawZero ? 0 : 0;
+};
+
+// Packages reader (bb/hb/fb) — fixes the "0 overrides real value" bug.
+// DailyRatePage saves packages: { BB, HB, FB } (uppercase), so we must read both cases.
+const readPkg = (r, key) => {
+  const k = String(key || "").toLowerCase(); // bb|hb|fb
+  const kUpper = k.toUpperCase();
+
+  // 1) Strong sources: if user edited here, accept even 0 (include packages.BB etc.)
+  const strong = pickNumFirst(
+    r?.packages?.[k],
+    r?.packages?.[kUpper],
+    r?.packageRates?.[k],
+    r?.foodPackages?.[k],
+    r?.food?.[k],
+    r?.pkg?.[k],
+    r?.addons?.[k],
+    r?.addOns?.[k],
+    r?.[`pkg_${k}`],
+    r?.[`pkg${kUpper}`] // pkgBB
+  );
+
+  // If any strong source was actually present (including 0), return it.
+  const hasStrong =
+    (r?.packages && (Object.prototype.hasOwnProperty.call(r.packages, k) || Object.prototype.hasOwnProperty.call(r.packages, kUpper))) ||
+    (r?.packageRates && Object.prototype.hasOwnProperty.call(r.packageRates, k)) ||
+    (r?.foodPackages && Object.prototype.hasOwnProperty.call(r.foodPackages, k)) ||
+    (r?.food && Object.prototype.hasOwnProperty.call(r.food, k)) ||
+    (r?.pkg && Object.prototype.hasOwnProperty.call(r.pkg, k)) ||
+    (r?.addons && Object.prototype.hasOwnProperty.call(r.addons, k)) ||
+    (r?.addOns && Object.prototype.hasOwnProperty.call(r.addOns, k)) ||
+    Object.prototype.hasOwnProperty.call(r || {}, `pkg_${k}`) ||
+    Object.prototype.hasOwnProperty.call(r || {}, `pkg${k.toUpperCase()}`);
+
+  if (hasStrong) return strong;
+
+  // 2) Weak legacy shortcuts: prefer non-zero over zero
+  return pickNumPreferNonZero(
+    r?.[k],
+    r?.[k.toUpperCase()]
+  );
+};
+
+// Safe upsert for ocean_daily_rates:
+// - tries UPSERT with onConflict "room_type,date_from,date_to"
+// - if your table is missing the required UNIQUE constraint, it falls back to delete+insert per-row
+const upsertDailyRatesSafe = async (sb, rows) => {
+  if (!sb || !Array.isArray(rows) || !rows.length) return { ok: true };
+
+  const attempt = await sb
+    .from("ocean_daily_rates")
+    .upsert(rows, { onConflict: "room_type,date_from,date_to" });
+
+  if (!attempt?.error) return { ok: true };
+
+  const msg = String(attempt.error?.message || "");
+  const code = String(attempt.error?.code || "");
+  const needsUnique = code === "42P10" || msg.toLowerCase().includes("no unique") || msg.toLowerCase().includes("on conflict");
+
+  if (!needsUnique) return { ok: false, error: attempt.error };
+
+  // fallback: delete+insert to behave like upsert without requiring UNIQUE constraint
+  for (const r of rows) {
+    try {
+      await sb.from("ocean_daily_rates").delete().match({
+        room_type: r.room_type,
+        date_from: r.date_from,
+        date_to: r.date_to,
+      });
+      const ins = await sb.from("ocean_daily_rates").insert(r);
+      if (ins?.error) return { ok: false, error: ins.error };
+    } catch (e) {
+      return { ok: false, error: e };
+    }
+  }
+  return { ok: true, fallback: true };
+};
+
 
 // 1. Components
 import Sidebar from "./components/Sidebar"; // الـ Sidebar الجديد
@@ -32,6 +208,7 @@ import RoomDetailsModal from "./components/RoomDetailsModal";
 // 4. Helpers & Constants
 import {
   BASE_ROOMS,
+  PAYMENT_METHODS,
   LS_STORE_ITEMS,
   LS_STORE_MOVES,
   LS_STORE_SUPPLIERS,
@@ -49,7 +226,11 @@ import {
   normalizePhysicalStatus,
   computeSplitPricingSnapshot,
   calcNights,
+  roundTo2,
 } from "./utils/helpers";
+
+const toArray = (v) =>
+  Array.isArray(v) ? v : (v && typeof v === "object" ? Object.values(v) : []);
 
 
 /* ================= ERROR BOUNDARY ================= */
@@ -251,11 +432,45 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
   );
 }
 
+function loadSupabaseCfg() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SB_LS_CFG) || "{}");
+    const enabled = raw.enabled === true || raw.enabled === "true" || raw.enabled === 1 || raw.enabled === "1";
+    let url = (raw.url || "").trim();
+    const anonKey = (raw.anon || raw.anonKey || raw.key || "").trim();
+
+    if (url && !url.startsWith("http://") && !url.startsWith("https://")) url = "https://" + url;
+
+    return { enabled, url, anonKey, push: raw.push !== false, pull: raw.pull !== false };
+  } catch {
+    return { enabled: false, url: "", anonKey: "", push: true, pull: true };
+  }
+}
+
+let _sb = null;
+let _sbSig = "";
+
+function getSupabaseClient() {
+  const cfg = loadSupabaseCfg();
+  if (!cfg.enabled || !cfg.url || !cfg.anonKey) return null;
+
+  const sig = `${cfg.url}::${cfg.anonKey.slice(0, 12)}`;
+  if (_sb && _sbSig === sig) return _sb;
+
+  _sb = createClient(cfg.url, cfg.anonKey, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  });
+  _sbSig = sig;
+  return _sb;
+}
+
+
 
 /* ================= APP COMPONENT ================= */
 export default function App() {
   const [page, setPage] = useState("dashboard");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  
 
   // ================= DATA STATES (GLOBAL) =================
 
@@ -282,32 +497,99 @@ export default function App() {
   const [expenses, setExpenses] = useState(
     () => storeLoad("ocean_expenses_v1") || []
   );
+  
   const updateExpenses = (newExpenses) => {
-    setExpenses(newExpenses);
-    storeSave("ocean_expenses_v1", newExpenses);
-    if (supabase && supabaseEnabled) {
-      (async () => {
-        try {
-          const { error } = await supabase.from("ocean_expenses").upsert({
-            id: "master_list",
-            data: newExpenses,
-            updated_at: new Date().toISOString(),
-          });
-          if (error) console.error(error);
-        } catch (e) {
-          console.error(e);
-        }
-      })();
-    }
-  };
+  // ثبّت ids
+  const withIds = (newExpenses || []).map((x) => ({
+    ...x,
+    id: x.id || (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random())),
+  }));
+
+  setExpenses(withIds);
+  storeSave("ocean_expenses_v1", withIds);
+
+  if (supabase && supabaseEnabled) {
+    (async () => {
+      try {
+        const rows = withIds.map((x) => ({
+          id: x.id,
+          expense_date: x.expense_date || x.date || new Date().toISOString().slice(0, 10), // YYYY-MM-DD
+          category: x.category || "Other",
+          vendor: x.vendor || "",
+          description: x.description || "",
+          amount: Number(x.amount || 0),
+          method: x.method || "",
+          ref: x.ref || "",
+          updated_at: new Date().toISOString(),
+        }));
+
+        const { error } = await supabase
+          .from("ocean_expenses")
+          .upsert(rows, { onConflict: "id" });
+
+        if (error) console.error("SUPABASE upsert ocean_expenses error:", error);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  }
+};
+
+
 
   // 3. Extra Revenues
   const [extraRevenues, setExtraRevenues] = useState(
     () => storeLoad("ocean_extra_rev_v1") || []
   );
+
+  const syncExtraRevenuesToSupabase = async (list) => {
+    const cfg = lsGet(SB_LS_CFG, null);
+    const anon = (cfg?.anon || cfg?.anonKey || "").trim();
+    if (!cfg?.enabled || !cfg?.url || !anon) return;
+    const arr = Array.isArray(list) ? list : [];
+    const localIds = new Set(arr.filter((r) => r && r.id).map((r) => String(r.id)));
+    const todayYMD = new Date().toISOString().slice(0, 10);
+    const rows = arr
+      .filter((r) => r && r.id)
+      .map((r) => {
+        const dateStr = (r.date || "").toString().trim().slice(0, 10);
+        const revenueDate = /^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr : todayYMD;
+        const nowIso = new Date().toISOString();
+        return {
+          id: String(r.id),
+          revenue_date: revenueDate,
+          type: (r.type || "Services").trim() || "Services",
+          description: (r.description || "").trim(),
+          amount: Number(r.amount ?? 0),
+          created_at: nowIso,
+          updated_at: nowIso,
+        };
+      });
+    try {
+      const sb = createClient(cfg.url, anon);
+      if (rows.length) {
+        const { error: upErr } = await sb.from("ocean_extra_revenues").upsert(rows, { onConflict: "id" });
+        if (upErr) {
+          console.error("Extra revenue sync (upsert) failed:", upErr.message, upErr.code, upErr.details);
+          return;
+        }
+      }
+      const { data: existing, error: selErr } = await sb.from("ocean_extra_revenues").select("id");
+      if (selErr) {
+        console.error("Extra revenue sync (select) failed:", selErr.message);
+        return;
+      }
+      const toRemove = (existing || []).map((r) => r.id).filter((id) => id && !localIds.has(id));
+      if (toRemove.length) await sb.from("ocean_extra_revenues").delete().in("id", toRemove);
+    } catch (e) {
+      console.error("Extra revenue sync error:", e);
+    }
+  };
+
   const saveRevenue = (newRevList) => {
     setExtraRevenues(newRevList);
     storeSave("ocean_extra_rev_v1", newRevList);
+    syncExtraRevenuesToSupabase(newRevList);
   };
 
   // 4. Daily Rates
@@ -322,39 +604,181 @@ export default function App() {
     }
     return [];
   });
-const updateDailyRates = (newRates) => {
-    setDailyRates(newRates);
-    storeSave("oceanstay_daily_rates_v1", newRates);
-    // keep legacy key in sync (older code used it)
-    storeSave("oceanstay_daily_rates", newRates);
-if (supabase && supabaseEnabled) {
-      (async () => {
+  const prevDailyRatesRef = useRef(null);
+
+const updateDailyRates = (next) => {
+  setDailyRates((prev) => {
+    // 1) احسب النسخة الجديدة بدون ما تمسح القديم بالغلط
+    const computed = typeof next === "function" ? next(prev) : next;
+    const list = Array.isArray(computed) ? computed : (computed ? [computed] : []);
+
+    // 2) احفظ لوكال
+    storeSave("oceanstay_daily_rates_v1", list);
+    // (اختياري) لو عندك key قديم
+    storeSave("oceanstay_daily_rates", list);
+
+    // 3) ارفع للسحابة (Row-based) بنفس أعمدة الجدول الحقيقي
+    if (supabase && supabaseEnabled && (lsGet(SB_LS_CFG, null)?.push !== false)) {
+      setTimeout(async () => {
         try {
-          const { error } = await supabase.from("ocean_daily_rates").upsert({
-            id: "master_list",
-            data: newRates,
-            updated_at: new Date().toISOString(),
-          });
-          if (error) console.error(error);
+          const payloadClean = (list || [])
+            .map((r) => {
+              const room_type = (r.roomType ?? r.room_type ?? "").toString().trim();
+
+              const fromISO = toISODate(r.from ?? r.date_from ?? r.dateFrom ?? r.date_from);
+              let toISO = toISODate(r.to ?? r.date_to ?? r.dateTo ?? r.date_to) || fromISO;
+              if (fromISO && toISO && toISO < fromISO) toISO = fromISO;
+
+              return {
+                room_type,
+                date_from: fromISO,
+                date_to: toISO,
+                nightly_rate: pickNumMaybe(r.nightlyRate, r.nightly_rate, r.rate),
+                pkg_bb: readPkgMaybe(r, "bb"),
+                pkg_hb: readPkgMaybe(r, "hb"),
+                pkg_fb: readPkgMaybe(r, "fb"),
+              };
+            })
+            // امنع إرسال صفوف ناقصة
+            .filter((x) => x.room_type && x.date_from && x.date_to);
+
+          if (!payloadClean.length) return; 
+
+          const res = await upsertDailyRatesSafe(supabase, payloadClean);
+          if (!res.ok) {
+            const error = res.error;
+            console.error("ocean_daily_rates upsert error:", { message: error?.message, details: error?.details, hint: error?.hint, code: error?.code });
+          } 
         } catch (e) {
-          console.error(e);
+          console.error("ocean_daily_rates upsert exception:", e);
         }
-      })();
+      }, 0);
     }
-  };
+
+    return list;
+  });
+};
 
 
 
   // 5. Store Data
+
+  // LocalStorage key fallback (prevents wiping data if key name changed between versions)
+  const getAnyLs = (keys, fallback) => {
+    for (const k of keys) {
+      const v = lsGet(k, null);
+      if (v == null) continue;
+      if (Array.isArray(v)) {
+        if (v.length) return v;
+        // keep checking other keys if empty array
+        continue;
+      }
+      return v;
+    }
+    return fallback;
+  };
+
   const [storeItems, setStoreItems] = useState(() =>
-    lsGet(LS_STORE_ITEMS, [])
+    getAnyLs([LS_STORE_ITEMS, 'ocean_store_items_v1', 'oceanstore_store_items_v1', 'ocean_store_items'], [])
   );
   const [storeMoves, setStoreMoves] = useState(() =>
-    lsGet(LS_STORE_MOVES, [])
+    getAnyLs([LS_STORE_MOVES, 'ocean_store_moves_v1', 'oceanstore_store_moves_v1', 'ocean_store_moves'], [])
   );
   const [storeSuppliers, setStoreSuppliers] = useState(() =>
-    lsGet(LS_STORE_SUPPLIERS, [])
+    getAnyLs([LS_STORE_SUPPLIERS, 'ocean_store_suppliers_v1', 'oceanstore_store_suppliers_v1', 'ocean_store_suppliers'], [])
   );
+
+  // Must be declared before any effect that uses it (pull-before-push sync)
+  const [cloudBootstrapped, setCloudBootstrapped] = useState(false);
+
+  // Persist Store tables locally + optional cloud sync (row-based)
+  // Skip Supabase push until bootstrap has run (pull first), so we don't overwrite cloud with stale local
+useEffect(() => {
+  storeSave(LS_STORE_ITEMS, storeItems);
+
+  if (!cloudBootstrapped) return;
+  const cfg = lsGet(SB_LS_CFG, null);
+  const anon = cfg?.anon || cfg?.anonKey;
+  if (!cfg?.enabled || !cfg?.url || !anon || cfg.push === false) return;
+
+  (async () => {
+    try {
+      const sb = createClient(cfg.url, anon);
+      const localList = storeItems || [];
+      const localIds = new Set(localList.map((it) => it.id).filter(Boolean));
+      await sb.from("ocean_store_items").upsert(
+        localList.map((it) => ({ id: it.id, data: it })),
+        { onConflict: "id" }
+      );
+      const { data: existing } = await sb.from("ocean_store_items").select("id");
+      const idsToRemove = (existing || []).map((r) => r.id).filter((id) => id && !localIds.has(id));
+      if (idsToRemove.length) {
+        await sb.from("ocean_store_items").delete().in("id", idsToRemove);
+      }
+    } catch (e) {
+      console.warn("Store cloud sync (items) failed:", e?.message || e);
+    }
+  })();
+}, [storeItems, cloudBootstrapped]);
+
+useEffect(() => {
+  storeSave(LS_STORE_MOVES, storeMoves);
+
+  if (!cloudBootstrapped) return;
+  const cfg = lsGet(SB_LS_CFG, null);
+  const anon = cfg?.anon || cfg?.anonKey;
+  if (!cfg?.enabled || !cfg?.url || !anon || cfg.push === false) return;
+
+  (async () => {
+    try {
+      const sb = createClient(cfg.url, anon);
+      const localList = storeMoves || [];
+      const localIds = new Set(localList.map((m) => m.id).filter(Boolean));
+      await sb.from("ocean_store_moves").upsert(
+        localList.map((m) => ({ id: m.id, data: m })),
+        { onConflict: "id" }
+      );
+      const { data: existing } = await sb.from("ocean_store_moves").select("id");
+      const idsToRemove = (existing || []).map((r) => r.id).filter((id) => id && !localIds.has(id));
+      if (idsToRemove.length) {
+        await sb.from("ocean_store_moves").delete().in("id", idsToRemove);
+      }
+    } catch (e) {
+      console.warn("Store cloud sync (moves) failed:", e?.message || e);
+    }
+  })();
+}, [storeMoves, cloudBootstrapped]);
+
+useEffect(() => {
+  storeSave(LS_STORE_SUPPLIERS, storeSuppliers);
+
+  if (!cloudBootstrapped) return;
+  const cfg = lsGet(SB_LS_CFG, null);
+  const anon = cfg?.anon || cfg?.anonKey;
+  if (!cfg?.enabled || !cfg?.url || !anon || cfg.push === false) return;
+
+  (async () => {
+    try {
+      const sb = createClient(cfg.url, anon);
+      const localList = storeSuppliers || [];
+      const localIds = new Set(localList.map((s) => s.id).filter(Boolean));
+      await sb.from("ocean_store_suppliers").upsert(
+        localList.map((s) => ({ id: s.id, data: s })),
+        { onConflict: "id" }
+      );
+      const { data: existing } = await sb.from("ocean_store_suppliers").select("id");
+      const idsToRemove = (existing || []).map((r) => r.id).filter((id) => id && !localIds.has(id));
+      if (idsToRemove.length) {
+        await sb.from("ocean_store_suppliers").delete().in("id", idsToRemove);
+      }
+    } catch (e) {
+      console.warn("Store cloud sync (suppliers) failed:", e?.message || e);
+    }
+  })();
+}, [storeSuppliers, cloudBootstrapped]);
+
+
+
 
   // 6. Reservations
   const [reservations, setReservations] = useState(
@@ -386,24 +810,24 @@ if (supabase && supabaseEnabled) {
     return seed;
   });
 
-  const [currentUser, setCurrentUser] = useState(() =>
-    storeLoad(SEC_LS_SESSION)
-  );
-  const [loginOpen, setLoginOpen] = useState(() => !storeLoad(SEC_LS_SESSION));
+  const [currentUser, setCurrentUser] = useState(() => null);
+  const [loginOpen, setLoginOpen] = useState(() => true);
   const [preAuthScreen, setPreAuthScreen] = useState("login");
 
   const [sbCfg, setSbCfg] = useState(() => {
     const c = storeLoad(SB_LS_CFG);
     return c
-      ? { enabled: !!c.enabled, url: c.url || "", anon: c.anon || "" }
-      : { enabled: false, url: "", anon: "" };
+      ? { enabled: !!c.enabled, url: c.url || "", anon: c.anon || "", push: c.push !== false, pull: c.pull !== false }
+      : { enabled: false, url: "", anon: "", push: true, pull: true };
   });
 
   const supabaseEnabled = !!(sbCfg?.enabled && sbCfg?.url && sbCfg?.anon);
-  const supabase = useMemo(
-    () => (supabaseEnabled ? createClient(sbCfg.url, sbCfg.anon) : null),
-    [supabaseEnabled, sbCfg]
-  );
+
+const supabase = useMemo(() => {
+  if (!supabaseEnabled) return null;
+  return getSupabaseClient(); // ✅ singleton client
+}, [supabaseEnabled, sbCfg?.url, sbCfg?.anon]);
+
 
   const sbSaveCfg = (cfg, forceEnabled) => {
     const next = { ...cfg, enabled: forceEnabled ?? cfg.enabled };
@@ -417,122 +841,205 @@ if (supabase && supabaseEnabled) {
   };
 
   // ================= CLOUD BOOTSTRAP (DOWNLOAD FROM SUPABASE) =================
-  const [cloudBootstrapped, setCloudBootstrapped] = useState(false);
+useEffect(() => {
+  if (cloudBootstrapped) return;
 
-  useEffect(() => {
-    if (!supabase || !supabaseEnabled) return;
-    if (cloudBootstrapped) return;
+  const cfg = lsGet(SB_LS_CFG, null);
+  const anon = (cfg?.anon || cfg?.anonKey || "").trim();
+  if (!cfg?.enabled || !cfg?.url || !anon) {
+    setCloudBootstrapped(true);
+    return;
+  }
 
-    const boot = async () => {
-      try {
-        // 1) Store (Items / Moves / Suppliers)
-        const fetchMaster = async (table, id) => {
-          try {
-            const { data, error } = await supabase
-              .from(table)
-              .select("data")
-              .eq("id", id)
-              .maybeSingle();
-            if (error) return null;
-            return data?.data ?? null;
-          } catch {
-            return null;
-          }
-        };
+  let cancelled = false;
+  (async () => {
+    try {
+      const sb = createClient(cfg.url, anon);
 
-        const ensureMaster = async (table, id, localData) => {
-          // If cloud row missing or empty, push localData once
-          if (!Array.isArray(localData) || localData.length === 0) return false;
-          try {
-            const { data, error } = await supabase
-              .from(table)
-              .select("data")
-              .eq("id", id)
-              .maybeSingle();
-            if (error) return false;
-            const cloudData = data?.data ?? null;
-            const cloudEmpty = !Array.isArray(cloudData) || cloudData.length === 0;
-            if (cloudEmpty) {
-              const { error: upErr } = await supabase.from(table).upsert({
-                id,
-                data: localData,
-                updated_at: new Date().toISOString(),
-              });
-              if (upErr) return false;
-              return true;
-            }
-          } catch {
-            return false;
-          }
-          return false;
-        };
+      const allowPull = cfg.pull !== false;
+      const allowPush = cfg.push !== false;
 
-        if ((storeItems || []).length === 0) {
-          const cloudItems = await fetchMaster("ocean_store_items", "master_items");
-          if (Array.isArray(cloudItems) && cloudItems.length) setStoreItems(cloudItems);
-        }
-        if ((storeMoves || []).length === 0) {
-          const cloudMoves = await fetchMaster("ocean_store_moves", "master_moves");
-          if (Array.isArray(cloudMoves) && cloudMoves.length) setStoreMoves(cloudMoves);
-        }
-        if ((storeSuppliers || []).length === 0) {
-          const cloudSup = await fetchMaster("ocean_store_suppliers", "master_suppliers");
-          if (Array.isArray(cloudSup) && cloudSup.length) setStoreSuppliers(cloudSup);
-        }
+      const [itemsRes, movesRes, suppliersRes, expRes, drRes, resRes, extraRevRes] = await Promise.all([
+        allowPull ? sb.from("ocean_store_items").select("id,data") : Promise.resolve({ data: [] }),
+        allowPull ? sb.from("ocean_store_moves").select("id,data") : Promise.resolve({ data: [] }),
+        allowPull ? sb.from("ocean_store_suppliers").select("id,data") : Promise.resolve({ data: [] }),
+        allowPull ? sb.from("ocean_expenses").select("id,expense_date,category,vendor,description,amount,method,ref,updated_at").limit(10000) : Promise.resolve({ data: [] }),
+        allowPull
+          ? sb.from("ocean_daily_rates")
+              .select("room_type,date_from,date_to,nightly_rate,pkg_bb,pkg_hb,pkg_fb")
+              .limit(10000)
+          : Promise.resolve({ data: [] }),
+        allowPull ? sb.from("reservations").select("id,data,updated_at") : Promise.resolve({ data: [] }),
+        allowPull ? sb.from("ocean_extra_revenues").select("id,revenue_date,type,description,amount,created_at,updated_at") : Promise.resolve({ data: [] }),
+      ]);
 
-        // 2) Expenses
-        if ((expenses || []).length === 0) {
-          const cloudExp = await fetchMaster("ocean_expenses", "master_list");
-          if (Array.isArray(cloudExp) && cloudExp.length) {
-            setExpenses(cloudExp);
-            try { storeSave("ocean_expenses_v1", cloudExp); } catch {}
-          }
-        }
-        // If cloud is empty but local has data, push once
-        await ensureMaster("ocean_expenses", "master_list", expenses);
-
-        // 2.5) Daily Rates
-        if ((dailyRates || []).length === 0) {
-          const cloudRates = await fetchMaster("ocean_daily_rates", "master_list");
-          if (Array.isArray(cloudRates) && cloudRates.length) {
-            setDailyRates(cloudRates);
-            try { storeSave("oceanstay_daily_rates_v1", cloudRates); storeSave("oceanstay_daily_rates", cloudRates); } catch {}
-          }
-        }
-        // If cloud is empty but local has data, push once
-        await ensureMaster("ocean_daily_rates", "master_list", dailyRates);
-
-
-
-        // 3) Reservations (rows per reservation)
-        if ((reservations || []).length === 0) {
-          try {
-            const { data: rows, error } = await supabase
-              .from("reservations")
-              .select("id, data, updated_at")
-              .order("updated_at", { ascending: false });
-
-            if (!error && Array.isArray(rows) && rows.length) {
-              const list = rows
-                .map((r) => {
-                  const obj = r?.data && typeof r.data === "object" ? { ...r.data } : null;
-                  if (!obj) return null;
-                  if (!obj.id) obj.id = r.id;
-                  if (!obj.updatedAt && r.updated_at) obj.updatedAt = r.updated_at;
-                  return obj;
-                })
-                .filter(Boolean);
-              if (list.length) setReservations(list);
-            }
-          } catch {}
-        }
-      } finally {
-        setCloudBootstrapped(true);
+      const itemsCloud = (itemsRes?.data || []).map((r) => r.data).filter(Boolean);
+      const movesCloud = (movesRes?.data || []).map((r) => r.data).filter(Boolean);
+      const suppliersCloud = (suppliersRes?.data || []).map((r) => r.data).filter(Boolean);
+      const expensesCloud = (expRes?.data || []).map((r) => ({
+        id: r.id,
+        date: (r.expense_date || "").toString().slice(0, 10),
+        expense_date: (r.expense_date || "").toString().slice(0, 10),
+        category: r.category || "",
+        vendor: r.vendor || "",
+        description: r.description || "",
+        amount: Number(r.amount ?? 0),
+        method: r.method || "",
+        ref: r.ref || "",
+        updatedAt: r.updated_at || null,
+      })).filter((x) => x.id && x.date);
+      const dailyRatesCloud = (drRes?.data || []).map((r) => ({
+        roomType: r.room_type,
+        room_type: r.room_type,
+        from: r.date_from,
+        to: r.date_to,
+        date_from: r.date_from,
+        date_to: r.date_to,
+        nightlyRate: Number(r.nightly_rate ?? 0),
+        nightly_rate: Number(r.nightly_rate ?? 0),
+        pkg_bb: Number(r.pkg_bb ?? 0),
+        pkg_hb: Number(r.pkg_hb ?? 0),
+        pkg_fb: Number(r.pkg_fb ?? 0),
+        bb: Number(r.pkg_bb ?? 0),
+        hb: Number(r.pkg_hb ?? 0),
+        fb: Number(r.pkg_fb ?? 0),
+      })).filter((x) => x.roomType && x.from && x.to);
+      const reservationsCloud = (resRes?.data || []).map((r) => r.data).filter(Boolean);
+      if (extraRevRes?.error) {
+        console.warn("Extra revenues pull failed:", extraRevRes.error.message, "→ Run supabase_ocean_extra_revenues.sql in Supabase SQL Editor.");
       }
-    };
+      const extraRevenuesCloud = (extraRevRes?.data || []).map((r) => ({
+        id: r.id,
+        date: (r.revenue_date || r.date || "").toString().slice(0, 10),
+        type: r.type || "Services",
+        description: r.description || "",
+        amount: Number(r.amount ?? 0),
+        createdAt: r.created_at || null,
+        updatedAt: r.updated_at || null,
+      })).filter((x) => x.id);
 
-    boot();
-  }, [supabase, supabaseEnabled, cloudBootstrapped]);
+      // Apply Supabase → app: use cloud as source of truth so deletions in Supabase reflect in app on refresh
+      if (!cancelled && allowPull) {
+        setStoreItems(itemsCloud);
+        storeSave(LS_STORE_ITEMS, itemsCloud);
+        setStoreMoves(movesCloud);
+        storeSave(LS_STORE_MOVES, movesCloud);
+        setStoreSuppliers(suppliersCloud);
+        storeSave(LS_STORE_SUPPLIERS, suppliersCloud);
+        setExpenses(expensesCloud);
+        storeSave("ocean_expenses_v1", expensesCloud);
+        setDailyRates(dailyRatesCloud);
+        storeSave("oceanstay_daily_rates_v1", dailyRatesCloud);
+        storeSave("oceanstay_daily_rates", dailyRatesCloud);
+        setReservations(reservationsCloud);
+        storeSave("oceanstay_reservations_v1", reservationsCloud);
+        setExtraRevenues(extraRevenuesCloud);
+        storeSave("ocean_extra_rev_v1", extraRevenuesCloud);
+        setCloudBootstrapped(true);
+        return;
+      }
+
+      // Else: push local to cloud (seed when pull disabled or first-time)
+      const localItems = storeItems || [];
+      const localMoves = storeMoves || [];
+      const localSuppliers = storeSuppliers || [];
+      const localExpenses = expenses || [];
+      const localReservations = reservations || [];
+      const localExtraRevenues = extraRevenues || [];
+
+      if (allowPush && localReservations.length) {
+        const resRows = localReservations
+          .filter((r) => r && r.id)
+          .map((r) => ({ id: String(r.id), data: r, updated_at: r.updatedAt || new Date().toISOString() }));
+        if (resRows.length) await sb.from("reservations").upsert(resRows, { onConflict: "id" });
+      }
+      if (allowPush && localItems.length) {
+        await sb.from("ocean_store_items").upsert(localItems.map((it) => ({ id: it.id, data: it })), { onConflict: "id" });
+      }
+      if (allowPush && localMoves.length) {
+        await sb.from("ocean_store_moves").upsert(localMoves.map((m) => ({ id: m.id, data: m })), { onConflict: "id" });
+      }
+      if (allowPush && localSuppliers.length) {
+        await sb.from("ocean_store_suppliers").upsert(localSuppliers.map((s) => ({ id: s.id, data: s })), { onConflict: "id" });
+      }
+      if (allowPush && localExtraRevenues.length) {
+        const todayYMD = new Date().toISOString().slice(0, 10);
+        const extraRows = localExtraRevenues
+          .filter((r) => r && r.id)
+          .map((r) => {
+            const dateStr = (r.date || "").toString().trim().slice(0, 10);
+            const revenueDate = /^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr : todayYMD;
+            const nowIso = new Date().toISOString();
+            return {
+              id: String(r.id),
+              revenue_date: revenueDate,
+              type: (r.type || "Services").trim() || "Services",
+              description: (r.description || "").trim(),
+              amount: Number(r.amount ?? 0),
+              created_at: nowIso,
+              updated_at: nowIso,
+            };
+          });
+        if (extraRows.length) await sb.from("ocean_extra_revenues").upsert(extraRows, { onConflict: "id" });
+      }
+
+      // Expenses (ROWS)
+      if (allowPush && Array.isArray(localExpenses) && localExpenses.length) {
+        const payloadExpenses = (localExpenses || []).map((x) => ({
+          id: x.id || (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random())),
+          expense_date: (x.expense_date || x.date || new Date().toISOString().slice(0, 10)).toString().slice(0, 10),
+          category: x.category || "",
+          vendor: x.vendor || "",
+          description: x.description || "",
+          amount: Number(x.amount || 0),
+          method: x.method || "",
+          ref: x.ref || "",
+          updated_at: new Date().toISOString(),
+        }));
+        if (payloadExpenses.length) {
+          const { error: expErr } = await sb
+            .from("ocean_expenses")
+            .upsert(payloadExpenses, { onConflict: "id" });
+          if (expErr) console.error("ocean_expenses upsert error:", expErr);
+        }
+      }
+
+      // Daily Rates (rows)
+      if (allowPush && Array.isArray(dailyRates) && dailyRates.length) {
+        const payloadClean = (dailyRates || [])
+          .map((r) => {
+            const room_type = (r.roomType ?? r.room_type ?? "").toString().trim();
+            const fromISO = toISODate(r.from ?? r.date_from ?? r.dateFrom ?? r.date_from);
+            let toISO = toISODate(r.to ?? r.date_to ?? r.dateTo ?? r.date_to) || fromISO;
+            if (fromISO && toISO && toISO < fromISO) toISO = fromISO;
+
+            return {
+              room_type,
+              date_from: fromISO,
+              date_to: toISO,
+              nightly_rate: pickNumMaybe(r.nightlyRate, r.nightly_rate, r.rate),
+              pkg_bb: readPkgMaybe(r, "bb"),
+              pkg_hb: readPkgMaybe(r, "hb"),
+              pkg_fb: readPkgMaybe(r, "fb"),
+            };
+          })
+          .filter((x) => x.room_type && x.date_from && x.date_to);
+
+        if (payloadClean.length) {
+          const drRes2 = await upsertDailyRatesSafe(sb, payloadClean);
+          if (!drRes2.ok) console.error("ocean_daily_rates upsert error:", drRes2.error);
+        }
+      }
+
+      if (!cancelled) setCloudBootstrapped(true);
+    } catch (e) {
+      console.warn("Store cloud bootstrap failed:", e?.message || e);
+      if (!cancelled) setCloudBootstrapped(true);
+    }
+  })();
+
+  return () => { cancelled = true; };
+}, [cloudBootstrapped]);
 
   // ✅ دالة الخروج (موجودة بالفعل وتم ربطها الآن)
   const doLogout = async () => {
@@ -542,6 +1049,7 @@ if (supabase && supabaseEnabled) {
     setLoginOpen(true);
     setPage("dashboard");
   };
+  const dologout = doLogout; // alias to avoid typo-related runtime errors
 
   const doLogin = (user) => {
     setCurrentUser(user);
@@ -564,6 +1072,8 @@ if (supabase && supabaseEnabled) {
       status: "Booked",
       pax: 1,
       mealPlan: "BO",
+      channel: "Direct booking",
+      paymentMethod: "Cash",
       guest: {},
       pricing: {
         nightly: 0,
@@ -617,6 +1127,45 @@ if (supabase && supabaseEnabled) {
         { ...data, id: uid("res"), createdAt: new Date().toISOString() },
       ];
     }
+    const savedRes = editingIndex !== null ? next[editingIndex] : next[next.length - 1];
+    const s = storeLoad("ocean_settings_v1", null);
+    const taxRate = Number(s?.taxRate ?? 17);
+    const serviceCharge = Number(s?.serviceCharge ?? 10);
+    const cityTaxFixed = Number(s?.cityTax ?? 0);
+    const snap = computeSplitPricingSnapshot({
+      roomType: savedRes?.room?.roomType,
+      checkIn: savedRes?.stay?.checkIn,
+      checkOut: savedRes?.stay?.checkOut,
+      dailyRates,
+      taxRate,
+      serviceCharge,
+      mealPlan: savedRes?.mealPlan ?? data?.mealPlan ?? "BO",
+      pax: savedRes?.pax ?? data?.pax ?? 1,
+    });
+    if (snap.ok) {
+      const roomSubtotal = snap.nightly.reduce((sum, x) => sum + Number(x.baseRate ?? 0), 0);
+      const packageSubtotal = snap.nightly.reduce((sum, x) => sum + Math.max(0, Number(x.rate ?? 0) - Number(x.baseRate ?? 0)), 0);
+      const cityTaxAmount = roundTo2((savedRes?.pax ?? 1) * cityTaxFixed * calcNights(savedRes?.stay?.checkIn, savedRes?.stay?.checkOut));
+      const total = roundTo2(snap.total + cityTaxAmount);
+      const idx = editingIndex !== null ? editingIndex : next.length - 1;
+      next = [...next];
+      next[idx] = {
+        ...next[idx],
+        pricing: {
+          ...next[idx].pricing,
+          nightly: snap.nightly,
+          subtotal: snap.subtotal,
+          taxAmount: snap.taxAmount,
+          serviceAmount: snap.serviceAmount,
+          roomSubtotal: roundTo2(roomSubtotal),
+          packageSubtotal: roundTo2(packageSubtotal),
+          cityTaxFixed,
+          cityTaxAmount,
+          total,
+        },
+        updatedAt: new Date().toISOString(),
+      };
+    }
     setReservations(next);
     storeSave("oceanstay_reservations_v1", next);
     setShowReservationModal(false);
@@ -636,6 +1185,8 @@ if (supabase && supabaseEnabled) {
       status: "Booked",
       pax: 1,
       mealPlan: "BO",
+      channel: "Direct booking",
+      paymentMethod: "Cash",
       guest: {},
       pricing: {
         nightly: 0,
@@ -652,69 +1203,174 @@ if (supabase && supabaseEnabled) {
   };
 
   // ================= EFFECTS: DATA SYNC =================
-
+  // Don't push to Supabase until bootstrap has run (pull first), so cloud stays source of truth on load
   useEffect(() => {
-    if (!supabase || !supabaseEnabled) return;
-    const sync = async () => {
-      await supabase.from("ocean_store_items").upsert({
-        id: "master_items",
-        data: storeItems,
-        updated_at: new Date().toISOString(),
-      });
-      await supabase.from("ocean_store_moves").upsert({
-        id: "master_moves",
-        data: storeMoves,
-        updated_at: new Date().toISOString(),
-      });
-      await supabase.from("ocean_store_suppliers").upsert({
-        id: "master_suppliers",
-        data: storeSuppliers,
-        updated_at: new Date().toISOString(),
-      });
-    };
-    const t = setTimeout(sync, 2000);
-    return () => clearTimeout(t);
-  }, [storeItems, storeMoves, storeSuppliers, supabase, supabaseEnabled]);
-
-  useEffect(() => {
-    if (!supabase || !supabaseEnabled) return;
+    if (!cloudBootstrapped || !supabase || !supabaseEnabled) return;
     const saveRes = async () => {
-      const rows = reservations
+      const localList = reservations || [];
+      const localIds = new Set(localList.filter((r) => r && r.id).map((r) => String(r.id)));
+      const rows = localList
         .filter((r) => r && r.id)
         .map((r) => ({
           id: String(r.id),
           data: r,
           updated_at: r.updatedAt || new Date().toISOString(),
         }));
-      if (rows.length)
+      if (rows.length) {
         await supabase.from("reservations").upsert(rows, { onConflict: "id" });
+      }
+      // Remove from Supabase any reservation that was deleted locally
+      const { data: existing } = await supabase.from("reservations").select("id");
+      const idsToRemove = (existing || []).map((r) => r.id).filter((id) => id && !localIds.has(id));
+      if (idsToRemove.length) {
+        await supabase.from("reservations").delete().in("id", idsToRemove);
+      }
     };
     const t = setTimeout(saveRes, 1000);
     return () => clearTimeout(t);
-  }, [reservations, supabase, supabaseEnabled]);
+  }, [cloudBootstrapped, reservations, supabase, supabaseEnabled]);
+
+  // Extra revenues: push to Supabase (use same config as bootstrap so sync always works)
+  useEffect(() => {
+    if (!cloudBootstrapped) return;
+    const cfg = lsGet(SB_LS_CFG, null);
+    const anon = (cfg?.anon || cfg?.anonKey || "").trim();
+    if (!cfg?.enabled || !cfg?.url || !anon) return;
+
+    const localList = Array.isArray(extraRevenues) ? extraRevenues : [];
+    const localIds = new Set(localList.filter((r) => r && r.id).map((r) => String(r.id)));
+    const todayYMD = new Date().toISOString().slice(0, 10);
+    const rows = localList
+      .filter((r) => r && r.id)
+      .map((r) => {
+        const dateStr = (r.date || "").toString().trim().slice(0, 10);
+        const revenueDate = /^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr : todayYMD;
+        const nowIso = new Date().toISOString();
+        return {
+          id: String(r.id),
+          revenue_date: revenueDate,
+          type: (r.type || "Services").trim() || "Services",
+          description: (r.description || "").trim(),
+          amount: Number(r.amount ?? 0),
+          created_at: nowIso,
+          updated_at: nowIso,
+        };
+      });
+
+    (async () => {
+      try {
+        const sb = createClient(cfg.url, anon);
+        if (rows.length) {
+          const { error: upErr } = await sb.from("ocean_extra_revenues").upsert(rows, { onConflict: "id" });
+          if (upErr) {
+            console.error("ocean_extra_revenues upsert error:", upErr.message, upErr.details);
+            return;
+          }
+        }
+        const { data: existing, error: selErr } = await sb.from("ocean_extra_revenues").select("id");
+        if (selErr) {
+          console.error("ocean_extra_revenues select error:", selErr.message);
+          return;
+        }
+        const idsToRemove = (existing || []).map((r) => r.id).filter((id) => id && !localIds.has(id));
+        if (idsToRemove.length) {
+          await sb.from("ocean_extra_revenues").delete().in("id", idsToRemove);
+        }
+      } catch (e) {
+        console.error("ocean_extra_revenues sync failed:", e);
+      }
+    })();
+  }, [cloudBootstrapped, extraRevenues]);
 
   useEffect(() => {
     storeSave("oceanstay_daily_rates_v1", dailyRates);
   }, [dailyRates]);
 
   useEffect(() => {
-    if (!supabase || !supabaseEnabled) return;
-    // keep cloud copy of daily rates updated
-    (async () => {
-      try {
-        const { error } = await supabase.from("ocean_daily_rates").upsert({
-          id: "master_list",
-          data: dailyRates || [],
-          updated_at: new Date().toISOString(),
-        });
-        if (error) console.error(error);
-      } catch (e) {
-        // ignore hard fail (e.g., table not created yet)
-        console.error(e);
-      }
-    })();
-  }, [supabase, supabaseEnabled, dailyRates]);
+  if (!cloudBootstrapped || !supabase || !supabaseEnabled) return;
 
+  const list = Array.isArray(dailyRates) ? dailyRates : (dailyRates ? [dailyRates] : []);
+  if (!list.length) return;
+
+  (async () => {
+    try {
+      // Detect deletions: if a rate was removed locally, delete it from Supabase too
+      const prevListRaw = Array.isArray(prevDailyRatesRef.current)
+        ? prevDailyRatesRef.current
+        : (prevDailyRatesRef.current ? [prevDailyRatesRef.current] : []);
+
+      const normKey = (r) => {
+        const rt = (r?.roomType ?? r?.room_type ?? r?.type ?? r?.room ?? "").toString().trim();
+        const df = toISODate(r?.from ?? r?.date_from ?? r?.dateFrom ?? r?.date_from);
+        let dt = toISODate(r?.to ?? r?.date_to ?? r?.dateTo ?? r?.date_to) || df;
+        if (df && dt && dt < df) dt = df;
+        return rt && df && dt ? `${rt}__${df}__${dt}` : null;
+      };
+
+      const prevKeys = new Set(prevListRaw.map(normKey).filter(Boolean));
+      const payloadClean = list
+        .map((r) => {
+          const room_type =
+            (r.roomType ?? r.room_type ?? r.type ?? r.room ?? "").toString().trim() || null;
+
+          const fromISO = toISODate(r.from ?? r.date_from ?? r.dateFrom ?? r.date_from);
+          let toISO = toISODate(r.to ?? r.date_to ?? r.dateTo ?? r.date_to) || fromISO;
+          if (fromISO && toISO && toISO < fromISO) toISO = fromISO;
+
+          return {
+            room_type,
+            date_from: fromISO || null,
+            date_to: toISO || null,
+            nightly_rate: pickNumMaybe(r.nightlyRate, r.nightly_rate, r.rate),
+            pkg_bb: readPkgMaybe(r, "bb"),
+            pkg_hb: readPkgMaybe(r, "hb"),
+            pkg_fb: readPkgMaybe(r, "fb"),
+          };
+        })
+        // مهم جدًا: امنع إرسال row بدون room_type أو date_from/date_to
+        .filter((x) => x.room_type && x.date_from && x.date_to);
+
+      if (!payloadClean.length) {
+        console.warn("Skip upsert: missing required fields (room_type/date_from/date_to).");
+        return;
+      }
+
+
+      // Compute deletions vs previous snapshot (by composite key)
+      const nextKeys = new Set(payloadClean.map((x) => (x.room_type && x.date_from && x.date_to) ? `${x.room_type}__${x.date_from}__${x.date_to}` : null).filter(Boolean));
+      const removed = Array.from(prevKeys).filter((k) => !nextKeys.has(k)).map((k) => {
+        const [room_type, date_from, date_to] = k.split("__");
+        return { room_type, date_from, date_to };
+      });
+
+      const { error } = await supabase
+        .from("ocean_daily_rates")
+        .upsert(payloadClean, { onConflict: "room_type,date_from,date_to" });
+
+      if (error) console.error("ocean_daily_rates upsert error:", { message: error.message, details: error.details, hint: error.hint, code: error.code });
+
+      if (!error) {
+        // Apply deletions (best-effort)
+        for (const r of removed) {
+          try {
+            const del = await supabase.from("ocean_daily_rates").delete().match({
+              room_type: r.room_type,
+              date_from: r.date_from,
+              date_to: r.date_to,
+            });
+            if (del?.error) console.error("ocean_daily_rates delete error:", del.error);
+          } catch (e) {
+            console.error("ocean_daily_rates delete exception:", e);
+          }
+        }
+        // Update snapshot only after successful upsert (and attempted deletions)
+        prevDailyRatesRef.current = list;
+      }
+    } catch (e) {
+      console.error("ocean_daily_rates upsert exception:", e);
+    }
+  })();
+}, [cloudBootstrapped, supabase, supabaseEnabled, dailyRates]);
 
 
   useEffect(() => {
@@ -726,7 +1382,7 @@ if (supabase && supabaseEnabled) {
     setReservations((prev) => {
       let changed = false;
       const next = prev.map((r) => {
-        if (!r || r.status !== "Booked") return r;
+        if (!r || (r.status !== "Booked" && r.status !== "Checked-in")) return r;
 
         const snap = computeSplitPricingSnapshot({
           roomType: r.room?.roomType,
@@ -741,15 +1397,16 @@ if (supabase && supabaseEnabled) {
 
         if (!snap.ok) return r;
 
+        const roomSubtotal = snap.nightly.reduce((s, x) => s + Number(x.baseRate ?? 0), 0);
+        const packageSubtotal = snap.nightly.reduce((s, x) => s + Math.max(0, Number(x.rate ?? 0) - Number(x.baseRate ?? 0)), 0);
+        const cityTaxAmount = roundTo2(
+          (r.pax ?? 1) * cityTaxFixed * calcNights(r.stay?.checkIn, r.stay?.checkOut)
+        );
+        const total = roundTo2(snap.total + cityTaxAmount);
         const prevTotal = Number(r.pricing?.total ?? NaN);
-        if (Math.abs(prevTotal - snap.total) < 0.01) return r;
+        if (Math.abs(prevTotal - total) < 0.01) return r;
 
         changed = true;
-        const cityTaxAmount =
-          (r.pax ?? 1) *
-          cityTaxFixed *
-          calcNights(r.stay?.checkIn, r.stay?.checkOut);
-
         return {
           ...r,
           pricing: {
@@ -758,9 +1415,11 @@ if (supabase && supabaseEnabled) {
             subtotal: snap.subtotal,
             taxAmount: snap.taxAmount,
             serviceAmount: snap.serviceAmount,
+            roomSubtotal: roundTo2(roomSubtotal),
+            packageSubtotal: roundTo2(packageSubtotal),
             cityTaxFixed,
             cityTaxAmount,
-            total: snap.total + cityTaxAmount,
+            total,
           },
           updatedAt: new Date().toISOString(),
         };
@@ -1115,7 +1774,7 @@ if (supabase && supabaseEnabled) {
         {page === "expenses" && (
           <SafePage>
             <ExpensesPage
-              paymentMethods={["Cash", "Card"]}
+              paymentMethods={PAYMENT_METHODS}
               expenses={toArray(expenses)}
               setExpenses={updateExpenses}
               supabase={supabase}

@@ -1,6 +1,6 @@
 import React from "react";
 import { FaTimes, FaPrint, FaFileInvoiceDollar, FaCalendarAlt, FaUser, FaDoorOpen } from "react-icons/fa";
-import { calcNights, money, storeLoad } from "../utils/helpers";
+import { calcNights, money, storeLoad, roundTo2 } from "../utils/helpers";
 
 export default function InvoiceModal({ reservation, onClose }) {
   // --- الحسابات المالية ---
@@ -18,24 +18,33 @@ export default function InvoiceModal({ reservation, onClose }) {
 
   const p = reservation?.pricing || {};
   const nightlyArr = Array.isArray(p.nightly) ? p.nightly : [];
+  const mealPlanLabel = (() => {
+    const mp = String(reservation?.mealPlan ?? "BO").toUpperCase();
+    if (mp === "BB") return "Bed & Breakfast (BB)";
+    if (mp === "HB") return "Half Board (HB)";
+    if (mp === "FB") return "Full Board (FB)";
+    return "Meal Plan";
+  })();
 
-  const roomSubtotal = Number(p.roomSubtotal || p.roomTotal || (nightlyArr.length ? nightlyArr.reduce((sum, x) => sum + Number(x.baseRate || x.rate || 0), 0) : nights * Number(reservation?.room?.roomRate || 0)));
-  const packageSubtotal = Number(
-    p.packageSubtotal ??
-      (nightlyArr.length
-        ? nightlyArr.reduce((sum, x) => {
-            const rate = Number(x?.rate ?? 0);
-            const base = Number(x?.baseRate ?? x?.rate ?? 0);
-            return sum + Math.max(0, rate - base);
-          }, 0)
-        : 0)
+  const roomSubtotal = Number(
+    p.roomSubtotal ?? p.roomBase ?? p.roomTotal ??
+    (nightlyArr.length ? nightlyArr.reduce((sum, x) => sum + Number(x.baseRate ?? x.rate ?? 0), 0) : nights * Number(reservation?.room?.roomRate || 0))
   );
-  const baseSubtotal = Number(p.subtotal || (roomSubtotal + packageSubtotal));
-  
-  const taxAmount = Number(isClosed ? (p.taxAmount || 0) : (p.taxAmount ?? (baseSubtotal * (taxRate / 100))));
-  const serviceAmount = Number(isClosed ? (p.serviceAmount || 0) : (p.serviceAmount ?? (baseSubtotal * (serviceCharge / 100))));
-  const cityTaxAmount = Number(isClosed ? (p.cityTaxAmount || 0) : (p.cityTaxAmount ?? (pax * cityTaxFixed * nights)));
-  const invoiceTotal = Number(isClosed ? (p.total || 0) : (p.total ?? (baseSubtotal + taxAmount + serviceAmount + cityTaxAmount)));
+  const packageSubtotal = Number(
+    p.packageSubtotal ?? p.mealBase ??
+    (nightlyArr.length
+      ? nightlyArr.reduce((sum, x) => {
+          const rate = Number(x?.rate ?? 0);
+          const base = Number(x?.baseRate ?? x?.rate ?? 0);
+          return sum + Math.max(0, rate - base);
+        }, 0)
+      : 0)
+  );
+  const baseSubtotal = roundTo2(Number(p.subtotal ?? (roomSubtotal + packageSubtotal)));
+  const taxAmount = Number(isClosed ? (p.taxAmount || 0) : (p.taxAmount ?? roundTo2(baseSubtotal * (taxRate / 100))));
+  const serviceAmount = Number(isClosed ? (p.serviceAmount || 0) : (p.serviceAmount ?? roundTo2(baseSubtotal * (serviceCharge / 100))));
+  const cityTaxAmount = Number(isClosed ? (p.cityTaxAmount || 0) : (p.cityTaxAmount ?? roundTo2(pax * cityTaxFixed * nights)));
+  const invoiceTotal = Number(isClosed ? (p.total || 0) : (p.total ?? roundTo2(baseSubtotal + taxAmount + serviceAmount + cityTaxAmount)));
 
   const handlePrint = () => {
     window.print();
@@ -60,11 +69,23 @@ export default function InvoiceModal({ reservation, onClose }) {
 
         /* Header */
         .invoice-header {
-          padding: 25px 30px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
-          display: flex; justify-content: space-between; align-items: flex-start;
+          padding: 25px 30px; background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
+          border-bottom: 1px solid #e2e8f0;
+          display: flex; justify-content: space-between; align-items: center;
         }
-        .hotel-brand h2 { margin: 0; font-size: 1.4rem; color: #0f172a; letter-spacing: -0.5px; }
-        .hotel-brand span { color: #64748b; font-size: 0.85rem; font-weight: 400; }
+        .hotel-brand { display: flex; align-items: center; gap: 20px; }
+        .hotel-brand .invoice-logo {
+          width: 80px; height: 80px; object-fit: cover; border-radius: 50%;
+          border: 3px solid #e0f2fe; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex-shrink: 0;
+        }
+        .hotel-brand-text { display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .hotel-brand-text .invoice-hotel-name {
+          margin: 0; color: #0f172a; font-size: 36px; font-family: 'Brush Script MT', cursive;
+          letter-spacing: 1px; font-weight: normal; line-height: 1;
+        }
+        .hotel-brand-text .invoice-hotel-sub {
+          font-size: 22px; font-family: 'Brush Script MT', cursive; color: #64748b; margin-top: 5px;
+        }
         .invoice-badge {
           background: #e0f2fe; color: #0369a1; padding: 6px 14px; border-radius: 8px;
           font-weight: 700; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;
@@ -124,6 +145,9 @@ export default function InvoiceModal({ reservation, onClose }) {
           .ocean-modal-overlay { position: absolute; background: white; padding: 0; }
           .ocean-invoice-card { box-shadow: none; max-width: 100%; }
           .invoice-footer, .btn-close { display: none; }
+          .hotel-brand .invoice-logo { width: 64px; height: 64px; }
+          .hotel-brand-text .invoice-hotel-name { font-size: 28px; }
+          .hotel-brand-text .invoice-hotel-sub { font-size: 18px; }
         }
       `}</style>
 
@@ -133,8 +157,11 @@ export default function InvoiceModal({ reservation, onClose }) {
           {/* Header */}
           <div className="invoice-header">
             <div className="hotel-brand">
-              <h2>Ocean Blue Lagoon</h2>
-              <span>Maldives | Official Invoice</span>
+              <img src="/logo.png" alt="Ocean Blue Lagoon" className="invoice-logo" />
+              <div className="hotel-brand-text">
+                <h1 className="invoice-hotel-name">Ocean Blue Lagoon</h1>
+                <span className="invoice-hotel-sub">Maldives Resort</span>
+              </div>
             </div>
             <div className="invoice-badge">
               <FaFileInvoiceDollar /> INVOICE #{String(reservation.id).substring(0, 6).toUpperCase()}
@@ -170,6 +197,10 @@ export default function InvoiceModal({ reservation, onClose }) {
                 <span className="info-label">Pax</span>
                 <span className="info-value">{pax} Guests</span>
               </div>
+              <div className="info-item">
+                <span className="info-label">Meal Plan</span>
+                <span className="info-value">{mealPlanLabel}</span>
+              </div>
             </div>
 
             {/* Financial Breakdown Table */}
@@ -189,7 +220,7 @@ export default function InvoiceModal({ reservation, onClose }) {
                   </tr>
                   {packageSubtotal > 0 && (
                     <tr>
-                      <td>Meal Plan & Addons</td>
+                      <td>Meal Plan ({String(reservation?.mealPlan ?? "BO").toUpperCase()})</td>
                       <td className="text-right">{money(packageSubtotal)}</td>
                     </tr>
                   )}

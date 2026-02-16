@@ -6,9 +6,9 @@ import {
   FaWallet // Added icon for header
 } from "react-icons/fa";
 
-import { 
-  storeMoney, uid, expStartOfMonthStr, expTodayStr, expStartOfYearStr, 
-  expInInclusiveRange 
+import {
+  storeMoney, uid, expStartOfMonthStr, expTodayStr, expStartOfYearStr,
+  expInInclusiveRange, roundTo2
 } from "../utils/helpers";
 import { EXP_LS_EXPENSES, EXP_DEFAULT_CATEGORIES } from "../data/constants";
 
@@ -24,21 +24,6 @@ export default function ExpensesPage({ paymentMethods, expenses, setExpenses, su
   const persist = (next) => {
     setExpenses(next); 
     try { localStorage.setItem(EXP_LS_EXPENSES, JSON.stringify(next)); } catch {}
-
-    (async () => {
-      try {
-        if (supabase && supabaseEnabled) {
-          const now = new Date().toISOString();
-          await supabase.from("ocean_expenses").upsert({
-            id: "master_list",
-            data: next,
-            updated_at: now,
-          });
-        }
-      } catch (e) {
-        console.error("Sync Error:", e);
-      }
-    })();
   };
 
   const [period, setPeriod] = useState("MTD");
@@ -110,13 +95,13 @@ export default function ExpensesPage({ paymentMethods, expenses, setExpenses, su
   }, [expenses, q, cat, method, computedRange]);
 
   const stats = useMemo(() => {
-    const total = filtered.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const total = roundTo2(filtered.reduce((sum, e) => sum + Number(e.amount || 0), 0));
     const count = filtered.length;
-    
+
     const byCat = new Map();
     filtered.forEach((e) => {
       const c = e.category || "Other";
-      byCat.set(c, (byCat.get(c) || 0) + Number(e.amount || 0));
+      byCat.set(c, roundTo2((byCat.get(c) || 0) + Number(e.amount || 0)));
     });
     const topCats = Array.from(byCat.entries())
       .sort((a, b) => b[1] - a[1])

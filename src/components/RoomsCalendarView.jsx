@@ -6,6 +6,16 @@ import {
 } from "lucide-react";
 import { startOfDay, isSameDay, isActiveStatus } from "../utils/helpers";
 
+const normStatus = (s) => String(s ?? "").trim().toLowerCase();
+const isCheckInStatus = (status) => {
+  const t = normStatus(status);
+  return t === "checked-in" || t === "checked in" || t === "in house" || (t.includes("check") && t.includes("in")) || (t.includes("in") && t.includes("house"));
+};
+const isBookedOrFuture = (status) => {
+  const t = normStatus(status);
+  return t === "booked" || t === "confirmed" || isCheckInStatus(status);
+};
+
 export default function RoomsCalendarView({ rooms, reservations, onCellClick }) {
   const [currentMonth, setCurrentMonth] = useState(() => {
     const d = new Date();
@@ -15,6 +25,7 @@ export default function RoomsCalendarView({ rooms, reservations, onCellClick }) 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
   const today = new Date();
+  const todayYMD = today.toISOString().slice(0, 10);
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1));
@@ -24,11 +35,10 @@ export default function RoomsCalendarView({ rooms, reservations, onCellClick }) 
     return (reservations || []).find((r) => {
       if (r.room?.roomNumber !== roomNumber) return false;
       if (!r.stay?.checkIn || !r.stay?.checkOut) return false;
-      if (!isActiveStatus(r.status)) return false;
+      if (!isBookedOrFuture(r.status)) return false;
 
       const inDate = startOfDay(new Date(r.stay.checkIn));
       const outDate = startOfDay(new Date(r.stay.checkOut));
-      // نحسب اليوم إذا كان داخل النطاق
       return d >= inDate && d < outDate;
     });
   };
@@ -43,8 +53,8 @@ export default function RoomsCalendarView({ rooms, reservations, onCellClick }) 
     return Math.round((occupied / rooms.length) * 100);
   };
 
-  // تنسيق الخلية
-  const getCellStyle = (res, isToday, isWeekend) => {
+  // Highlight period: Checked-in/In House = green tint; future booking = blue tint
+  const getCellStyle = (res, day, isToday, isWeekend) => {
     let style = {
       height: "45px",
       borderRight: "1px solid #f1f5f9",
@@ -55,7 +65,19 @@ export default function RoomsCalendarView({ rooms, reservations, onCellClick }) 
     };
 
     if (isToday) {
-      style.backgroundColor = "#eff6ff"; 
+      style.backgroundColor = "#eff6ff";
+    }
+
+    if (res) {
+      const checkInYMD = String(res.stay?.checkIn ?? "").slice(0, 10);
+      const isFuture = checkInYMD > todayYMD;
+      if (isCheckInStatus(res.status)) {
+        style.backgroundColor = "#dcfce7";
+        if (isToday) style.backgroundColor = "#bbf7d0";
+      } else if (isFuture) {
+        style.backgroundColor = "#dbeafe";
+        if (isToday) style.backgroundColor = "#bfdbfe";
+      }
     }
 
     return style;
@@ -83,10 +105,10 @@ export default function RoomsCalendarView({ rooms, reservations, onCellClick }) 
       pointerEvents: "none" 
     };
 
-    if (status === "Checked-in") {
+    if (isCheckInStatus(status)) {
       return { ...baseStyle, backgroundColor: "#dcfce7", color: "#166534", border: "1px solid #bbf7d0" };
     }
-    if (status === "Booked") {
+    if (status === "Booked" || normStatus(status) === "confirmed") {
       return { ...baseStyle, backgroundColor: "#dbeafe", color: "#1e40af", border: "1px solid #bfdbfe" };
     }
     return { ...baseStyle, backgroundColor: "#f3f4f6", color: "#374151" };
@@ -210,7 +232,7 @@ export default function RoomsCalendarView({ rooms, reservations, onCellClick }) 
                   return (
                     <td
                       key={i}
-                      style={getCellStyle(res, isToday, isWeekend)}
+                      style={getCellStyle(res, day, isToday, isWeekend)}
                       onClick={() =>
                         onCellClick({
                           reservation: res || null,
