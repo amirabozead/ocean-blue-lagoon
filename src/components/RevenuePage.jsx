@@ -272,6 +272,14 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
     safeReservations.forEach((r) => {
       if (!r || r.status === "Cancelled") return;
 
+      const status = (r.status || "").toLowerCase();
+      // Only count revenue for reservations that have checked in (not Booked)
+      const isCheckedIn = status === "checked-in" || status === "checked in" || 
+                         status === "checked-out" || status === "checked out" || 
+                         status === "in house";
+      
+      if (!isCheckedIn) return; // Skip Booked reservations
+
       const ciRaw = r?.stay?.checkIn;
       const coRaw = r?.stay?.checkOut;
       if (!ciRaw || !coRaw) return;
@@ -279,6 +287,7 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
       const ci = toYMD(ciRaw);
       const co = toYMD(coRaw);
 
+      // Only count revenue from check-in day onwards (day >= ci)
       // checkOut exclusive
       const stayDates = [];
       let cur = ci;
@@ -292,7 +301,8 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
       const perNight = totalAmount / stayNights;
 
       stayDates.forEach((day) => {
-        if (day >= startDate && day <= endDate) {
+        // Only count from check-in day onwards and within report period
+        if (day >= ci && day >= startDate && day <= endDate) {
           roomRevenue += perNight;
           roomNightsSold += 1;
           if (timelineMap[day] !== undefined) timelineMap[day] += perNight;

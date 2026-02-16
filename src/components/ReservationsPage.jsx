@@ -768,13 +768,15 @@ export default function ReservationsPage({
           borderRadius: 16,
           boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
           border: "1px solid #f1f5f9",
-          overflowX: "hidden",
+          overflowX: "auto",
           overflowY: "auto",
           width: "100%",
           maxWidth: "100%",
           minWidth: 0,
           maxHeight: "calc(100vh - 280px)",
+          WebkitOverflowScrolling: "touch",
         }}
+        className="table-wrapper-mobile"
       >
         <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
           <thead style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>

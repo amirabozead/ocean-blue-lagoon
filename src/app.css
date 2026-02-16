@@ -26,27 +26,68 @@
   --slate2: #334155;
 }
 
+html {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
 body {
   background: var(--bg);
   color: #1f2937;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+#root {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 /* ========== LAYOUT ========== */
 .layout {
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .main {
   flex: 1;
   padding: 24px 28px;
   overflow-y: auto;
+  overflow-x: hidden;
+  width: 0; /* Allows flex to shrink properly */
+  min-width: 0; /* Prevents flex item from overflowing */
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Ensure all page containers are properly constrained */
+.main > div {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 /* ========== SIDEBAR (Ocean Header Theme) ========== */
 /* استدعاء خط التوقيع المشبك */
 .sidebar {
   width: 350px;
+  min-width: 350px;
+  max-width: 350px;
+  flex-shrink: 0;
   /* الخلفية: تدرج أزرق (لبني غامق) زي الهيدر */
   background: linear-gradient(180deg, #1e3a8a 0%, #172554 100%);
   color: #e2e8f0; /* لون النص أبيض فاتح */
@@ -59,6 +100,8 @@ body {
   box-shadow: 4px 0 25px rgba(0, 0, 0, 0.25);
   z-index: 50;
   font-family: 'Inter', sans-serif;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 /* --- قسم العنوان --- */
@@ -354,12 +397,15 @@ select:focus {
 /* ========== TABLE ========== */
 .table-wrap {
   width: 100%;
-  overflow: auto;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
 }
 .table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 980px;
+  min-width: 980px; /* Only applies when table-wrap allows horizontal scroll */
 }
 .table thead th {
   text-align: left;
@@ -3103,12 +3149,14 @@ textarea.input{ padding-top:10px; }
 /* Wider, premium reservation modal */
 .modal--reservation{
   width: 860px;
-  max-width: calc(100vw - 24px);
+  max-width: calc(100vw - 48px);
+  min-width: 0;
   padding: 0;
   overflow: hidden;
   border-radius: 22px;
   background: rgba(255,255,255,0.92);
   backdrop-filter: blur(10px);
+  box-sizing: border-box;
 }
 .modal--reservation .modalTop{
   padding: 18px 22px;
@@ -3409,6 +3457,168 @@ select.input { cursor: pointer; }
 
   /* Give the content some breathing room under the fixed menu button */
   .main{ padding: 70px 16px 18px; }
+  
+  /* Tables - Enable horizontal scroll on mobile */
+  table {
+    min-width: 600px;
+  }
+  
+  /* Table wrapper for horizontal scroll */
+  .table-wrapper-mobile,
+  div[style*="overflowX"] {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Table wrapper scrollbar styling */
+  .table-wrapper-mobile::-webkit-scrollbar {
+    height: 8px;
+  }
+  
+  .table-wrapper-mobile::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+  }
+  
+  .table-wrapper-mobile::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+  
+  .table-wrapper-mobile::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+  
+  /* Cards and Grids - Stack on mobile */
+  .card-panel,
+  .stat-card,
+  .kpi-card {
+    width: 100% !important;
+    margin-bottom: 16px;
+  }
+  
+  /* Dashboard Grid - Stack columns */
+  div[style*="grid-column"] {
+    grid-column: span 12 !important;
+  }
+  
+  /* Filter Cards - Stack */
+  div[style*="flexWrap"] {
+    flex-wrap: wrap;
+  }
+  
+  /* Modals - Full screen on mobile */
+  .modal,
+  .modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* Forms - Stack inputs */
+  .form-group,
+  .form-row {
+    flex-direction: column !important;
+  }
+  
+  /* Buttons - Full width on mobile */
+  button:not(.mobMenuBtn),
+  .btn,
+  .btn-primary,
+  .btn-save {
+    width: 100% !important;
+    margin-bottom: 12px;
+  }
+  
+  /* Charts - Responsive sizing */
+  canvas {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+  
+  /* Room Grid - Single column */
+  div[style*="gridTemplateColumns"] {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* KPI Cards - Stack */
+  .details-grid-4,
+  .details-grid-2 {
+    grid-template-columns: 1fr !important;
+    gap: 16px;
+  }
+  
+  /* Header Stats - Stack */
+  div[style*="display: flex"][style*="gap"] {
+    flex-wrap: wrap;
+  }
+  
+  /* Text sizes - Smaller on mobile */
+  h1 { font-size: 24px !important; }
+  h2 { font-size: 20px !important; }
+  h3 { font-size: 18px !important; }
+  h4 { font-size: 16px !important; }
+  
+  /* Padding adjustments */
+  .main > div {
+    padding: 12px !important;
+  }
+  
+  /* Search and Filter bars - Stack */
+  div[style*="display: flex"][style*="justifyContent: space-between"] {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  /* Invoice Modal - Mobile friendly */
+  .invoiceTable {
+    font-size: 12px;
+  }
+  
+  .invoiceTable th,
+  .invoiceTable td {
+    padding: 8px 4px !important;
+  }
+}
+
+/* Additional mobile styles for smaller screens */
+@media (max-width: 600px) {
+  /* Even smaller text */
+  body { font-size: 14px; }
+  
+  /* Tighter spacing */
+  .main { padding: 60px 12px 16px; }
+  
+  /* Smaller table font */
+  table {
+    font-size: 12px;
+  }
+  
+  /* Compact cards */
+  .card-panel {
+    padding: 16px !important;
+  }
+  
+  /* Hide less important columns in tables if needed */
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+/* Tablet styles */
+@media (min-width: 601px) and (max-width: 900px) {
+  /* Two column grids */
+  .details-grid-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  /* Sidebar width adjustment */
+  .sidebar {
+    width: 260px;
+  }
 }
 
 .menu::-webkit-scrollbar { width: 8px; }

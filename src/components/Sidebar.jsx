@@ -16,7 +16,7 @@ import { secCanAccessPage } from "../utils/helpers";
 
 const HOTEL_LOGO = "/logo.png";
 
-export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, onLogout }) {
+export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, setMobileNavOpen, onLogout }) {
   const [isLocked, setIsLocked] = useState(false);
 
   const sidebarStyle = useMemo(
@@ -35,6 +35,8 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, onL
   const handleNav = (nextPage) => {
     if (isLocked) return;
     setPage(nextPage);
+    // Close mobile menu on navigation
+    if (setMobileNavOpen) setMobileNavOpen(false);
   };
 
   return (

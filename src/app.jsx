@@ -1,6 +1,7 @@
 /* ================= IMPORTS ================= */
 import { createClient } from "@supabase/supabase-js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { FaBars, FaTimes } from "react-icons/fa";
 import "./app.css";
 // ================= Daily Rates helpers (Supabase-safe) =================
 // Convert Date | "MM/DD/YYYY" | "YYYY-MM-DD" -> "YYYY-MM-DD" (or null)
@@ -1703,12 +1704,30 @@ useEffect(() => {
   return (
     <div className="layout">
       {/* SIDEBAR - ✅ تم ربط خاصية onLogout بدالة doLogout */}
+      {/* Mobile Menu Button */}
+      <button
+        className="mobMenuBtn"
+        onClick={() => setMobileNavOpen(!mobileNavOpen)}
+        aria-label="Toggle menu"
+      >
+        {mobileNavOpen ? <FaTimes /> : <FaBars />}
+      </button>
+
+      {/* Mobile Overlay */}
+      {mobileNavOpen && (
+        <div
+          className="sidebarOverlay"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
+
       <Sidebar
         page={page}
         setPage={setPage}
         currentUser={currentUser}
         mobileNavOpen={mobileNavOpen}
-        onLogout={doLogout} // 👈 هذا هو التعديل المهم
+        setMobileNavOpen={setMobileNavOpen}
+        onLogout={doLogout}
       />
 
       {/* MAIN CONTENT AREA */}

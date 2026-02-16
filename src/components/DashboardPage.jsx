@@ -11,7 +11,7 @@ import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
   LineElement, BarElement, ArcElement, Tooltip, Legend, Filler
 } from "chart.js";
-import { Line, Doughnut } from "react-chartjs-2";
+import { Line, Doughnut, Bar, Pie } from "react-chartjs-2";
 import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
 
 ChartJS.register(
@@ -199,6 +199,9 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
     const totalDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
     const filterByDate = (d) => { const date = new Date(d); return date >= startDate && date <= endDate; };
     const todayStr = new Date().toISOString().split('T')[0];
+    const todayDate = new Date();
+    todayDate.setHours(23, 59, 59, 999);
+    const reportEndDate = endDate > todayDate ? todayDate : endDate;
 
     const arrivals = reservationsArr.filter(r => r.stay?.checkIn === todayStr && r.status !== "Cancelled").length;
     const departures = reservationsArr.filter(r => r.stay?.checkOut === todayStr && r.status !== "Cancelled").length;
@@ -206,7 +209,26 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
     const maintenanceRooms = roomsArr.filter(room => room.status === "Maintenance" || room.status === "Out of Order" || room.status === "OutOfOrder").length;
     const availableRooms = Math.max(0, roomsArr.length - inHouseCount - maintenanceRooms);
 
-    const currentRes = reservationsArr.filter(r => r.status !== "Cancelled" && filterByDate(r.stay?.checkIn));
+    // Only count revenue for reservations that have checked in (not Booked or Cancelled)
+    // Include reservations that checked in before or during the period and are still checked in
+    const checkedInRes = reservationsArr.filter(r => {
+      const status = (r.status || "").toLowerCase();
+      const isCheckedIn = status === "checked-in" || status === "checked in" || 
+                         status === "checked-out" || status === "checked out" || 
+                         status === "in house";
+      if (!isCheckedIn) return false;
+      
+      const ci = r?.stay?.checkIn;
+      const co = r?.stay?.checkOut;
+      if (!ci || !co) return false;
+      
+      // Include if reservation overlaps with the report period (check-in before end, check-out after start)
+      const checkInDate = new Date(String(ci).slice(0, 10) + "T12:00:00");
+      const checkOutDate = new Date(String(co).slice(0, 10) + "T12:00:00");
+      return checkInDate <= reportEndDate && checkOutDate >= startDate;
+    });
+    
+    const currentRes = checkedInRes;
     const totalTax = currentRes.reduce((sum, r) => sum + Number(r.pricing?.taxAmount ?? r.pricing?.tax ?? 0), 0);
     const totalServiceCharge = currentRes.reduce((sum, r) => sum + Number(r.pricing?.serviceAmount ?? r.pricing?.serviceCharge ?? 0), 0);
     const totalCityTax = currentRes.reduce((sum, r) => sum + Number(r.pricing?.cityTaxAmount ?? r.pricing?.cityTax ?? 0), 0);
@@ -218,21 +240,67 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
       return Math.max(0, Math.round((b - a) / (1000 * 60 * 60 * 24)));
     };
 
+    // Calculate room revenue day by day from check-in onwards
     const roomRev = currentRes.reduce((sum, r) => {
+      const ci = String(r?.stay?.checkIn || "").slice(0, 10);
+      const co = String(r?.stay?.checkOut || "").slice(0, 10);
+      if (!ci || !co) return sum;
+      
+      // Only count nights from check-in day onwards
+      const checkInDate = new Date(ci + "T12:00:00");
+      const checkOutDate = new Date(co + "T12:00:00");
+      
+      // Count nights from check-in to check-out, but only within report period
+      const calcStartDate = checkInDate > startDate ? checkInDate : startDate;
+      const calcEndDate = checkOutDate < reportEndDate ? checkOutDate : reportEndDate;
+      
+      if (calcStartDate >= calcEndDate) return sum;
+      
+      const nightsInPeriod = Math.max(0, Math.ceil((calcEndDate - calcStartDate) / (1000 * 60 * 60 * 24)));
+      const totalNights = calcNights(ci, co);
+      if (totalNights === 0) return sum;
+      
       const p = r?.pricing || {};
+      let totalRevenue = 0;
       const v1 = Number(p.roomRevenue);
-      if (Number.isFinite(v1)) return sum + v1;
-      const v2 = Number(p.roomSubtotal);
-      if (Number.isFinite(v2)) return sum + v2;
-      const nightly = Array.isArray(p.nightly) ? p.nightly : [];
-      if (nightly.length) {
-        const nSum = nightly.reduce((a, x) => a + Number(x?.baseRate ?? x?.rate ?? 0), 0);
-        return sum + (Number.isFinite(nSum) ? nSum : 0);
+      if (Number.isFinite(v1)) {
+        totalRevenue = v1;
+      } else {
+        const v2 = Number(p.roomSubtotal);
+        if (Number.isFinite(v2)) {
+          totalRevenue = v2;
+        } else {
+          const nightly = Array.isArray(p.nightly) ? p.nightly : [];
+          if (nightly.length) {
+            totalRevenue = nightly.reduce((a, x) => a + Number(x?.baseRate ?? x?.rate ?? 0), 0);
+          } else {
+            totalRevenue = Number(p.total || 0);
+          }
+        }
       }
-      return sum + Number(p.total || 0);
+      
+      // Calculate per-night revenue and multiply by nights in period
+      const perNightRevenue = totalRevenue / totalNights;
+      return sum + (perNightRevenue * nightsInPeriod);
     }, 0);
 
-    const roomNightsSold = currentRes.reduce((sum, r) => sum + calcNights(r?.stay?.checkIn, r?.stay?.checkOut), 0);
+    const roomNightsSold = currentRes.reduce((sum, r) => {
+      const ci = String(r?.stay?.checkIn || "").slice(0, 10);
+      const co = String(r?.stay?.checkOut || "").slice(0, 10);
+      if (!ci || !co) return sum;
+      
+      // Only count nights from check-in day onwards
+      const checkInDate = new Date(ci + "T12:00:00");
+      const checkOutDate = new Date(co + "T12:00:00");
+      
+      const calcStartDate = checkInDate > startDate ? checkInDate : startDate;
+      const calcEndDate = checkOutDate < reportEndDate ? checkOutDate : reportEndDate;
+      
+      if (calcStartDate >= calcEndDate) return sum;
+      
+      const nightsInPeriod = Math.max(0, Math.ceil((calcEndDate - calcStartDate) / (1000 * 60 * 60 * 24)));
+      return sum + nightsInPeriod;
+    }, 0);
     const totalExp = expensesArr.filter(e => filterByDate(e.date || e.expense_date)).reduce((sum, e) => sum + Number(e.amount || 0), 0);
     
     const getExtra = (cat) => extraRevenuesArr.filter(x => x.type === cat && filterByDate(x.date || x.createdAt)).reduce((sum, x) => sum + Number(x.amount || 0), 0);
@@ -247,11 +315,39 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
     const adr = roomNightsSold > 0 ? roomRev / roomNightsSold : 0;
     const revpar = roomRev / (totalRooms * totalDays);
 
+    // Calculate top nationalities based on arrivals (check-ins)
+    const arrivalsReservations = reservationsArr.filter(r => {
+      const checkIn = r?.stay?.checkIn;
+      if (!checkIn) return false;
+      if (r.status === "Cancelled") return false;
+      return filterByDate(checkIn);
+    });
+
+    const nationalityCounts = {};
+    arrivalsReservations.forEach(r => {
+      const nationality = r?.guest?.nationality || "Unknown";
+      nationalityCounts[nationality] = (nationalityCounts[nationality] || 0) + 1;
+    });
+
+    // Get top 10 nationalities sorted by count
+    const topNationalities = Object.entries(nationalityCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count, code: getCountryCode(name) }));
+
+    // Calculate percentages
+    const totalArrivals = arrivalsReservations.length;
+    const topNationalitiesData = topNationalities.map(item => ({
+      ...item,
+      percentage: totalArrivals > 0 ? Math.round((item.count / totalArrivals) * 100) : 0
+    }));
+
     return { 
         revData, expData, totalRev, totalExp, gop: totalRev - totalExp, 
         totalTax, totalServiceCharge, totalCityTax,
         arrivals, departures, availableRooms, maintenanceRooms, inHouseCount,
-        occ, adr, revpar, roomNightsSold
+        occ, adr, revpar, roomNightsSold,
+        topNationalitiesData
     };
   }, [reservations, rooms, expenses, extraRevenuesArr, period, customStart, customEnd, selectedMonth]);
 
@@ -327,7 +423,16 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
   };
 
   return (
-    <div style={{ padding: "30px", background: "#f8fafc", minHeight: "100vh" }}>
+    <div style={{ 
+      padding: "30px", 
+      background: "#f8fafc", 
+      minHeight: "100vh",
+      width: "100%",
+      maxWidth: "100%",
+      minWidth: 0,
+      boxSizing: "border-box",
+      overflowX: "hidden"
+    }}>
       
       {/* HEADER (نفس هيكلية الملف الأصلي مع تعديل الترتيب العمودي لليمين) */}
       <div style={headerStyles.headerCard}>
@@ -430,75 +535,223 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
           </div>
         </div>
 
-        {/* Global Market Reach */}
-        <div style={{ gridColumn: "span 6", ...cardStyle, padding: "24px" }}>
-          <h3 style={sectionTitle}><FaGlobe color={theme.secondary} /> Global Market Reach</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-            {/* Legend */}
-            <div style={{ display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap", paddingBottom: "10px", borderBottom: "1px solid #e2e8f0" }}>
-              {Object.entries(marketSegments).map(([key, segment]) => (
-                <div key={key} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <div style={{ width: "20px", height: "20px", backgroundColor: segment.color, borderRadius: "4px", border: "1px solid #fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }} />
-                  <span style={{ fontSize: "12px", fontWeight: "600", color: theme.textMain }}>{segment.name}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
-              <div style={{ flex: "1.2", height: "260px", position: "relative", overflow: "hidden", borderRadius: "8px", backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", minHeight: "260px" }}>
-                <ComposableMap
-                  projectionConfig={{ scale: 100, center: [0, 20] }}
-                  style={{ width: "100%", height: "100%" }}
-                >
-                  <Geographies geography={geoUrl}>
-                    {({ geographies }) => {
-                      if (!geographies || geographies.length === 0) {
-                        return <text x="50%" y="50%" textAnchor="middle" fill="#64748b">Loading map...</text>;
+        {/* Top Nationalities Chart - Replaces Global Market Reach */}
+        <div style={{ gridColumn: "span 6", ...cardStyle, padding: "24px", overflow: "hidden" }}>
+          <h3 style={sectionTitle}><FaGlobe color={theme.primary} /> Top Nationalities (Based on Arrivals)</h3>
+          {kpi.topNationalitiesData && kpi.topNationalitiesData.length > 0 ? (
+            <div style={{ 
+              display: "grid",
+              gridTemplateColumns: "1fr auto",
+              gap: "0px",
+              height: "320px",
+              width: "100%",
+              maxWidth: "100%",
+              position: "relative"
+            }}>
+              {/* Pie Chart */}
+              <div style={{ 
+                position: "relative", 
+                display: "flex", 
+                alignItems: "center", 
+                justifyContent: "center",
+                overflow: "hidden"
+              }}>
+                <Pie
+                  data={{
+                    labels: kpi.topNationalitiesData.map(item => item.name),
+                    datasets: [{
+                      data: kpi.topNationalitiesData.map(item => item.count),
+                      backgroundColor: kpi.topNationalitiesData.map((_, idx) => {
+                        const colors = [
+                          "#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#a855f7", 
+                          "#f43f5e", "#6366f1", "#14b8a6", "#f97316", "#8b5cf6",
+                          "#ec4899", "#06b6d4"
+                        ];
+                        return colors[idx % colors.length];
+                      }),
+                      borderColor: "#ffffff",
+                      borderWidth: 2,
+                      offset: kpi.topNationalitiesData.map(() => 8),
+                    }]
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    aspectRatio: 1,
+                    layout: {
+                      padding: {
+                        top: 10,
+                        bottom: 10,
+                        left: 10,
+                        right: 10
                       }
-                      return geographies.map((geo) => {
-                        const segment = getCountrySegment(geo);
-                        const fillColor = segment ? marketSegments[segment].color : "#e2e8f0";
-                        const strokeColor = segment ? "#fff" : "#cbd5e1";
-                        return (
-                          <Geography
-                            key={geo.rsmKey}
-                            geography={geo}
-                            fill={fillColor}
-                            stroke={strokeColor}
-                            strokeWidth={segment ? 0.5 : 0.3}
-                            style={{
-                              default: { outline: "none" },
-                              hover: { outline: "none", fill: segment ? marketSegments[segment].color : "#cbd5e1", opacity: 0.9 },
-                              pressed: { outline: "none" }
-                            }}
-                          />
-                        );
+                    },
+                    plugins: {
+                      legend: { 
+                        display: false 
+                      },
+                      tooltip: {
+                        callbacks: {
+                          label: function(context) {
+                            const item = kpi.topNationalitiesData[context.dataIndex];
+                            return `${item.name}: ${item.count} arrivals (${item.percentage}%)`;
+                          }
+                        },
+                        backgroundColor: "rgba(0, 0, 0, 0.8)",
+                        padding: 10,
+                        titleFont: { size: 14, weight: "bold" },
+                        bodyFont: { size: 12 }
+                      }
+                    },
+                    animation: {
+                      animateRotate: true,
+                      animateScale: true,
+                      duration: 1000
+                    }
+                  }}
+                  plugins={[{
+                    id: 'percentageLabels',
+                    afterDraw: (chart) => {
+                      const ctx = chart.ctx;
+                      chart.data.datasets.forEach((dataset, i) => {
+                        const meta = chart.getDatasetMeta(i);
+                        meta.data.forEach((element, index) => {
+                          const item = kpi.topNationalitiesData[index];
+                          if (!item) return;
+                          
+                          const percentage = item.percentage;
+                          
+                          // Get position - use the center of the arc
+                          const position = element.tooltipPosition();
+                          
+                          // Draw percentage label with shadow for 3D effect
+                          ctx.save();
+                          
+                          // Shadow for depth
+                          ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
+                          ctx.shadowBlur = 4;
+                          ctx.shadowOffsetX = 1;
+                          ctx.shadowOffsetY = 1;
+                          
+                          // White text
+                          ctx.fillStyle = "#ffffff";
+                          ctx.font = "bold 12px Arial";
+                          ctx.textAlign = "center";
+                          ctx.textBaseline = "middle";
+                          ctx.fillText(percentage + "%", position.x, position.y);
+                          
+                          ctx.restore();
+                        });
                       });
-                    }}
-                  </Geographies>
-                  {marketData.map(({ name, value, coordinates, color }) => {
-                    const size = Math.max(6, Math.min(18, value / 2.5));
-                    return (
-                      <Marker key={name} coordinates={coordinates}>
-                        <circle
-                          r={size}
-                          fill={color}
-                          stroke="#fff"
-                          strokeWidth={2}
-                          opacity={0.9}
-                          style={{ cursor: "pointer", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))" }}
-                        >
-                          <title>{name}: {value}%</title>
-                        </circle>
-                      </Marker>
-                    );
-                  })}
-                </ComposableMap>
+                    }
+                  }]}
+                />
               </div>
-              <div style={{ flex: "1" }}>
-                  <DataGrid data={{"Italy": 45, "China": 30, "Russia": 25, "Germany": 20, "USA": 10}} />
+
+              {/* Nationalities Grid with Flags - No Borders */}
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+                overflowY: "auto",
+                paddingRight: "0px",
+                paddingLeft: "16px",
+                maxHeight: "320px",
+                width: "auto",
+                justifyContent: "center",
+                alignItems: "flex-start"
+              }}>
+                {kpi.topNationalitiesData.map((item, idx) => {
+                  const colors = [
+                    "#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#a855f7", 
+                    "#f43f5e", "#6366f1", "#14b8a6", "#f97316", "#8b5cf6",
+                    "#ec4899", "#06b6d4"
+                  ];
+                  const color = colors[idx % colors.length];
+                  
+                  return (
+                    <div 
+                      key={item.name}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        padding: "5px 5px 5px 6px",
+                        transition: "all 0.2s ease"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = `${color}15`;
+                        e.currentTarget.style.transform = "translateX(4px)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.transform = "translateX(0)";
+                      }}
+                    >
+                      {/* Country Flag */}
+                      <span 
+                        className={`fi fi-${item.code || 'un'}`}
+                        style={{
+                          fontSize: "18px",
+                          borderRadius: "3px",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                          flexShrink: 0
+                        }}
+                      ></span>
+                      
+                      {/* Country Name */}
+                      <div style={{ minWidth: 0, maxWidth: "90px" }}>
+                        <div style={{ 
+                          fontWeight: 600, 
+                          color: "#0f172a", 
+                          fontSize: "11px",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis"
+                        }}>
+                          {item.name}
+                        </div>
+                        <div style={{ 
+                          fontSize: "9px", 
+                          color: "#64748b",
+                          marginTop: "1px"
+                        }}>
+                          {item.count} {item.count === 1 ? 'arrival' : 'arrivals'}
+                        </div>
+                      </div>
+                      
+                      {/* Percentage */}
+                      <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        flexShrink: 0
+                      }}>
+                        <div style={{
+                          width: "28px",
+                          height: "28px",
+                          borderRadius: "50%",
+                          background: color,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#ffffff",
+                          fontWeight: 700,
+                          fontSize: "10px",
+                          boxShadow: `0 2px 6px ${color}60`
+                        }}>
+                          {item.percentage}%
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          </div>
+          ) : (
+            <div style={{ height: "320px", display: "flex", alignItems: "center", justifyContent: "center", color: theme.textSub, fontSize: "14px" }}>
+              No arrivals data available for the selected period
+            </div>
+          )}
         </div>
 
         {/* Financial Mixes */}
