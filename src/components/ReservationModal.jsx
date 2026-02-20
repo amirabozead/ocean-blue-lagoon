@@ -1,12 +1,13 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { 
   FaUser, FaCalendarAlt, FaConciergeBell, FaCreditCard, 
-  FaInfoCircle, FaTimes, FaCheck 
+  FaInfoCircle, FaTimes, FaCheck, FaExclamationTriangle 
 } from "react-icons/fa";
 import { 
   NATIONALITIES, STATUS_LIST, PAYMENT_METHODS, ROOM_TYPES, BASE_ROOMS, BOOKING_CHANNELS 
 } from "../data/constants"; 
-import { money, calcNights, storeLoad, roundTo2 } from "../utils/helpers"; 
+import { money, calcNights, storeLoad, roundTo2 } from "../utils/helpers";
+import { isRoomOOSDuringPeriod, isRoomOOSOnDate } from "../utils/oosHelpers"; 
 
 export default function ReservationModal({ 
   onClose, onSave, initialData, mode, dailyRates, roomPhysicalStatus 
@@ -23,16 +24,51 @@ export default function ReservationModal({
   const [checkIn, setCheckIn] = useState(initialData?.stay?.checkIn || "");
   const [checkOut, setCheckOut] = useState(initialData?.stay?.checkOut || "");
   const [status, setStatus] = useState(initialData?.status || "Booked");
+  const [errorMessage, setErrorMessage] = useState(null);
+  const errorRef = useRef(null);
+
+  // Auto-dismiss error after 5 seconds
+  useEffect(() => {
+    if (errorMessage) {
+      const timer = setTimeout(() => {
+        setErrorMessage(null);
+      }, 5000);
+      
+      // Scroll error into view
+      if (errorRef.current) {
+        errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+      
+      return () => clearTimeout(timer);
+    }
+  }, [errorMessage]);
 
   // --- Logic: Room Availability ---
   const roomNumbersForType = useMemo(() => {
+    const oosPeriods = storeLoad("ocean_oos_periods_v1", []) || [];
+    const today = new Date().toISOString().split("T")[0];
+    
     return BASE_ROOMS.filter((r) => {
       if (r.roomType !== roomType) return false;
       if (mode === "edit" && initialData?.room?.roomNumber === r.roomNumber) return true;
+      
+      // Check physical status
       const currentStatus = roomPhysicalStatus?.[r.roomNumber] || "Clean";
-      return !["Dirty", "House Use", "Out of Service"].includes(currentStatus);
+      if (["Dirty", "House Use", "Out of Service"].includes(currentStatus)) return false;
+      
+      // Check if room is OOS today - automatically exclude
+      const isOOSToday = isRoomOOSOnDate(r.roomNumber, today, oosPeriods);
+      if (isOOSToday) return false;
+      
+      // Check if room is OOS during check-in/check-out period
+      if (checkIn && checkOut) {
+        const isOOS = isRoomOOSDuringPeriod(r.roomNumber, checkIn, checkOut, oosPeriods);
+        if (isOOS) return false;
+      }
+      
+      return true;
     }).map((r) => r.roomNumber);
-  }, [roomType, roomPhysicalStatus, mode, initialData]);
+  }, [roomType, roomPhysicalStatus, mode, initialData, checkIn, checkOut]);
 
   const [roomNumber, setRoomNumber] = useState(() => initialData?.room?.roomNumber || roomNumbersForType[0] || "");
 
@@ -115,8 +151,26 @@ export default function ReservationModal({
   }, [roomType, checkIn, checkOut, dailyRates, mealPlan, pax, taxRate, serviceChargeRate, cityTaxFixed, nights]);
 
   const handleSubmit = () => {
-    if (isLocked) { alert("Month Closed — this reservation cannot be edited."); return; }
-    if (!pricing.ok) { alert("Error: Missing rates for selected dates!"); return; }
+    // Clear any previous errors
+    setErrorMessage(null);
+    
+    if (isLocked) { 
+      setErrorMessage({
+        title: "Month Closed",
+        message: "This reservation cannot be edited as the month has been closed.",
+        type: "warning"
+      });
+      return; 
+    }
+    
+    if (!pricing.ok) { 
+      setErrorMessage({
+        title: "Missing Rates",
+        message: "Daily rates are not configured for the selected dates. Please check your Daily Rate settings.",
+        type: "error"
+      });
+      return; 
+    }
     
     // Validation: Required fields
     const errors = [];
@@ -134,7 +188,7 @@ export default function ReservationModal({
     // Number of Pax validation
     const paxNum = Number(pax);
     if (!paxNum || paxNum <= 0 || !Number.isInteger(paxNum)) {
-      errors.push("Number of Pax must be a positive number");
+      errors.push("Number of Pax must be a positive whole number");
     }
     
     // Payment Method validation
@@ -144,12 +198,16 @@ export default function ReservationModal({
     
     // Channel validation
     if (!channel || channel.trim() === "") {
-      errors.push("Channel is required");
+      errors.push("Booking Channel is required");
     }
     
     // Show errors if any
     if (errors.length > 0) {
-      alert("Please complete all required fields:\n\n" + errors.join("\n"));
+      setErrorMessage({
+        title: "Please Complete Required Fields",
+        message: errors,
+        type: "error"
+      });
       return;
     }
     
@@ -211,11 +269,123 @@ export default function ReservationModal({
         .rate-breakdown-wrap { max-height: 180px; overflow-y: auto; margin-top: 8px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; }
         
         .ocean-modal-footer { padding: 20px 35px; background: #f8fafc; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #e2e8f0; }
-        .ocean-btn-primary { background: #0ea5e9; color: #fff; border: none; padding: 12px 25px; border-radius: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 10px; }
-        .ocean-btn-secondary { background: #fff; border: 1.5px solid #e2e8f0; padding: 12px 25px; border-radius: 12px; color: #64748b; font-weight: 600; cursor: pointer; }
+        .ocean-btn-primary { background: #0ea5e9; color: #fff; border: none; padding: 12px 25px; border-radius: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s ease; }
+        .ocean-btn-primary:hover { background: #0284c7; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(14, 165, 233, 0.3); }
+        .ocean-btn-secondary { background: #fff; border: 1.5px solid #e2e8f0; padding: 12px 25px; border-radius: 12px; color: #64748b; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+        .ocean-btn-secondary:hover { background: #f8fafc; border-color: #cbd5e1; }
+        
+        /* Error Message Styles */
+        .error-message-container {
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          z-index: 2000;
+          animation: slideInRight 0.3s ease-out;
+        }
+        @keyframes slideInRight {
+          from { opacity: 0; transform: translateX(100%); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        .error-message-card {
+          background: #ffffff;
+          border-radius: 12px;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 4px 10px rgba(0, 0, 0, 0.1);
+          border-left: 4px solid;
+          min-width: 400px;
+          max-width: 500px;
+          overflow: hidden;
+        }
+        .error-message-card.error { border-left-color: #ef4444; }
+        .error-message-card.warning { border-left-color: #f59e0b; }
+        .error-message-header {
+          padding: 16px 20px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+        }
+        .error-message-header.warning { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); }
+        .error-message-title {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-weight: 700;
+          font-size: 0.95rem;
+          color: #991b1b;
+        }
+        .error-message-header.warning .error-message-title { color: #92400e; }
+        .error-message-close {
+          background: none;
+          border: none;
+          color: #dc2626;
+          cursor: pointer;
+          font-size: 1.2rem;
+          padding: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+          transition: all 0.2s ease;
+        }
+        .error-message-close:hover { background: rgba(220, 38, 38, 0.1); }
+        .error-message-body {
+          padding: 16px 20px;
+          background: #ffffff;
+        }
+        .error-message-text {
+          color: #1e293b;
+          font-size: 0.9rem;
+          line-height: 1.6;
+        }
+        .error-message-list {
+          margin: 8px 0 0 0;
+          padding-left: 20px;
+          color: #475569;
+        }
+        .error-message-list li {
+          margin-bottom: 6px;
+          font-size: 0.85rem;
+        }
       `}</style>
 
       <div className="ocean-modal-overlay">
+        {/* Error Message Toast */}
+        {errorMessage && (
+          <div className="error-message-container" ref={errorRef}>
+            <div className={`error-message-card ${errorMessage.type}`}>
+              <div className={`error-message-header ${errorMessage.type}`}>
+                <div className="error-message-title">
+                  <FaExclamationTriangle size={18} />
+                  {errorMessage.title}
+                </div>
+                <button 
+                  className="error-message-close"
+                  onClick={() => setErrorMessage(null)}
+                  title="Close"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+              <div className="error-message-body">
+                {Array.isArray(errorMessage.message) ? (
+                  <>
+                    <div className="error-message-text" style={{ marginBottom: "8px", fontWeight: "600" }}>
+                      Please fix the following issues:
+                    </div>
+                    <ul className="error-message-list">
+                      {errorMessage.message.map((msg, idx) => (
+                        <li key={idx}>{msg}</li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <div className="error-message-text">{errorMessage.message}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="ocean-modal-card">
           <div className="ocean-modal-header">
             <div className="reservation-modal-brand">

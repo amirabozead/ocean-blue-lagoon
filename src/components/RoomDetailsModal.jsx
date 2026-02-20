@@ -13,7 +13,7 @@ export default function RoomDetailsModal({ room, onClose, onEditReservation, onU
   const nights = calcNights(checkIn, checkOut);
 
   const [currentStatus, setCurrentStatus] = useState(room.roomStatus || "Clean");
-  const ROOM_STATUSES = ["Clean", "Dirty", "Occupied", "House Use", "Out of Service"];
+  const ROOM_STATUSES = ["Clean", "Dirty", "Occupied", "House Use"];
 
   const handleStatusChange = (e) => {
     const newStatus = e.target.value;

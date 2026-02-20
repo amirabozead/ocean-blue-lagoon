@@ -882,6 +882,40 @@ export default function App() {
     localStorage.setItem("ocean_room_physical_v1", JSON.stringify(next));
   };
 
+  // 1b. OOS Periods (Date-range based Out of Service)
+  const [oosPeriods, setOOSPeriods] = useState(() => {
+    return storeLoad("ocean_oos_periods_v1", []) || [];
+  });
+
+  const addOOSPeriod = (period) => {
+    const newPeriod = {
+      id: period.id || (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random())),
+      roomNumber: String(period.roomNumber).trim(),
+      startDate: period.startDate,
+      endDate: period.endDate,
+      reason: (period.reason || "").trim(),
+      createdAt: period.createdAt || new Date().toISOString()
+    };
+    
+    const updated = [...oosPeriods, newPeriod];
+    setOOSPeriods(updated);
+    storeSave("ocean_oos_periods_v1", updated);
+  };
+
+  const updateOOSPeriod = (id, updates) => {
+    const updated = oosPeriods.map(p => 
+      p.id === id ? { ...p, ...updates } : p
+    );
+    setOOSPeriods(updated);
+    storeSave("ocean_oos_periods_v1", updated);
+  };
+
+  const deleteOOSPeriod = (id) => {
+    const updated = oosPeriods.filter(p => p.id !== id);
+    setOOSPeriods(updated);
+    storeSave("ocean_oos_periods_v1", updated);
+  };
+
   // 2. Expenses
   const [expenses, setExpenses] = useState(
     () => storeLoad("ocean_expenses_v1") || []
@@ -2168,6 +2202,10 @@ useEffect(() => {
             onEditReservation={handleEditReservation}
             setSelectedRoom={setSelectedRoom}
             onAddReservation={handleAddReservationClick}
+            oosPeriods={oosPeriods}
+            onAddOOSPeriod={addOOSPeriod}
+            onUpdateOOSPeriod={updateOOSPeriod}
+            onDeleteOOSPeriod={deleteOOSPeriod}
           />
         )}
 

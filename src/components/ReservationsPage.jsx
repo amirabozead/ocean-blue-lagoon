@@ -27,28 +27,31 @@ import {
 } from "react-icons/fa";
 import { FILTER_TABS, BASE_ROOMS, BOOKING_CHANNELS, PAYMENT_METHODS } from "../data/constants";
 import { statusPillClass, isDateBetween, storeLoad, calcNights as calcNightsHelper } from "../utils/helpers";
+import { getOOSRoomsCountOnDate } from "../utils/oosHelpers";
 import SearchModal from "./SearchModal";
 
 const HOTEL_LOGO = "/logo.png";
 
-const cellPadding = "8px 5px";
+const cellPadding = "6px 5px";
 const TH = ({ icon, label, title, center, right }) => (
   <th
     style={{
-      padding: cellPadding,
+      padding: "10px 12px",
       textAlign: right ? "right" : center ? "center" : "left",
-      color: "#475569",
-      fontSize: "0.82rem",
+      color: "#1e293b",
+      fontSize: "0.8rem",
+      fontWeight: "700",
       textTransform: "uppercase",
-      letterSpacing: "0.5px",
+      letterSpacing: "0.8px",
       whiteSpace: "nowrap",
       verticalAlign: "middle",
+      borderBottom: "2px solid #e2e8f0",
     }}
     title={title || label}
   >
     <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-      <span style={{ color: "#94a3b8", display: "inline-flex" }}>{icon}</span>
-      <span>{label}</span>
+      <span style={{ color: "#64748b", display: "inline-flex", opacity: 0.8 }}>{icon}</span>
+      <span style={{ color: "#334155" }}>{label}</span>
     </span>
   </th>
 );
@@ -405,12 +408,9 @@ export default function ReservationsPage({
     const today = new Date().toISOString().split("T")[0];
     const safe = Array.isArray(reservations) ? reservations : [];
     const totalRoomsBase = Array.isArray(BASE_ROOMS) ? BASE_ROOMS.length : 0;
-    const roomPhysicalStatus = storeLoad("ocean_room_physical_v1", {}) || {};
-    const oosCount = Object.values(roomPhysicalStatus).filter((v) => {
-      const s = String(v || "").toLowerCase();
-      return /out\s*of\s*service|oos|maintenance/i.test(s);
-    }).length;
-    const totalRooms = Math.max(0, totalRoomsBase - oosCount);
+    const oosPeriods = storeLoad("ocean_oos_periods_v1", []) || [];
+    const todayOOSCount = getOOSRoomsCountOnDate(today, oosPeriods);
+    const totalRooms = Math.max(0, totalRoomsBase - todayOOSCount);
 
     const rangeStart = kpiMode === "MTD" ? startOfMonthYMD(today) : kpiMode === "YTD" ? startOfYearYMD(today) : today;
     const rangeEndExclusive = addDays(today, 1);
@@ -765,9 +765,9 @@ export default function ReservationsPage({
       <div
         style={{
           background: "#fff",
-          borderRadius: 16,
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
-          border: "1px solid #f1f5f9",
+          borderRadius: "16px",
+          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)",
+          border: "1px solid #e2e8f0",
           overflowX: "auto",
           overflowY: "auto",
           width: "100%",
@@ -778,35 +778,37 @@ export default function ReservationsPage({
         }}
         className="table-wrapper-mobile"
       >
-        <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
-          <thead style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+        <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, tableLayout: "fixed" }}>
+          <thead style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)", borderBottom: "2px solid #e2e8f0" }}>
             <tr
               style={{
                 position: "sticky",
                 top: 0,
                 zIndex: 2,
-                background: "#f8fafc",
-                boxShadow: "0 1px 0 0 #e2e8f0",
+                background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+                boxShadow: "0 2px 4px rgba(0, 0, 0, 0.05)",
               }}
             >
               <TH icon={<FaUser size={14} />} label="Guest" title="Guest Info" />
               <th
                 style={{
-                  padding: cellPadding,
+                  padding: "10px 12px",
                   paddingLeft: "16px",
                   textAlign: "center",
-                  color: "#475569",
-                  fontSize: "0.82rem",
+                  color: "#1e293b",
+                  fontSize: "0.8rem",
+                  fontWeight: "700",
                   textTransform: "uppercase",
-                  letterSpacing: "0.5px",
+                  letterSpacing: "0.8px",
                   whiteSpace: "nowrap",
                   verticalAlign: "middle",
+                  borderBottom: "2px solid #e2e8f0",
                 }}
                 title="Room"
               >
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ color: "#94a3b8", display: "inline-flex" }}><FaDoorOpen size={14} /></span>
-                  <span>Room</span>
+                  <span style={{ color: "#64748b", display: "inline-flex", opacity: 0.8 }}><FaDoorOpen size={14} /></span>
+                  <span style={{ color: "#334155" }}>Room</span>
                 </span>
               </th>
               <TH icon={<FaGlobeAmericas size={14} />} label="Channel" title="Booking channel" center />
@@ -853,8 +855,9 @@ export default function ReservationsPage({
                     key={r?.id || i}
                     style={{
                       borderBottom: "1px solid #f1f5f9",
-                      transition: "background 0.1s",
+                      transition: "all 0.2s ease",
                       cursor: isEditLocked(r) ? "default" : "pointer",
+                      background: i % 2 === 0 ? "#ffffff" : "#fafbfc",
                     }}
                     onClick={(e) => {
                       if (!isEditLocked(r)) {
@@ -863,75 +866,86 @@ export default function ReservationsPage({
                     }}
                     onMouseEnter={(e) => {
                       if (!isEditLocked(r)) {
-                        e.currentTarget.style.background = "#f8fafc";
+                        e.currentTarget.style.background = "#f0f9ff";
+                        e.currentTarget.style.boxShadow = "inset 4px 0 0 #3b82f6";
+                        e.currentTarget.style.transform = "scale(1.001)";
                       }
                     }}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = i % 2 === 0 ? "#ffffff" : "#fafbfc";
+                      e.currentTarget.style.boxShadow = "none";
+                      e.currentTarget.style.transform = "scale(1)";
+                    }}
                   >
-                    <td style={{ padding: cellPadding, verticalAlign: "middle", fontSize: "0.8rem" }}>
+                    <td style={{ padding: "8px 10px", verticalAlign: "middle", fontSize: "0.85rem" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div
                           style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: 8,
-                            background: "#e0f2fe",
-                            color: "#0369a1",
+                            width: 36,
+                            height: 36,
+                            borderRadius: "8px",
+                            background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+                            color: "#ffffff",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            fontWeight: 400,
+                            fontWeight: "700",
                             fontSize: "0.85rem",
                             flexShrink: 0,
+                            boxShadow: "0 2px 6px rgba(59, 130, 246, 0.3)",
                           }}
                         >
                           {(String(first || "G").charAt(0) || "G").toUpperCase()}
                         </div>
                         <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontWeight: 400, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          <div style={{ fontWeight: "600", color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: "0.85rem" }}>
                             {first} {last}
                           </div>
-                          <small style={{ color: "#94a3b8", fontSize: "0.7rem", whiteSpace: "nowrap" }}>
+                          <small style={{ color: "#94a3b8", fontSize: "0.68rem", whiteSpace: "nowrap", fontWeight: "500" }}>
                             ID: {String(r?.id || "").substring(0, 8)}
                           </small>
                         </div>
                       </div>
                     </td>
 
-                    <td style={{ padding: cellPadding, paddingLeft: "16px", verticalAlign: "middle", textAlign: "center" }}>
+                    <td style={{ padding: "8px 10px", paddingLeft: "16px", verticalAlign: "middle", textAlign: "center" }}>
                       <span
                         style={{
-                          background: "#e0f2fe",
+                          background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
                           padding: "4px 12px",
-                          borderRadius: 20,
-                          fontWeight: 400,
-                          color: "#0369a1",
+                          borderRadius: "6px",
+                          fontWeight: "600",
+                          color: "#1e40af",
                           display: "inline-flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          gap: 6,
+                          gap: 5,
                           whiteSpace: "nowrap",
                           fontSize: "0.8rem",
+                          border: "1px solid #93c5fd",
+                          boxShadow: "0 1px 2px rgba(59, 130, 246, 0.2)",
                         }}
                       >
-                        <FaBed size={12} /> {roomNo}
+                        <FaBed size={11} /> {roomNo}
                       </span>
                     </td>
 
                     <td style={{ ...tdStrongCenter, fontSize: "0.8rem" }}>{channelDisplayLabel(getChannel(r) || "Direct booking")}</td>
                     <td style={{ ...tdStrongCenter, fontSize: "0.8rem" }}>{normPayment(getPaymentMethod(r))}</td>
 
-                    <td style={{ ...tdStrongCenter, padding: cellPadding }}>
+                    <td style={{ ...tdStrongCenter, padding: "8px 10px" }}>
                       <span
                         className={statusPillClass(r?.status)}
                         style={{
-                          fontSize: "0.8rem",
+                          fontSize: "0.75rem",
                           padding: "4px 12px",
-                          borderRadius: 20,
-                          fontWeight: 400,
+                          borderRadius: "6px",
+                          fontWeight: "600",
                           textTransform: "capitalize",
                           whiteSpace: "nowrap",
                           display: "inline-block",
+                          boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                          border: "1px solid rgba(255, 255, 255, 0.2)",
                         }}
                       >
                         {statusDisplayLabel(r?.status)}
@@ -952,8 +966,8 @@ export default function ReservationsPage({
                     <td style={{ ...tdStrongMoney, fontSize: "0.8rem" }}>{Number.isFinite(fnbRev) ? formatMoney(fnbRev) : "—"}</td>
                     <td style={{ ...tdStrongMoney, fontSize: "0.8rem" }}>{Number.isFinite(totalRev) ? formatMoney(totalRev) : "—"}</td>
 
-                    <td style={{ padding: cellPadding, textAlign: "center", verticalAlign: "middle" }}>
-                      <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
+                    <td style={{ padding: "8px 10px", textAlign: "center", verticalAlign: "middle" }}>
+                      <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -966,6 +980,18 @@ export default function ReservationsPage({
                             opacity: isEditLocked(r) ? 0.45 : 1,
                             cursor: isEditLocked(r) ? "not-allowed" : "pointer",
                           }}
+                          onMouseEnter={(e) => {
+                            if (!isEditLocked(r)) {
+                              e.currentTarget.style.background = "#f1f5f9";
+                              e.currentTarget.style.borderColor = "#cbd5e1";
+                              e.currentTarget.style.transform = "scale(1.05)";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "white";
+                            e.currentTarget.style.borderColor = "#e2e8f0";
+                            e.currentTarget.style.transform = "scale(1)";
+                          }}
                           title={isClosedReservation(r) ? "Month Closed" : isCheckedOutReservation(r) ? "Checked Out" : "Edit"}
                         >
                           <FaEdit />
@@ -977,6 +1003,16 @@ export default function ReservationsPage({
                             onInvoice?.(r);
                           }}
                           style={iconBtn("#3b82f6")}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "#eff6ff";
+                            e.currentTarget.style.borderColor = "#93c5fd";
+                            e.currentTarget.style.transform = "scale(1.05)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "white";
+                            e.currentTarget.style.borderColor = "#e2e8f0";
+                            e.currentTarget.style.transform = "scale(1)";
+                          }}
                           title="Invoice"
                         >
                           <FaFileInvoiceDollar />
@@ -1007,6 +1043,18 @@ export default function ReservationsPage({
                               opacity: isEditLocked(r) ? 0.45 : 1,
                               cursor: isEditLocked(r) ? "not-allowed" : "pointer",
                             }}
+                            onMouseEnter={(e) => {
+                              if (!isEditLocked(r)) {
+                                e.currentTarget.style.background = "#fef2f2";
+                                e.currentTarget.style.borderColor = "#fecaca";
+                                e.currentTarget.style.transform = "scale(1.05)";
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "white";
+                              e.currentTarget.style.borderColor = "#fee2e2";
+                              e.currentTarget.style.transform = "scale(1)";
+                            }}
                             title={isClosedReservation(r) ? "Month Closed" : "Delete (Booked only)"}
                           >
                             <FaTrash />
@@ -1019,11 +1067,29 @@ export default function ReservationsPage({
               })
             ) : (
               <tr>
-                <td colSpan={15} style={{ padding: 50, textAlign: "center", color: "#94a3b8", verticalAlign: "middle" }}>
-                  <div style={{ marginBottom: 10, fontSize: "2rem", opacity: 0.5 }}>
+                <td colSpan={15} style={{ padding: "60px 20px", textAlign: "center", color: "#64748b", verticalAlign: "middle", background: "#fafbfc" }}>
+                  <div style={{ 
+                    marginBottom: 16, 
+                    fontSize: "3rem", 
+                    opacity: 0.4,
+                    color: "#94a3b8"
+                  }}>
                     <FaSearch />
                   </div>
-                  No reservations found matching your criteria.
+                  <div style={{ 
+                    fontSize: "1rem", 
+                    fontWeight: "600", 
+                    color: "#475569",
+                    marginBottom: 8
+                  }}>
+                    No reservations found
+                  </div>
+                  <div style={{ 
+                    fontSize: "0.85rem", 
+                    color: "#94a3b8"
+                  }}>
+                    Try adjusting your filters or search criteria
+                  </div>
                 </td>
               </tr>
             )}
@@ -1039,11 +1105,12 @@ export default function ReservationsPage({
 }
 
 const tdStrong = {
-  padding: cellPadding,
-  fontWeight: 400,
-  color: "#0f172a",
+  padding: "8px 10px",
+  fontWeight: "500",
+  color: "#1e293b",
   whiteSpace: "nowrap",
   verticalAlign: "middle",
+  fontSize: "0.8rem",
 };
 
 const tdStrongRight = { ...tdStrong, textAlign: "right" };
@@ -1060,9 +1127,12 @@ const iconBtn = (color) => ({
   color,
   width: 32,
   height: 32,
-  borderRadius: 8,
-  cursor: "pointer",
+  borderRadius: "6px",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+  fontSize: "0.85rem",
+  boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
 });

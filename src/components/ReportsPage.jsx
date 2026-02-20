@@ -9,6 +9,7 @@ import {
   FaCoins, FaGlobe, FaUniversity
 } from "react-icons/fa";
 import { ymd, parseYMD, calcNights, storeLoad, roundTo2 } from "../utils/helpers";
+import { getOOSRoomsCountOnDate } from "../utils/oosHelpers";
 import { BOOKING_CHANNELS, PAYMENT_METHODS } from "../data/constants";
 
 // --- Constants ---
@@ -183,13 +184,14 @@ export default function ReportsPage({ reservations, expenses, extraRevenues, tot
       return "Cash";
     };
 
-    // 🔒 Physical OOS rooms reduce available capacity (independent of reservations)
-    const roomPhysicalStatus = storeLoad("ocean_room_physical_v1", {}) || {};
-    const oosRoomsCount = Object.values(roomPhysicalStatus).filter((v) => {
-      const s = String(v || "");
-      return /out/i.test(s) && /(order|service)/i.test(s);
-    }).length;
-
+    // 🔒 OOS periods reduce available capacity (date-range based)
+    const oosPeriods = storeLoad("ocean_oos_periods_v1", []) || [];
+    
+    // Calculate OOS nights count for the date range
+    nightDays.forEach((day) => {
+      const oosCount = getOOSRoomsCountOnDate(day, oosPeriods);
+      oosNightsCount += oosCount;
+    });
 
     cleanReservations.forEach((r) => {
       const ci = r.stay.checkIn;
@@ -202,16 +204,9 @@ export default function ReportsPage({ reservations, expenses, extraRevenues, tot
                          status === "checked-out" || status === "checked out" || 
                          status === "in house";
       
-      // Skip if not checked in or if Out of Service
-      if (!isCheckedIn || status === "out of service") {
-        if (status === "out of service") {
-          nightDays.forEach((day) => {
-            if (day >= ci && day < co) {
-              oosNightsCount += 1;
-            }
-          });
-        }
-        return; // Skip revenue calculation for Booked/Cancelled/Out of Service
+      // Skip if not checked in
+      if (!isCheckedIn) {
+        return; // Skip revenue calculation for Booked/Cancelled
       }
       
       nightDays.forEach((day) => {
@@ -271,8 +266,18 @@ export default function ReportsPage({ reservations, expenses, extraRevenues, tot
         }
     });
 
-    const theoreticalCapacity = nightDays.length * Math.max(0, (totalRooms - oosRoomsCount));
-    const netAvailableRooms = Math.max(0, theoreticalCapacity - oosNightsCount);
+    // Calculate theoretical capacity accounting for OOS periods per day
+    // This is the total available room nights (total rooms minus OOS rooms for each day)
+    const theoreticalCapacity = nightDays.reduce((sum, day) => {
+      const oosCount = getOOSRoomsCountOnDate(day, oosPeriods);
+      return sum + Math.max(0, totalRooms - oosCount);
+    }, 0);
+    
+    // roomsAvailable = theoretical capacity (total available room nights)
+    // roomsSold = occupiedNightsCount (actual occupied room nights)
+    // occupancy = roomsSold / roomsAvailable
+    const roomsAvailable = theoreticalCapacity;
+    const roomsSold = occupiedNightsCount;
 
     // Calculate total taxes from unrounded sums to avoid rounding discrepancies
     const totalTaxesUnrounded = sumTax + sumService + sumCityTax;
@@ -288,10 +293,10 @@ export default function ReportsPage({ reservations, expenses, extraRevenues, tot
       totalTaxes: roundTo2(totalTaxesUnrounded), // Store pre-calculated total
       expenses: roundTo2(expensesTotal),
       net: roundTo2(revenue - expensesTotal),
-      occupancy: netAvailableRooms > 0 ? occupiedNightsCount / netAvailableRooms : 0,
-      adr: occupiedNightsCount > 0 ? roundTo2(revenue / occupiedNightsCount) : 0,
-      roomsAvailable: netAvailableRooms,
-      roomsSold: occupiedNightsCount,
+      occupancy: roomsAvailable > 0 ? roomsSold / roomsAvailable : 0,
+      adr: roomsSold > 0 ? roundTo2(revenue / roomsSold) : 0,
+      roomsAvailable: roomsAvailable,
+      roomsSold: roomsSold,
       channelRevenue: Object.fromEntries(Object.entries(channelRevenue).map(([k, v]) => [k, roundTo2(v)])),
       paymentRevenue: Object.fromEntries(Object.entries(paymentRevenue).map(([k, v]) => [k, roundTo2(v)])),
     };

@@ -177,7 +177,6 @@ export default function RoomGridCard({ room, onStatusChange, onClick }) {
           >
             <option value="Clean">✨ Clean</option>
             <option value="Dirty">🧹 Dirty</option>
-            <option value="OutOfOrder">🔧 Out of Order</option>
           </select>
           
           <div style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#64748b" }}>

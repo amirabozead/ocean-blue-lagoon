@@ -13,6 +13,8 @@ import {
 } from "chart.js";
 import { Line, Doughnut, Bar, Pie } from "react-chartjs-2";
 import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
+import { storeLoad } from "../utils/helpers";
+import { getOOSRoomsCountOnDate } from "../utils/oosHelpers";
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement, 
@@ -206,8 +208,12 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
     const arrivals = reservationsArr.filter(r => r.stay?.checkIn === todayStr && r.status !== "Cancelled").length;
     const departures = reservationsArr.filter(r => r.stay?.checkOut === todayStr && r.status !== "Cancelled").length;
     const inHouseCount = reservationsArr.filter(r => r.status === "In House").length;
-    const maintenanceRooms = roomsArr.filter(room => room.status === "Maintenance" || room.status === "Out of Order" || room.status === "OutOfOrder").length;
-    const availableRooms = Math.max(0, roomsArr.length - inHouseCount - maintenanceRooms);
+    
+    // Use OOS periods instead of just physical status
+    const oosPeriods = storeLoad("ocean_oos_periods_v1", []) || [];
+    const todayOOSCount = getOOSRoomsCountOnDate(todayStr, oosPeriods);
+    
+    const availableRooms = Math.max(0, roomsArr.length - inHouseCount - todayOOSCount);
 
     // Only count revenue for reservations that have checked in (not Booked or Cancelled)
     // Include reservations that checked in before or during the period and are still checked in
@@ -345,7 +351,7 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
     return { 
         revData, expData, totalRev, totalExp, gop: totalRev - totalExp, 
         totalTax, totalServiceCharge, totalCityTax,
-        arrivals, departures, availableRooms, maintenanceRooms, inHouseCount,
+        arrivals, departures, availableRooms, maintenanceRooms: todayOOSCount, inHouseCount,
         occ, adr, revpar, roomNightsSold,
         topNationalitiesData
     };

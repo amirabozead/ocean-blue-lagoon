@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from "react";
-import { FaThLarge, FaCalendarAlt, FaChevronLeft, FaChevronRight, FaBed, FaLayerGroup, FaBroom, FaBan, FaDoorOpen } from "react-icons/fa"; 
+import { FaThLarge, FaCalendarAlt, FaChevronLeft, FaChevronRight, FaBed, FaLayerGroup, FaBroom, FaBan, FaDoorOpen, FaTools } from "react-icons/fa"; 
 import { BASE_ROOMS } from "../data/constants";
 import RoomGridCard from "./RoomGridCard";
-import { isDateBetween } from "../utils/helpers";
+import OOSManagementModal from "./OOSManagementModal";
+import { isDateBetween, storeLoad } from "../utils/helpers";
+import { isRoomOOSOnDate, getOOSRoomsCountOnDate } from "../utils/oosHelpers";
 
 const HOTEL_LOGO = "/logo.png"; 
 
@@ -12,9 +14,14 @@ export default function RoomsPage({
   updateRoomStatus, 
   onEditReservation, 
   onAddReservation,
-  setSelectedRoom 
+  setSelectedRoom,
+  oosPeriods = [],
+  onAddOOSPeriod,
+  onUpdateOOSPeriod,
+  onDeleteOOSPeriod
 }) {
   const [viewMode, setViewMode] = useState("grid");
+  const [showOOSModal, setShowOOSModal] = useState(false);
 
   // معالجة البيانات
   const roomsWithData = useMemo(() => {
@@ -53,15 +60,24 @@ export default function RoomsPage({
 
   // حساب الإحصائيات
   const stats = useMemo(() => {
+    const today = new Date().toISOString().split("T")[0];
+    const todayOOSCount = getOOSRoomsCountOnDate(today, oosPeriods);
+    
     return {
         total: roomsWithData.length,
-        available: roomsWithData.filter(r => !r.isOccupied && r.roomStatus === "Clean").length,
+        available: roomsWithData.filter(r => {
+          if (r.isOccupied) return false;
+          if (r.roomStatus !== "Clean") return false;
+          // Check if room is OOS today (from OOS periods)
+          const isOOS = isRoomOOSOnDate(r.roomNumber, today, oosPeriods);
+          return !isOOS;
+        }).length,
         // عدد الغرف التي تحتاج Cleaning (حالة Dirty)
         housekeeping: roomsWithData.filter(r => r.roomStatus === "Dirty").length,
         clean: roomsWithData.filter(r => r.roomStatus === "Clean").length,
-        oos: roomsWithData.filter(r => r.roomStatus === "OutOfOrder").length
+        oos: todayOOSCount // Count from OOS periods, not just physical status
     };
-  }, [roomsWithData]);
+  }, [roomsWithData, oosPeriods]);
 
   // Styles
   const headerStyles = {
@@ -122,13 +138,34 @@ export default function RoomsPage({
            <FaBed style={{ fontSize: "22px", color: "#3b82f6", opacity: 0.9 }} />
         </div>
         
-        <div style={{ background: "white", padding: "5px", borderRadius: "12px", boxShadow: "0 2px 5px rgba(0,0,0,0.05)", display: "flex", gap: "5px", border: "1px solid #e2e8f0" }}>
-            <button onClick={() => setViewMode("grid")} style={{ padding: "8px 12px", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", background: viewMode === "grid" ? "#3b82f6" : "transparent", color: viewMode === "grid" ? "white" : "#64748b" }}>
-                <FaThLarge /> Grid
-            </button>
-            <button onClick={() => setViewMode("timeline")} style={{ padding: "8px 12px", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", background: viewMode === "timeline" ? "#3b82f6" : "transparent", color: viewMode === "timeline" ? "white" : "#64748b" }}>
-                <FaCalendarAlt /> Calendar
-            </button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <div style={{ background: "white", padding: "5px", borderRadius: "12px", boxShadow: "0 2px 5px rgba(0,0,0,0.05)", display: "flex", gap: "5px", border: "1px solid #e2e8f0" }}>
+              <button onClick={() => setViewMode("grid")} style={{ padding: "8px 12px", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", background: viewMode === "grid" ? "#3b82f6" : "transparent", color: viewMode === "grid" ? "white" : "#64748b" }}>
+                  <FaThLarge /> Grid
+              </button>
+              <button onClick={() => setViewMode("timeline")} style={{ padding: "8px 12px", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", background: viewMode === "timeline" ? "#3b82f6" : "transparent", color: viewMode === "timeline" ? "white" : "#64748b" }}>
+                  <FaCalendarAlt /> Calendar
+              </button>
+          </div>
+          <button 
+            onClick={() => setShowOOSModal(true)}
+            style={{ 
+              padding: "8px 16px", 
+              border: "none", 
+              borderRadius: "8px", 
+              cursor: "pointer", 
+              fontWeight: "bold", 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "8px", 
+              fontSize: "12px", 
+              background: "#dc2626",
+              color: "white",
+              boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
+            }}
+          >
+            <FaTools /> Manage OOS
+          </button>
         </div>
       </div>
 
@@ -183,11 +220,25 @@ export default function RoomsPage({
         <RoomTimelineView 
           rooms={BASE_ROOMS} 
           reservations={reservations} 
+          roomPhysicalStatus={roomPhysicalStatus}
+          oosPeriods={oosPeriods}
           onAdd={onAddReservation}
           onEdit={(resId) => {
              const idx = reservations.findIndex(r => r.id === resId);
              if(idx !== -1) onEditReservation(idx);
           }}
+        />
+      )}
+
+      {/* OOS Management Modal */}
+      {showOOSModal && (
+        <OOSManagementModal
+          onClose={() => setShowOOSModal(false)}
+          oosPeriods={oosPeriods}
+          reservations={reservations}
+          onAdd={onAddOOSPeriod}
+          onUpdate={onUpdateOOSPeriod}
+          onDelete={onDeleteOOSPeriod}
         />
       )}
     </div>
@@ -197,7 +248,7 @@ export default function RoomsPage({
 // =======================
 // Timeline Component (Dual Dropdowns: Year & Month)
 // =======================
-function RoomTimelineView({ rooms, reservations, onAdd, onEdit }) {
+function RoomTimelineView({ rooms, reservations, roomPhysicalStatus = {}, oosPeriods = [], onAdd, onEdit }) {
   const [startDate, setStartDate] = useState(new Date());
 
   // 1. توليد قائمة السنوات (مثلاً من 3 سنوات سابقة إلى 3 سنوات قادمة)
@@ -252,6 +303,39 @@ function RoomTimelineView({ rooms, reservations, onAdd, onEdit }) {
 
   return (
     <div style={{ background: "white", borderRadius: "16px", padding: "20px", boxShadow: "0 4px 6px rgba(0,0,0,0.05)", overflowX: "auto" }}>
+      
+      {/* Legend */}
+      <div style={{ 
+        display: "flex", 
+        gap: "20px", 
+        marginBottom: "15px", 
+        padding: "12px", 
+        background: "#f8fafc", 
+        borderRadius: "8px",
+        flexWrap: "wrap",
+        fontSize: "12px"
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <div style={{ width: "20px", height: "12px", background: "#3b82f6", borderRadius: "3px" }}></div>
+          <span style={{ color: "#64748b" }}>Booked</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <div style={{ width: "20px", height: "12px", background: "#10b981", borderRadius: "3px" }}></div>
+          <span style={{ color: "#64748b" }}>Checked-in / In House</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <FaTools size={14} color="#dc2626" />
+          <span style={{ color: "#64748b" }}>Out of Service</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <div style={{ width: "12px", height: "12px", background: "#d97706", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "8px" }}>🧹</div>
+          <span style={{ color: "#64748b" }}>Dirty</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <div style={{ width: "8px", height: "8px", background: "#10b981", borderRadius: "50%", opacity: 0.5 }}></div>
+          <span style={{ color: "#64748b" }}>Clean / Available</span>
+        </div>
+      </div>
       
       {/* Header with Dual Selectors */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px", flexWrap: "wrap", gap: "10px" }}>
@@ -320,30 +404,210 @@ function RoomTimelineView({ rooms, reservations, onAdd, onEdit }) {
               </td>
 
               {days.map(day => {
-                const res = safeReservations.find(r => 
-                  r.status === "Booked" && 
-                  String(r.room.roomNumber) === String(room.roomNumber) &&
-                  isDateBetween(day, r.stay.checkIn, r.stay.checkOut)
-                );
+                // Find reservation for this day (all statuses, not just "Booked")
+                const res = safeReservations.find(r => {
+                  const rStatus = String(r?.status || "").toLowerCase();
+                  const isActiveStatus = 
+                    rStatus === "booked" || 
+                    rStatus === "confirmed" || 
+                    rStatus === "checked-in" || 
+                    rStatus === "checked in" ||
+                    rStatus === "in house";
+                  
+                  return (
+                    isActiveStatus &&
+                    String(r.room?.roomNumber ?? r.roomNumber ?? "") === String(room.roomNumber) &&
+                    isDateBetween(day, r.stay?.checkIn ?? r.checkIn, r.stay?.checkOut ?? r.checkOut)
+                  );
+                });
                 
-                const isStart = res && res.stay.checkIn === day;
-                const isEnd = res && res.stay.checkOut === day;
+                // Check if room is OOS on this day
+                const isOOS = isRoomOOSOnDate(room.roomNumber, day, oosPeriods);
                 
+                // Check if this is a checkout date for this room
+                const isCheckoutDate = safeReservations.some(r => {
+                  const rStatus = String(r?.status || "").toLowerCase();
+                  const isActiveStatus = 
+                    rStatus === "booked" || 
+                    rStatus === "confirmed" || 
+                    rStatus === "checked-in" || 
+                    rStatus === "checked in" ||
+                    rStatus === "in house" ||
+                    rStatus === "checked-out" ||
+                    rStatus === "checked out";
+                  
+                  if (!isActiveStatus) return false;
+                  
+                  const roomMatch = String(r.room?.roomNumber ?? r.roomNumber ?? "") === String(room.roomNumber);
+                  const checkoutDate = r.stay?.checkOut ?? r.checkOut;
+                  
+                  return roomMatch && checkoutDate === day;
+                });
+                
+                // Check if this is today (for manually changed status)
+                const today = new Date().toISOString().split("T")[0];
+                const isToday = day === today;
+                
+                // Get room physical status - only show on checkout date or today
+                const physicalStatus = roomPhysicalStatus?.[room.roomNumber] || "Clean";
+                const showCleanStatus = (isCheckoutDate || isToday) && !res && !isOOS;
+                const isDirty = showCleanStatus && physicalStatus === "Dirty";
+                const isClean = showCleanStatus && physicalStatus === "Clean";
+                
+                // Determine reservation status
+                const resStatus = res ? String(res.status || "Booked").toLowerCase() : null;
+                const isCheckedIn = resStatus === "checked-in" || resStatus === "checked in" || resStatus === "in house";
+                const isBooked = resStatus === "booked" || resStatus === "confirmed";
+                
+                const isStart = res && (res.stay?.checkIn ?? res.checkIn) === day;
+                const isEnd = res && (res.stay?.checkOut ?? res.checkOut) === day;
+                
+                // Build cell content and styling
                 let cellContent = null;
-                if (res) {
-                    if(isStart) cellContent = <div style={{...barStyle, borderRadius: "4px 0 0 4px", marginLeft: "5px"}} title={res.guest?.lastName}></div>;
-                    else if(isEnd) cellContent = <div style={{...barStyle, borderRadius: "0 4px 4px 0", marginRight: "5px"}}></div>;
-                    else cellContent = <div style={barStyle}></div>;
+                let cellBg = "transparent";
+                let borderColor = "#f1f5f9";
+                
+                // Priority: OOS > Reservation > Clean Status
+                if (isOOS) {
+                  // OOS: Tools icon indicator (highest priority) - matches Manage OOS button
+                  cellContent = (
+                    <div style={{
+                      height: "100%",
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      position: "relative"
+                    }} title="Out of Service">
+                      <FaTools 
+                        size={18} 
+                        style={{ 
+                          color: "#dc2626",
+                          opacity: 0.9
+                        }} 
+                      />
+                    </div>
+                  );
+                  cellBg = "#fef2f2";
+                  borderColor = "#fecaca";
+                } else if (res) {
+                  // Reservation: Color based on status
+                  let barColor = "#3b82f6"; // Default blue for Booked
+                  let barBg = "#dbeafe";
+                  
+                  if (isCheckedIn) {
+                    barColor = "#10b981"; // Green for Checked-in/In House
+                    barBg = "#d1fae5";
+                  } else if (isBooked) {
+                    barColor = "#3b82f6"; // Blue for Booked
+                    barBg = "#dbeafe";
+                  }
+                  
+                  const reservationBarStyle = {
+                    height: "25px",
+                    background: barColor,
+                    width: "100%",
+                    marginTop: "12px",
+                    opacity: 0.9,
+                    borderRadius: "4px",
+                    position: "relative",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: isStart ? "flex-start" : "center",
+                    paddingLeft: isStart ? "6px" : "0",
+                    fontSize: "10px",
+                    fontWeight: "bold",
+                    color: "white",
+                    textShadow: "0 1px 2px rgba(0,0,0,0.2)"
+                  };
+                  
+                  if (isStart) {
+                    reservationBarStyle.borderRadius = "4px 0 0 4px";
+                    reservationBarStyle.marginLeft = "5px";
+                    reservationBarStyle.width = "calc(100% - 5px)";
+                    cellContent = (
+                      <div style={reservationBarStyle} title={`${res.guest?.firstName || ""} ${res.guest?.lastName || ""} - ${res.status}`}>
+                        {res.guest?.lastName || "Guest"}
+                      </div>
+                    );
+                  } else if (isEnd) {
+                    reservationBarStyle.borderRadius = "0 4px 4px 0";
+                    reservationBarStyle.marginRight = "5px";
+                    reservationBarStyle.width = "calc(100% - 5px)";
+                    cellContent = <div style={reservationBarStyle} title={res.status}></div>;
+                  } else {
+                    cellContent = <div style={reservationBarStyle} title={res.status}></div>;
+                  }
+                  
+                  cellBg = barBg;
+                  borderColor = barColor;
+                } else if (isDirty) {
+                  // Dirty status: Orange/yellow indicator
+                  cellContent = (
+                    <div style={{
+                      height: "20px",
+                      width: "20px",
+                      marginTop: "15px",
+                      marginLeft: "auto",
+                      marginRight: "auto",
+                      background: "#d97706",
+                      borderRadius: "50%",
+                      opacity: 0.6,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "8px",
+                      color: "white",
+                      fontWeight: "bold"
+                    }} title="Dirty - Needs Cleaning">🧹</div>
+                  );
+                  cellBg = "#fffbeb";
+                  borderColor = "#fde68a";
+                } else if (isClean) {
+                  // Clean status: Subtle green indicator
+                  cellContent = (
+                    <div style={{
+                      height: "8px",
+                      width: "8px",
+                      marginTop: "21px",
+                      marginLeft: "auto",
+                      marginRight: "auto",
+                      background: "#10b981",
+                      borderRadius: "50%",
+                      opacity: 0.5
+                    }} title="Clean - Available"></div>
+                  );
+                  cellBg = "#f0fdf4";
                 }
 
                 return (
                   <td 
                     key={day} 
-                    style={{ padding: 0, height: "50px", borderRight: "1px solid #f1f5f9", cursor: "pointer", position: "relative" }}
+                    style={{ 
+                      padding: 0, 
+                      height: "50px", 
+                      borderRight: `1px solid ${borderColor}`, 
+                      cursor: isOOS ? "not-allowed" : "pointer", 
+                      position: "relative",
+                      background: cellBg,
+                      transition: "all 0.2s ease"
+                    }}
                     onClick={() => {
                         if (res) onEdit(res.id);
-                        else onAdd(room.roomNumber);
-                    }} 
+                        else if (!isOOS) onAdd(room.roomNumber);
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isOOS && !res) {
+                        e.currentTarget.style.background = "#f8fafc";
+                        e.currentTarget.style.borderColor = "#cbd5e1";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isOOS && !res) {
+                        e.currentTarget.style.background = cellBg;
+                        e.currentTarget.style.borderColor = borderColor;
+                      }
+                    }}
                   >
                     {cellContent}
                   </td>
