@@ -1,183 +1,329 @@
 import React, { useState } from "react";
 import { storeLoad, storeSave } from "../utils/helpers";
 
-// استدعاء الصورة من مجلد public
-const BG_IMAGE = "/maldives.jpg"; 
+// Hero image for brand panel (place maldives.jpg or any resort image in public/)
+const BG_IMAGE = "/maldives.jpg";
 
-// اللون الأساسي
-const PRIMARY_COLOR = "#0ea5e9"; 
-
-// --- تعريف الـ CSS Styles ---
+// --- Professional hotel login styles ---
 const styles = `
-  html, body, #root { 
+  html, body, #root {
     height: 100%;
     margin: 0;
     padding: 0;
-    overflow: hidden !important; 
-    overscroll-behavior: none; 
-    font-family: "Segoe UI", sans-serif;
+    overflow: hidden !important;
+    overscroll-behavior: none;
+    font-family: "Inter", system-ui, sans-serif;
   }
 
   .login-container {
     display: flex;
-    height: 100vh; 
+    height: 100vh;
     width: 100vw;
-    background: #fff;
+    background: #0f172a;
     overflow: hidden;
   }
 
+  /* Left: Brand / hero panel */
   .brand-side {
-    flex: 1.6;
+    flex: 1.4;
+    min-width: 0;
     height: 100%;
+    background-color: #0f172a;
     background-image: url('${BG_IMAGE}');
     background-size: cover;
-    background-position: center center;
+    background-position: center;
     background-repeat: no-repeat;
     position: relative;
-    -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
-            mask-image: linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
   }
 
-  .form-side {
-    flex: 0.8;
-    height: 100%;
+  .brand-side::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(30, 58, 138, 0.75) 50%, rgba(15, 23, 42, 0.6) 100%);
+    pointer-events: none;
+  }
+
+  .brand-content {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center; 
-    padding: 40px 80px;
-    background: #ffffff;
-    max-width: 550px;
-    box-sizing: border-box;
-    z-index: 10;
-    position: relative;
+    justify-content: center;
+    padding: 60px 56px;
+    color: #fff;
+    text-align: center;
   }
 
-  .hotel-header {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-bottom: 30px;
-    perspective: 1000px; 
+  .brand-badge {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 24px;
   }
-  
-  .logo-wrapper {
-    position: relative;
-    width: 120px;
-    height: 120px;
+
+  .brand-side .brand-logo {
+    width: 88px;
+    height: 88px;
     border-radius: 50%;
-    margin-bottom: 20px;
-    background: #fff;
-    border: 4px solid #f0f9ff; 
-    transform-style: preserve-3d;
-    animation: coin-spin 8s linear infinite;
-  }
-
-  .hotel-logo {
-    width: 100%;
-    height: 100%;
     object-fit: cover;
+    border: 3px solid rgba(255, 255, 255, 0.25);
+    margin-bottom: 28px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  }
+
+  .brand-side .brand-name {
+    font-family: 'Dancing Script', cursive;
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 1.15;
+    margin: 0 0 8px 0;
+    color: #fff;
+    text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+    text-align: center;
+  }
+
+  .brand-side .brand-tagline {
+    font-family: 'Dancing Script', cursive;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0 0 48px 0;
+    text-align: center;
+  }
+
+  .brand-side .brand-footer {
+    margin-top: auto;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 0.5px;
+  }
+
+  /* Right: Form panel */
+  .form-side {
+    flex: 0.9;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 56px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    max-width: 520px;
+    min-width: 400px;
+    box-sizing: border-box;
+    position: relative;
+    border-left: 1px solid rgba(226, 232, 240, 0.6);
+    box-shadow: -12px 0 40px rgba(0, 0, 0, 0.06), inset 1px 0 0 rgba(255, 255, 255, 0.8);
+  }
+
+  .form-inner {
+    width: 100%;
+    max-width: 380px;
+    animation: fadeInUp 0.5s ease-out;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .form-header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .form-logo-wrapper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 28px;
+  }
+
+  .form-side .form-logo {
+    width: 88px;
+    height: 88px;
     border-radius: 50%;
-    backface-visibility: visible; 
-  }
-
-  @keyframes coin-spin {
-    from { transform: rotateY(0deg); }
-    to { transform: rotateY(360deg); }
-  }
-
-  .hotel-name {
-    margin: 0; 
-    font-size: 45px; 
-    font-family: 'Brush Script MT', cursive;
-    line-height: 1.1;
-    text-align: center;
-    background: -webkit-linear-gradient(45deg, #0ea5e9, #2563eb);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: #0284c7;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
-  }
-
-  .hotel-sub {
-    font-size: 22px; 
-    font-family: 'Brush Script MT', cursive; 
-    color: #94a3b8;
-    margin-top: 5px;
-    text-align: center;
+    object-fit: cover;
+    border: 3px solid rgba(30, 64, 175, 0.15);
     display: block;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  }
+
+  .form-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .form-subtitle {
+    font-size: 26px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 8px 0;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+  }
+
+  .form-description {
+    font-size: 14px;
+    color: #64748b;
+    margin-top: 8px;
+    font-weight: 400;
   }
 
   .form-content {
     width: 100%;
-    max-width: 400px;
+    background: #fff;
+    padding: 32px;
+    border-radius: 16px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  }
+
+  .input-group {
+    margin-bottom: 24px;
   }
 
   .input-label {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-size: 11px;
-    font-weight: 800;
-    color: #64748b;
-    margin-bottom: 8px;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 10px;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    text-align: left;
+    letter-spacing: 1.2px;
+  }
+
+  .input-label::before {
+    content: '';
+    width: 3px;
+    height: 12px;
+    background: linear-gradient(180deg, #1e40af 0%, #1e3a8a 100%);
+    border-radius: 2px;
   }
 
   .input-field {
     width: 100%;
-    padding: 16px;
-    border: 1px solid #e2e8f0;
+    padding: 15px 18px;
+    border: 1.5px solid #e2e8f0;
     border-radius: 12px;
-    font-size: 16px;
-    margin-bottom: 24px;
-    background: #f8fafc;
-    transition: all 0.3s ease;
+    font-size: 15px;
+    margin-bottom: 0;
+    background: #fafbfc;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     box-sizing: border-box;
-    color: #334155;
-    font-weight: 600;
+    color: #0f172a;
+    font-weight: 500;
+  }
+
+  .input-field:hover {
+    border-color: #cbd5e1;
+    background: #fff;
   }
 
   .input-field:focus {
-    border-color: #38bdf8;
+    border-color: #1e40af;
     background: #fff;
-    box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.1);
+    box-shadow: 0 0 0 4px rgba(30, 64, 175, 0.1), 0 2px 8px rgba(30, 64, 175, 0.08);
     outline: none;
+    transform: translateY(-1px);
   }
-  
+
+  .input-field::placeholder {
+    color: #94a3b8;
+    font-weight: 400;
+  }
+
+  select.input-field {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23475569' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    padding-right: 42px;
+  }
+
   .login-btn {
     width: 100%;
-    padding: 18px;
-    background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
-    color: white;
-    font-weight: 800;
-    font-size: 16px;
+    padding: 17px;
+    background: linear-gradient(180deg, #1e40af 0%, #1e3a8a 100%);
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
     border: none;
-    border-radius: 14px;
+    border-radius: 12px;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-top: 8px;
+    letter-spacing: 0.8px;
     text-transform: uppercase;
-    margin-top: 10px;
-    letter-spacing: 1px;
-    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
+    box-shadow: 0 4px 16px rgba(30, 64, 175, 0.4), 0 2px 4px rgba(30, 64, 175, 0.2);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .login-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
+    opacity: 0;
+    transition: opacity 0.25s;
   }
 
   .login-btn:hover {
-    background: linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%);
+    background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%);
     transform: translateY(-2px);
-    box-shadow: 0 15px 30px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 8px 24px rgba(30, 64, 175, 0.45), 0 4px 8px rgba(30, 64, 175, 0.25);
+  }
+
+  .login-btn:hover::before {
+    opacity: 1;
+  }
+
+  .login-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 12px rgba(30, 64, 175, 0.35);
   }
 
   .error-msg {
-    color: #ef4444;
+    color: #b91c1c;
     margin-bottom: 20px;
     text-align: center;
     font-weight: 600;
-    font-size: 14px;
-    background: #fef2f2;
-    padding: 10px;
-    border-radius: 8px;
-    border: 1px solid #fee2e2;
+    font-size: 13px;
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1.5px solid #fecaca;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 2px 4px rgba(185, 28, 28, 0.1);
+  }
+
+  .error-msg::before {
+    content: '⚠';
+    font-size: 16px;
   }
 
   .show-pin-label {
@@ -186,50 +332,72 @@ const styles = `
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     user-select: none;
+    margin-top: 20px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: background 0.2s, color 0.2s;
+    font-weight: 500;
+  }
+
+  .show-pin-label:hover {
+    background: #f1f5f9;
+    color: #475569;
+  }
+
+  .show-pin-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #1e40af;
   }
 
   .bottom-actions {
     position: absolute;
-    bottom: 30px;
-    width: 100%;
+    bottom: 32px;
+    left: 0;
+    right: 0;
     display: flex;
     justify-content: center;
-    left: 0;
   }
 
   .system-config-btn {
-    background: white;
-    border: 1px solid #e2e8f0;
-    color: #64748b;
-    font-size: 12px;
+    background: #fff;
+    border: 1.5px solid #e2e8f0;
+    color: #475569;
+    font-size: 11px;
     cursor: pointer;
-    padding: 10px 24px;
-    border-radius: 50px; 
+    padding: 11px 22px;
+    border-radius: 10px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
     display: flex;
     align-items: center;
     gap: 8px;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   }
-  
+
   .system-config-btn:hover {
     background: #f8fafc;
-    color: #0ea5e9; 
+    color: #1e40af;
     border-color: #cbd5e1;
     transform: translateY(-1px);
-    box-shadow: 0 6px 12px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  }
+
+  .system-config-btn:active {
+    transform: translateY(0);
   }
 
   .system-config-btn span {
-    font-size: 16px; 
+    font-size: 15px;
+    line-height: 1;
   }
 
-  /* --- Toggle Switch Styles --- */
+  /* Toggle (Cloud settings screen) */
   .toggle-switch {
     position: relative;
     display: inline-block;
@@ -250,29 +418,26 @@ const styles = `
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #ccc;
-    transition: .4s;
-    border-radius: 34px;
+    background-color: #cbd5e1;
+    transition: 0.25s;
+    border-radius: 28px;
   }
 
   .slider:before {
     position: absolute;
     content: "";
-    height: 20px;
-    width: 20px;
-    left: 4px;
-    bottom: 4px;
-    background-color: white;
-    transition: .4s;
+    height: 22px;
+    width: 22px;
+    left: 3px;
+    bottom: 3px;
+    background-color: #fff;
+    transition: 0.25s;
     border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
   }
 
   input:checked + .slider {
-    background-color: #0ea5e9;
-  }
-
-  input:focus + .slider {
-    box-shadow: 0 0 1px #0ea5e9;
+    background-color: #1e40af;
   }
 
   input:checked + .slider:before {
@@ -288,8 +453,21 @@ const styles = `
 
   @media (max-width: 1024px) {
     .brand-side { display: none; }
-    .form-side { flex: 1; padding: 40px; max-width: 100%; }
-    .form-content { max-width: 100%; }
+    .form-side {
+      flex: 1;
+      padding: 40px 32px;
+      max-width: 100%;
+      min-width: 0;
+      border-left: none;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    }
+    .form-inner { max-width: 100%; }
+    .form-content {
+      padding: 28px 24px;
+    }
+    .form-header {
+      margin-bottom: 32px;
+    }
   }
 `;
 
@@ -329,78 +507,95 @@ export function SecurityLoginScreen({ users, onLogin, onOpenCloudSettings }) {
   return (
     <>
       <style>{styles}</style>
-      
+
       <div className="login-container">
-        <div className="brand-side"></div>
-        
+        {/* Left: Hotel brand hero */}
+        <div className="brand-side">
+          <div className="brand-content">
+            <span className="brand-badge">Staff Portal</span>
+            <img
+              src={logoUrl}
+              alt=""
+              className="brand-logo"
+              onError={(e) => (e.target.style.display = "none")}
+            />
+            <h1 className="brand-name">{hotelName}</h1>
+            <p className="brand-tagline">Maldives Resort</p>
+            <p className="brand-footer">Confidential · Authorized personnel only</p>
+          </div>
+        </div>
+
+        {/* Right: Sign-in form */}
         <div className="form-side">
-          
-          <div style={{width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-            
-            <div className="hotel-header">
-              <div className="logo-wrapper">
-                <img 
-                  src={logoUrl} 
-                  alt="Hotel Logo" 
-                  className="hotel-logo" 
-                  onError={(e) => e.target.style.display='none'} 
+          <div className="form-inner">
+            <div className="form-header">
+              <div className="form-logo-wrapper">
+                <img
+                  src={logoUrl}
+                  alt=""
+                  className="form-logo"
+                  onError={(e) => (e.target.style.display = "none")}
                 />
               </div>
-              <h1 className="hotel-name">{hotelName}</h1>
-              <span className="hotel-sub">Maldives Resort</span>
+              <span className="form-title">Back office</span>
+              <h2 className="form-subtitle">Sign in to your account</h2>
+              <p className="form-description">Enter your credentials to access the system</p>
             </div>
 
             <div className="form-content">
-              <label className="input-label">Select Administrator</label>
-              <select 
-                className="input-field" 
-                value={username} 
-                onChange={(e) => setUsername(e.target.value)}
-              >
-                {(users || []).map((u) => (
-                  <option key={u.id} value={u.username}>{u.username}</option>
-                ))}
-              </select>
-              
-              <label className="input-label">Security PIN</label>
-              <input 
-                 className="input-field" 
-                 type={showPin ? "text" : "password"} 
-                 value={pin} 
-                 onChange={handlePinChange} 
-                 onKeyDown={(e) => e.key === "Enter" && tryLogin()} 
-                 placeholder="••••" 
-                 style={{ 
-                   letterSpacing: showPin ? "normal" : "6px", 
-                   fontWeight: "bold",
-                   fontFamily: showPin ? "inherit" : "monospace" 
-                 }}
-              />
-              
-              {err && <div className="error-msg">⚠ {err}</div>}
-              
-              <button className="login-btn" onClick={tryLogin}>Access Ocean Blue</button>
-              
-              <div style={{textAlign:"center", marginTop:20}}>
-                  <label className="show-pin-label">
-                    <input 
-                      type="checkbox" 
-                      checked={showPin} 
-                      onChange={(e) => setShowPin(e.target.checked)}
-                      style={{ cursor: "pointer" }}
-                    /> 
-                    Show PIN
-                  </label>
+              <div className="input-group">
+                <label className="input-label">Administrator</label>
+                <select
+                  className="input-field"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                >
+                  {(users || []).map((u) => (
+                    <option key={u.id} value={u.username}>{u.username}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Security PIN</label>
+                <input
+                  className="input-field"
+                  type={showPin ? "text" : "password"}
+                  value={pin}
+                  onChange={handlePinChange}
+                  onKeyDown={(e) => e.key === "Enter" && tryLogin()}
+                  placeholder="Enter your PIN"
+                  style={{
+                    letterSpacing: showPin ? "normal" : "6px",
+                    fontFamily: showPin ? "inherit" : "ui-monospace, monospace",
+                  }}
+                />
+              </div>
+
+              {err && <div className="error-msg">{err}</div>}
+
+              <button className="login-btn" onClick={tryLogin}>
+                Sign in
+              </button>
+
+              <div style={{ textAlign: "center" }}>
+                <label className="show-pin-label">
+                  <input
+                    type="checkbox"
+                    checked={showPin}
+                    onChange={(e) => setShowPin(e.target.checked)}
+                  />
+                  Show PIN
+                </label>
               </div>
             </div>
           </div>
 
           <div className="bottom-actions">
-              <button className="system-config-btn" onClick={handleOpenSettings}>
-                <span>⚙</span> System Configuration
-              </button>
+            <button className="system-config-btn" onClick={handleOpenSettings}>
+              <span>⚙</span> System configuration
+            </button>
           </div>
-
         </div>
       </div>
     </>
