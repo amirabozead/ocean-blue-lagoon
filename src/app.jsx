@@ -198,6 +198,7 @@ import SettingsPage from "./components/SettingsPage";
 import {
   PreAuthCloudSyncScreen,
   SecurityLoginScreen,
+  OldStyleSecurityLoginScreen,
   SupabaseLoginScreen,
 } from "./components/LoginScreens";
 
@@ -296,6 +297,11 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
+  const settings = storeLoad("ocean_settings_v1") || {};
+  const hotelName = settings.hotelName || "Ocean Blue Lagoon";
+  const logoUrl = settings.logoUrl || "/logo.png";
+  const BG_IMAGE = "/maldives.jpg";
+
   const normalizeEmail = (v) => {
     const s = String(v || "").trim();
     if (!s) return "";
@@ -374,62 +380,444 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
     }
   };
 
+  // Use the same styles as LoginScreens
+  const loginStyles = `
+    html, body, #root {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden !important;
+      overscroll-behavior: none;
+      font-family: "Inter", system-ui, sans-serif;
+    }
+
+    .login-container {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      background: #0f172a;
+      overflow: hidden;
+    }
+
+    .brand-side {
+      flex: 1.4;
+      min-width: 0;
+      height: 100%;
+      background-color: #0f172a;
+      background-image: url('${BG_IMAGE}');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      position: relative;
+    }
+
+    .brand-side::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(30, 58, 138, 0.75) 50%, rgba(15, 23, 42, 0.6) 100%);
+      pointer-events: none;
+    }
+
+    .brand-content {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 56px;
+      color: #fff;
+      text-align: center;
+    }
+
+    .brand-badge {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 24px;
+    }
+
+    .brand-side .brand-logo {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid rgba(255, 255, 255, 0.25);
+      margin-bottom: 28px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    .brand-side .brand-name {
+      font-family: 'Dancing Script', cursive;
+      font-size: 48px;
+      font-weight: 700;
+      line-height: 1.15;
+      margin: 0 0 8px 0;
+      color: #fff;
+      text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+
+    .brand-side .brand-tagline {
+      font-family: 'Dancing Script', cursive;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.2;
+      color: rgba(255, 255, 255, 0.9);
+      margin: 0 0 48px 0;
+      text-align: center;
+    }
+
+    .brand-side .brand-footer {
+      margin-top: auto;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      letter-spacing: 0.5px;
+    }
+
+    .form-side {
+      flex: 0.9;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 56px;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      max-width: 520px;
+      min-width: 400px;
+      box-sizing: border-box;
+      position: relative;
+      border-left: 1px solid rgba(226, 232, 240, 0.6);
+      box-shadow: -12px 0 40px rgba(0, 0, 0, 0.06), inset 1px 0 0 rgba(255, 255, 255, 0.8);
+    }
+
+    .form-inner {
+      width: 100%;
+      max-width: 380px;
+      animation: fadeInUp 0.5s ease-out;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .form-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .form-logo-wrapper {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 28px;
+    }
+
+    .form-side .form-logo {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid rgba(30, 64, 175, 0.15);
+      display: block;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .form-subtitle {
+      font-size: 26px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 8px 0;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+    }
+
+    .form-description {
+      font-size: 14px;
+      color: #64748b;
+      margin-top: 8px;
+      font-weight: 400;
+    }
+
+    .form-content {
+      width: 100%;
+      background: #fff;
+      padding: 32px;
+      border-radius: 16px;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+
+    .input-group {
+      margin-bottom: 24px;
+    }
+
+    .input-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+    }
+
+    .input-label::before {
+      content: '';
+      width: 3px;
+      height: 12px;
+      background: linear-gradient(180deg, #1e40af 0%, #1e3a8a 100%);
+      border-radius: 2px;
+    }
+
+    .input-field {
+      width: 100%;
+      padding: 15px 18px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 15px;
+      margin-bottom: 0;
+      background: #fafbfc;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      box-sizing: border-box;
+      color: #0f172a;
+      font-weight: 500;
+    }
+
+    .input-field:hover {
+      border-color: #cbd5e1;
+      background: #fff;
+    }
+
+    .input-field:focus {
+      border-color: #1e40af;
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(30, 64, 175, 0.1), 0 2px 8px rgba(30, 64, 175, 0.08);
+      outline: none;
+      transform: translateY(-1px);
+    }
+
+    .input-field::placeholder {
+      color: #94a3b8;
+      font-weight: 400;
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 17px;
+      background: linear-gradient(180deg, #1e40af 0%, #1e3a8a 100%);
+      color: #fff;
+      font-weight: 700;
+      font-size: 15px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      margin-top: 8px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      box-shadow: 0 4px 16px rgba(30, 64, 175, 0.4), 0 2px 4px rgba(30, 64, 175, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+
+    .login-btn:hover {
+      background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(30, 64, 175, 0.45), 0 4px 8px rgba(30, 64, 175, 0.25);
+    }
+
+    .login-btn:hover::before {
+      opacity: 1;
+    }
+
+    .login-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 4px 12px rgba(30, 64, 175, 0.35);
+    }
+
+    .login-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .settings-btn {
+      width: 100%;
+      padding: 14px;
+      background: #fff;
+      color: #475569;
+      font-weight: 700;
+      font-size: 14px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      margin-top: 12px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .settings-btn:hover {
+      background: #f8fafc;
+      color: #1e40af;
+      border-color: #cbd5e1;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+
+    .error-msg {
+      color: #b91c1c;
+      margin-bottom: 20px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 13px;
+      background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+      padding: 14px 16px;
+      border-radius: 10px;
+      border: 1.5px solid #fecaca;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 2px 4px rgba(185, 28, 28, 0.1);
+    }
+
+    .error-msg::before {
+      content: '⚠';
+      font-size: 16px;
+    }
+
+    @media (max-width: 1024px) {
+      .brand-side { display: none; }
+      .form-side {
+        flex: 1;
+        padding: 40px 32px;
+        max-width: 100%;
+        min-width: 0;
+        border-left: none;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      }
+      .form-inner { max-width: 100%; }
+      .form-content {
+        padding: 28px 24px;
+      }
+      .form-header {
+        margin-bottom: 32px;
+      }
+    }
+  `;
+
   return (
-    <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#f8fafc", padding: 20 }}>
-      <div style={{ width: 420, maxWidth: "100%", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 18, padding: 22, boxShadow: "0 12px 30px rgba(15,23,42,0.08)" }}>
-        <div style={{ fontSize: 28, fontFamily: "'Brush Script MT', cursive", textAlign: "center", color: "#0ea5e9" }}>
-          Cloud Login
-        </div>
-        <div style={{ textAlign: "center", marginTop: 6, color: "#64748b", fontWeight: 700, fontSize: 12 }}>
-          Sign in to continue
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: "#475569", marginBottom: 6 }}>Employee ID or Email</div>
-          <input
-            value={employeeOrEmail}
-            onChange={(e) => setEmployeeOrEmail(e.target.value)}
-            className="input"
-            style={{ width: "100%" }}
-            placeholder="admin  OR  admin@oceanstay.local"
-          />
-        </div>
-
-        <div style={{ marginTop: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: "#475569", marginBottom: 6 }}>Password</div>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="input"
-            style={{ width: "100%" }}
-            placeholder="••••••••"
-          />
-        </div>
-
-        {err && (
-          <div style={{ marginTop: 12, background: "#fff1f2", border: "1px solid #fecaca", padding: 10, borderRadius: 12, color: "#9f1239", fontWeight: 800, fontSize: 12 }}>
-            {err}
+    <>
+      <style>{loginStyles}</style>
+      <div className="login-container">
+        {/* Left: Hotel brand hero */}
+        <div className="brand-side">
+          <div className="brand-content">
+            <span className="brand-badge">Cloud Portal</span>
+            <img
+              src={logoUrl}
+              alt=""
+              className="brand-logo"
+              onError={(e) => (e.target.style.display = "none")}
+            />
+            <h1 className="brand-name">{hotelName}</h1>
+            <p className="brand-tagline">Maldives Resort</p>
+            <p className="brand-footer">Cloud Authentication · Secure Access</p>
           </div>
-        )}
+        </div>
 
-        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-          <button
-            onClick={handleLogin}
-            disabled={busy}
-            style={{ flex: 1, background: "#0ea5e9", color: "#fff", border: "none", padding: "12px 14px", borderRadius: 12, fontWeight: 900, cursor: "pointer" }}
-          >
-            {busy ? "Signing in..." : "LOGIN"}
-          </button>
-          <button
-            onClick={onOpenCloudSettings}
-            style={{ background: "#f1f5f9", color: "#0f172a", border: "1px solid #e2e8f0", padding: "12px 14px", borderRadius: 12, fontWeight: 900, cursor: "pointer" }}
-          >
-            SETTINGS
-          </button>
+        {/* Right: Sign-in form */}
+        <div className="form-side">
+          <div className="form-inner">
+            <div className="form-header">
+              <div className="form-logo-wrapper">
+                <img
+                  src={logoUrl}
+                  alt=""
+                  className="form-logo"
+                  onError={(e) => (e.target.style.display = "none")}
+                />
+              </div>
+              <span className="form-title">Cloud Authentication</span>
+              <h2 className="form-subtitle">Sign in to your account</h2>
+              <p className="form-description">Enter your credentials to access the system</p>
+            </div>
+
+            <div className="form-content">
+              <div className="input-group">
+                <label className="input-label">Employee ID or Email</label>
+                <input
+                  className="input-field"
+                  type="text"
+                  value={employeeOrEmail}
+                  onChange={(e) => setEmployeeOrEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && !busy && handleLogin()}
+                  placeholder="admin OR admin@oceanstay.local"
+                />
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Password</label>
+                <input
+                  className="input-field"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && !busy && handleLogin()}
+                  placeholder="Enter your password"
+                />
+              </div>
+
+              {err && <div className="error-msg">{err}</div>}
+
+              <button className="login-btn" onClick={handleLogin} disabled={busy}>
+                {busy ? "Signing in..." : "Sign in"}
+              </button>
+
+              <button className="settings-btn" onClick={onOpenCloudSettings}>
+                Settings
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -814,6 +1202,7 @@ useEffect(() => {
   const [currentUser, setCurrentUser] = useState(() => null);
   const [loginOpen, setLoginOpen] = useState(() => true);
   const [preAuthScreen, setPreAuthScreen] = useState("login");
+  const [useOldStyleLogin, setUseOldStyleLogin] = useState(false);
 
   const [sbCfg, setSbCfg] = useState(() => {
     const c = storeLoad(SB_LS_CFG);
@@ -932,8 +1321,18 @@ useEffect(() => {
         setDailyRates(dailyRatesCloud);
         storeSave("oceanstay_daily_rates_v1", dailyRatesCloud);
         storeSave("oceanstay_daily_rates", dailyRatesCloud);
-        setReservations(reservationsCloud);
-        storeSave("oceanstay_reservations_v1", reservationsCloud);
+        
+        // SAFETY CHECK: Don't overwrite local reservations with empty cloud data
+        // Only sync if cloud has data OR if local is also empty (first time setup)
+        const localReservations = reservations || [];
+        if (reservationsCloud.length > 0 || localReservations.length === 0) {
+          setReservations(reservationsCloud);
+          storeSave("oceanstay_reservations_v1", reservationsCloud);
+        } else {
+          console.warn("⚠️ Cloud sync skipped reservations: Cloud data is empty but local has", localReservations.length, "reservations. To prevent data loss, local reservations are preserved.");
+          // Still sync other data, but preserve local reservations
+        }
+        
         setExtraRevenues(extraRevenuesCloud);
         storeSave("ocean_extra_rev_v1", extraRevenuesCloud);
         setCloudBootstrapped(true);
@@ -1680,17 +2079,26 @@ useEffect(() => {
         <PreAuthCloudSyncScreen
           sbCfg={sbCfg}
           sbSaveCfg={sbSaveCfg}
-          onBack={() => setPreAuthScreen("login")}
+          onBack={() => {
+            setPreAuthScreen("login");
+            setUseOldStyleLogin(true);
+          }}
         />
       );
-    if (supabaseEnabled && supabase)
-  return (
-    <SupabaseLoginInline
-      supabase={supabase}
-      onLogin={doLogin}
-      onOpenCloudSettings={() => setPreAuthScreen("cloud")}
-    />
-  );
+    
+    // Show Cloud Login page when coming back from cloud settings or when Supabase is enabled
+    if ((useOldStyleLogin && supabaseEnabled && supabase) || (supabaseEnabled && supabase)) {
+      return (
+        <SupabaseLoginInline
+          supabase={supabase}
+          onLogin={doLogin}
+          onOpenCloudSettings={() => {
+            setPreAuthScreen("cloud");
+            setUseOldStyleLogin(false);
+          }}
+        />
+      );
+    }
 
     return (
       <SecurityLoginScreen

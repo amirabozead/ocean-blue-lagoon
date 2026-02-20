@@ -471,6 +471,252 @@ const styles = `
   }
 `;
 
+// Old-style simple login screen (centered card)
+const oldStyleLoginStyles = `
+  .old-login-container {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f8fafc;
+    padding: 20px;
+  }
+
+  .old-login-card {
+    width: 420px;
+    max-width: 100%;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 32px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  }
+
+  .old-login-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e2e8f0;
+    margin: 0 auto 20px;
+    display: block;
+  }
+
+  .old-login-title {
+    font-size: 32px;
+    font-family: 'Dancing Script', cursive;
+    text-align: center;
+    color: #0ea5e9;
+    margin-bottom: 8px;
+  }
+
+  .old-login-subtitle {
+    text-align: center;
+    margin-top: 6px;
+    color: #64748b;
+    font-weight: 700;
+    font-size: 12px;
+    margin-bottom: 24px;
+  }
+
+  .old-input-label {
+    font-size: 12px;
+    font-weight: 800;
+    color: #475569;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .old-input-field {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 15px;
+    margin-bottom: 16px;
+    background: #fafbfc;
+    box-sizing: border-box;
+    color: #0f172a;
+    transition: border-color 0.2s;
+  }
+
+  .old-input-field:focus {
+    border-color: #0ea5e9;
+    background: #fff;
+    outline: none;
+  }
+
+  .old-login-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+    color: white;
+    font-weight: 800;
+    font-size: 15px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 8px;
+  }
+
+  .old-login-btn:hover {
+    background: linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+  }
+
+  .old-error-msg {
+    margin-top: 12px;
+    background: #fff1f2;
+    border: 1px solid #fecaca;
+    padding: 12px;
+    border-radius: 10px;
+    color: #9f1239;
+    font-weight: 800;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .old-show-pin-label {
+    color: #64748b;
+    font-size: 13px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+    margin-top: 16px;
+  }
+
+  .old-system-config-btn {
+    background: white;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 20px auto 0;
+    transition: all 0.2s;
+  }
+
+  .old-system-config-btn:hover {
+    background: #f8fafc;
+    color: #0ea5e9;
+    border-color: #cbd5e1;
+  }
+`;
+
+export function OldStyleSecurityLoginScreen({ users, onLogin, onOpenCloudSettings }) {
+  const [username, setUsername] = useState(users?.[0]?.username || "admin");
+  const [pin, setPin] = useState("");
+  const [err, setErr] = useState("");
+  const [showPin, setShowPin] = useState(false);
+
+  const settings = storeLoad("ocean_settings_v1") || {};
+  const hotelName = settings.hotelName || "Ocean Blue Lagoon";
+  const logoUrl = settings.logoUrl || "/logo.png";
+
+  const tryLogin = () => {
+    const u = (users || []).find((x) => x.username === username);
+    if (!u) return setErr("User account not found");
+    if (String(u.pin || "") !== String(pin || "")) {
+       return setErr("Incorrect Security PIN");
+    }
+    setErr("");
+    onLogin(u);
+  };
+
+  const handlePinChange = (e) => {
+    setPin(e.target.value);
+    if (err) setErr("");
+  };
+
+  const handleOpenSettings = () => {
+    if (onOpenCloudSettings) {
+        onOpenCloudSettings();
+    } else {
+        alert("System Configuration function is not connected properly.");
+    }
+  };
+
+  return (
+    <>
+      <style>{oldStyleLoginStyles}</style>
+      <div className="old-login-container">
+        <div className="old-login-card">
+          <img
+            src={logoUrl}
+            alt=""
+            className="old-login-logo"
+            onError={(e) => (e.target.style.display = "none")}
+          />
+          <h1 className="old-login-title">{hotelName}</h1>
+          <p className="old-login-subtitle">Maldives Resort</p>
+
+          <label className="old-input-label">Select Administrator</label>
+          <select
+            className="old-input-field"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          >
+            {(users || []).map((u) => (
+              <option key={u.id} value={u.username}>{u.username}</option>
+            ))}
+          </select>
+
+          <label className="old-input-label">Security PIN</label>
+          <input
+            className="old-input-field"
+            type={showPin ? "text" : "password"}
+            value={pin}
+            onChange={handlePinChange}
+            onKeyDown={(e) => e.key === "Enter" && tryLogin()}
+            placeholder="••••"
+            style={{
+              letterSpacing: showPin ? "normal" : "6px",
+              fontFamily: showPin ? "inherit" : "monospace",
+            }}
+          />
+
+          {err && <div className="old-error-msg">⚠ {err}</div>}
+
+          <button className="old-login-btn" onClick={tryLogin}>
+            Access Ocean Blue
+          </button>
+
+          <div style={{ textAlign: "center" }}>
+            <label className="old-show-pin-label">
+              <input
+                type="checkbox"
+                checked={showPin}
+                onChange={(e) => setShowPin(e.target.checked)}
+                style={{ cursor: "pointer" }}
+              />
+              Show PIN
+            </label>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <button className="old-system-config-btn" onClick={handleOpenSettings}>
+              <span>⚙</span> System Configuration
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function SecurityLoginScreen({ users, onLogin, onOpenCloudSettings }) {
   const [username, setUsername] = useState(users?.[0]?.username || "admin");
   const [pin, setPin] = useState("");
@@ -603,68 +849,183 @@ export function SecurityLoginScreen({ users, onLogin, onOpenCloudSettings }) {
 }
 
 export function PreAuthCloudSyncScreen({ sbCfg, sbSaveCfg, onBack }) {
-    const [url, setUrl] = useState(String(sbCfg?.url || ""));
-    const [anon, setAnon] = useState(String(sbCfg?.anon || ""));
-    const [enabled, setEnabled] = useState(!!sbCfg?.enabled);
+  const [url, setUrl] = useState(String(sbCfg?.url || ""));
+  const [anon, setAnon] = useState(String(sbCfg?.anon || ""));
+  const [enabled, setEnabled] = useState(!!sbCfg?.enabled);
 
-    const doSave = () => { 
-      sbSaveCfg({ url, anon, enabled }, null); 
-      alert("Settings Saved!"); 
-    };
+  const settings = storeLoad("ocean_settings_v1") || {};
+  const hotelName = settings.hotelName || "Ocean Blue Lagoon";
+  const logoUrl = settings.logoUrl || "/logo.png";
 
-    return (
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "#f8fafc" }}>
-            <style>{styles}</style>
-            <div style={{ padding: 40, background: "white", borderRadius: 16, boxShadow: "0 4px 20px rgba(0,0,0,0.05)", width: "100%", maxWidth: 500, textAlign: "center" }}>
-                <h2 style={{ fontFamily: "'Brush Script MT', cursive", fontSize: 42, color: "#0ea5e9", marginBottom: 10 }}>Cloud Settings</h2>
-                <p style={{ color: "#64748b", marginBottom: 30, fontSize: 14 }}>Configure your Supabase connection</p>
-                
-                <div style={{ textAlign: "left" }}>
-                  
-                  {/* 🔥 زر التبديل الجديد (Toggle Switch) */}
-                  <div style={{ display: "flex", alignItems: "center", marginBottom: "25px", padding: "10px", background: "#f1f5f9", borderRadius: "10px" }}>
-                      <label className="toggle-switch">
-                          <input 
-                              type="checkbox" 
-                              checked={enabled} 
-                              onChange={(e) => setEnabled(e.target.checked)} 
-                          />
-                          <span className="slider round"></span>
-                      </label>
-                      <span className="toggle-label">
-                          {enabled ? "Cloud Sync Enabled (Online)" : "Local Mode Only (Offline)"}
-                      </span>
-                  </div>
+  const doSave = () => { 
+    sbSaveCfg({ url, anon, enabled }, null); 
+    alert("Settings Saved!"); 
+  };
 
-                  <label className="input-label">Supabase URL</label>
-                  <input className="input-field" value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://xyz.supabase.co" disabled={!enabled} style={{opacity: enabled ? 1 : 0.6}} />
-                  
-                  <label className="input-label">Anon Key</label>
-                  <input className="input-field" value={anon} onChange={e=>setAnon(e.target.value)} placeholder="public-anon-key" disabled={!enabled} style={{opacity: enabled ? 1 : 0.6}} />
+  return (
+    <>
+      <style>{styles}</style>
+      <div className="login-container">
+        {/* Left: Hotel brand hero */}
+        <div className="brand-side">
+          <div className="brand-content">
+            <span className="brand-badge">Cloud Configuration</span>
+            <img
+              src={logoUrl}
+              alt=""
+              className="brand-logo"
+              onError={(e) => (e.target.style.display = "none")}
+            />
+            <h1 className="brand-name">{hotelName}</h1>
+            <p className="brand-tagline">Maldives Resort</p>
+            <p className="brand-footer">Sync your data · Stay connected</p>
+          </div>
+        </div>
+
+        {/* Right: Configuration form */}
+        <div className="form-side">
+          <div className="form-inner">
+            <div className="form-header">
+              <div className="form-logo-wrapper">
+                <img
+                  src={logoUrl}
+                  alt=""
+                  className="form-logo"
+                  onError={(e) => (e.target.style.display = "none")}
+                />
+              </div>
+              <span className="form-title">Cloud Settings</span>
+              <h2 className="form-subtitle">Configure Supabase</h2>
+              <p className="form-description">Set up your cloud synchronization</p>
+            </div>
+
+            <div className="form-content">
+              <div className="input-group">
+                <div style={{ display: "flex", alignItems: "center", padding: "12px", background: "#f1f5f9", borderRadius: "10px", marginBottom: "24px" }}>
+                  <label className="toggle-switch">
+                    <input 
+                      type="checkbox" 
+                      checked={enabled} 
+                      onChange={(e) => setEnabled(e.target.checked)} 
+                    />
+                    <span className="slider"></span>
+                  </label>
+                  <span className="toggle-label">
+                    {enabled ? "Cloud Sync Enabled (Online)" : "Local Mode Only (Offline)"}
+                  </span>
                 </div>
+              </div>
 
-                <button className="login-btn" onClick={doSave}>Save & Update</button>
-                
+              <div className="input-group">
+                <label className="input-label">Supabase URL</label>
+                <input 
+                  className="input-field" 
+                  value={url} 
+                  onChange={e=>setUrl(e.target.value)} 
+                  placeholder="https://xyz.supabase.co" 
+                  disabled={!enabled} 
+                  style={{opacity: enabled ? 1 : 0.6, cursor: enabled ? "text" : "not-allowed"}} 
+                />
+              </div>
+              
+              <div className="input-group">
+                <label className="input-label">Anon Key</label>
+                <input 
+                  className="input-field" 
+                  value={anon} 
+                  onChange={e=>setAnon(e.target.value)} 
+                  placeholder="public-anon-key" 
+                  disabled={!enabled} 
+                  style={{opacity: enabled ? 1 : 0.6, cursor: enabled ? "text" : "not-allowed"}} 
+                />
+              </div>
+
+              <button className="login-btn" onClick={doSave}>Save & Update</button>
+              
+              <div style={{ textAlign: "center", marginTop: "20px" }}>
                 <button 
                   onClick={onBack} 
-                  style={{ marginTop: 20, background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 14, fontWeight: 600 }}
+                  style={{ 
+                    background: "none", 
+                    border: "none", 
+                    color: "#64748b", 
+                    cursor: "pointer", 
+                    fontSize: 14, 
+                    fontWeight: 600,
+                    padding: "8px 16px",
+                    borderRadius: "8px",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = "#f1f5f9";
+                    e.target.style.color = "#1e40af";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = "none";
+                    e.target.style.color = "#64748b";
+                  }}
                 >
                   ← Back to Login
                 </button>
+              </div>
             </div>
+          </div>
         </div>
-    );
+      </div>
+    </>
+  );
 }
 
 export function SupabaseLoginScreen({ supabase, onOpenCloudSettings }) {
-    return (
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "#f8fafc" }}>
-            <style>{styles}</style>
-            <div style={{ padding: 40, textAlign: "center", maxWidth: 500, background: "white", borderRadius: 16, boxShadow: "0 4px 20px rgba(0,0,0,0.05)" }}>
-                <h2 style={{ fontFamily: "'Brush Script MT', cursive", fontSize: 42, color: "#0ea5e9", marginBottom: 20 }}>Cloud Authentication</h2>
-                <p style={{ color: "#64748b", marginBottom: 30 }}>Please sign in to continue</p>
-                <button className="login-btn" onClick={onOpenCloudSettings}>Settings</button>
-            </div>
+  const settings = storeLoad("ocean_settings_v1") || {};
+  const hotelName = settings.hotelName || "Ocean Blue Lagoon";
+  const logoUrl = settings.logoUrl || "/logo.png";
+
+  return (
+    <>
+      <style>{styles}</style>
+      <div className="login-container">
+        {/* Left: Hotel brand hero */}
+        <div className="brand-side">
+          <div className="brand-content">
+            <span className="brand-badge">Cloud Portal</span>
+            <img
+              src={logoUrl}
+              alt=""
+              className="brand-logo"
+              onError={(e) => (e.target.style.display = "none")}
+            />
+            <h1 className="brand-name">{hotelName}</h1>
+            <p className="brand-tagline">Maldives Resort</p>
+            <p className="brand-footer">Cloud Authentication · Secure Access</p>
+          </div>
         </div>
-    );
+
+        {/* Right: Sign-in form */}
+        <div className="form-side">
+          <div className="form-inner">
+            <div className="form-header">
+              <div className="form-logo-wrapper">
+                <img
+                  src={logoUrl}
+                  alt=""
+                  className="form-logo"
+                  onError={(e) => (e.target.style.display = "none")}
+                />
+              </div>
+              <span className="form-title">Cloud Authentication</span>
+              <h2 className="form-subtitle">Sign in to your account</h2>
+              <p className="form-description">Access your cloud-synced data securely</p>
+            </div>
+
+            <div className="form-content">
+              <button className="login-btn" onClick={onOpenCloudSettings} style={{ marginTop: 0 }}>
+                Configure Cloud Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 }

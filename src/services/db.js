@@ -98,6 +98,17 @@ async function cloudSetReservations(list) {
   if (!supa) throw new Error("Supabase not configured");
 
   const arr = Array.isArray(list) ? list : [];
+  
+  // SAFETY CHECK: Prevent accidental deletion of all reservations
+  // If an empty array is passed and cloud has existing data, don't delete everything
+  if (arr.length === 0) {
+    const { data: existing } = await supa.from("reservations").select("external_id").limit(1);
+    if (existing && existing.length > 0) {
+      console.warn("⚠️ cloudSetReservations: Empty array provided but cloud has existing reservations. Skipping sync to prevent data loss.");
+      return false; // Don't sync empty array if cloud has data
+    }
+  }
+  
   // ensure each reservation has a stable external_id
   const normalized = arr.map((r) => {
     const ext = getExternalId(r) || (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
@@ -116,24 +127,27 @@ async function cloudSetReservations(list) {
   }
 
   // delete removed reservations (to keep tables clean)
-  const keepIds = normalized.map((x) => x.external_id);
+  // BUT: Only delete if we're actually syncing data (not empty array)
+  if (normalized.length > 0) {
+    const keepIds = normalized.map((x) => x.external_id);
 
-  const { data: existing, error: exErr } = await supa
-    .from("reservations")
-    .select("external_id");
-
-  if (exErr) throw exErr;
-
-  const existingIds = (existing || []).map((x) => x.external_id).filter(Boolean);
-  const toDelete = existingIds.filter((id) => !keepIds.includes(id));
-
-  if (toDelete.length) {
-    const { error: delErr } = await supa
+    const { data: existing, error: exErr } = await supa
       .from("reservations")
-      .delete()
-      .in("external_id", toDelete);
+      .select("external_id");
 
-    if (delErr) throw delErr;
+    if (exErr) throw exErr;
+
+    const existingIds = (existing || []).map((x) => x.external_id).filter(Boolean);
+    const toDelete = existingIds.filter((id) => !keepIds.includes(id));
+
+    if (toDelete.length) {
+      const { error: delErr } = await supa
+        .from("reservations")
+        .delete()
+        .in("external_id", toDelete);
+
+      if (delErr) throw delErr;
+    }
   }
 
   return true;
