@@ -900,6 +900,31 @@ export default function App() {
     const updated = [...oosPeriods, newPeriod];
     setOOSPeriods(updated);
     storeSave("ocean_oos_periods_v1", updated);
+    
+    // Sync to Supabase
+    if (supabase && supabaseEnabled) {
+      (async () => {
+        try {
+          const row = {
+            id: newPeriod.id,
+            room_number: newPeriod.roomNumber,
+            start_date: newPeriod.startDate,
+            end_date: newPeriod.endDate,
+            reason: newPeriod.reason || "",
+            created_at: newPeriod.createdAt,
+            updated_at: new Date().toISOString()
+          };
+          
+          const { error } = await supabase
+            .from("ocean_oos_periods")
+            .upsert(row, { onConflict: "id" });
+          
+          if (error) console.error("SUPABASE upsert ocean_oos_periods error:", error);
+        } catch (e) {
+          console.error("OOS period sync error:", e);
+        }
+      })();
+    }
   };
 
   const updateOOSPeriod = (id, updates) => {
@@ -908,12 +933,55 @@ export default function App() {
     );
     setOOSPeriods(updated);
     storeSave("ocean_oos_periods_v1", updated);
+    
+    // Sync to Supabase
+    if (supabase && supabaseEnabled) {
+      (async () => {
+        try {
+          const period = updated.find(p => p.id === id);
+          if (period) {
+            const row = {
+              id: period.id,
+              room_number: String(period.roomNumber).trim(),
+              start_date: period.startDate,
+              end_date: period.endDate,
+              reason: period.reason || "",
+              updated_at: new Date().toISOString()
+            };
+            
+            const { error } = await supabase
+              .from("ocean_oos_periods")
+              .upsert(row, { onConflict: "id" });
+            
+            if (error) console.error("SUPABASE update ocean_oos_periods error:", error);
+          }
+        } catch (e) {
+          console.error("OOS period update sync error:", e);
+        }
+      })();
+    }
   };
 
   const deleteOOSPeriod = (id) => {
     const updated = oosPeriods.filter(p => p.id !== id);
     setOOSPeriods(updated);
     storeSave("ocean_oos_periods_v1", updated);
+    
+    // Sync to Supabase
+    if (supabase && supabaseEnabled) {
+      (async () => {
+        try {
+          const { error } = await supabase
+            .from("ocean_oos_periods")
+            .delete()
+            .eq("id", id);
+          
+          if (error) console.error("SUPABASE delete ocean_oos_periods error:", error);
+        } catch (e) {
+          console.error("OOS period delete sync error:", e);
+        }
+      })();
+    }
   };
 
   // 2. Expenses
@@ -1283,7 +1351,7 @@ useEffect(() => {
       const allowPull = cfg.pull !== false;
       const allowPush = cfg.push !== false;
 
-      const [itemsRes, movesRes, suppliersRes, expRes, drRes, resRes, extraRevRes] = await Promise.all([
+      const [itemsRes, movesRes, suppliersRes, expRes, drRes, resRes, extraRevRes, oosPeriodsRes] = await Promise.all([
         allowPull ? sb.from("ocean_store_items").select("id,data") : Promise.resolve({ data: [] }),
         allowPull ? sb.from("ocean_store_moves").select("id,data") : Promise.resolve({ data: [] }),
         allowPull ? sb.from("ocean_store_suppliers").select("id,data") : Promise.resolve({ data: [] }),
@@ -1295,6 +1363,7 @@ useEffect(() => {
           : Promise.resolve({ data: [] }),
         allowPull ? sb.from("reservations").select("id,data,updated_at") : Promise.resolve({ data: [] }),
         allowPull ? sb.from("ocean_extra_revenues").select("id,revenue_date,type,description,amount,created_at,updated_at") : Promise.resolve({ data: [] }),
+        allowPull ? sb.from("ocean_oos_periods").select("id,room_number,start_date,end_date,reason,created_at,updated_at") : Promise.resolve({ data: [] }),
       ]);
 
       const itemsCloud = (itemsRes?.data || []).map((r) => r.data).filter(Boolean);
@@ -1341,6 +1410,19 @@ useEffect(() => {
         createdAt: r.created_at || null,
         updatedAt: r.updated_at || null,
       })).filter((x) => x.id);
+      
+      if (oosPeriodsRes?.error) {
+        console.warn("OOS periods pull failed:", oosPeriodsRes.error.message, "→ Run supabase_ocean_oos_periods.sql in Supabase SQL Editor.");
+      }
+      const oosPeriodsCloud = (oosPeriodsRes?.data || []).map((r) => ({
+        id: r.id,
+        roomNumber: String(r.room_number || "").trim(),
+        startDate: (r.start_date || "").toString().slice(0, 10),
+        endDate: (r.end_date || "").toString().slice(0, 10),
+        reason: r.reason || "",
+        createdAt: r.created_at || new Date().toISOString(),
+        updatedAt: r.updated_at || null,
+      })).filter((x) => x.id && x.roomNumber && x.startDate && x.endDate);
 
       // Apply Supabase → app: use cloud as source of truth so deletions in Supabase reflect in app on refresh
       if (!cancelled && allowPull) {
@@ -1369,6 +1451,37 @@ useEffect(() => {
         
         setExtraRevenues(extraRevenuesCloud);
         storeSave("ocean_extra_rev_v1", extraRevenuesCloud);
+        
+        // Load OOS periods from Supabase
+        if (oosPeriodsCloud.length > 0) {
+          setOOSPeriods(oosPeriodsCloud);
+          storeSave("ocean_oos_periods_v1", oosPeriodsCloud);
+        } else {
+          // If cloud is empty but local has data, keep local (first-time setup)
+          const localOOS = storeLoad("ocean_oos_periods_v1", []) || [];
+          if (localOOS.length > 0) {
+            // Push local to cloud
+            if (allowPush) {
+              try {
+                const oosRows = localOOS.map((p) => ({
+                  id: p.id,
+                  room_number: String(p.roomNumber).trim(),
+                  start_date: p.startDate,
+                  end_date: p.endDate,
+                  reason: p.reason || "",
+                  created_at: p.createdAt || new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                }));
+                if (oosRows.length) {
+                  await sb.from("ocean_oos_periods").upsert(oosRows, { onConflict: "id" });
+                }
+              } catch (e) {
+                console.error("OOS periods push error:", e);
+              }
+            }
+          }
+        }
+        
         setCloudBootstrapped(true);
         return;
       }
@@ -1435,6 +1548,30 @@ useEffect(() => {
             .from("ocean_expenses")
             .upsert(payloadExpenses, { onConflict: "id" });
           if (expErr) console.error("ocean_expenses upsert error:", expErr);
+        }
+      }
+
+      // OOS Periods (rows)
+      if (allowPush && Array.isArray(oosPeriods) && oosPeriods.length) {
+        const oosRows = oosPeriods.map((p) => ({
+          id: p.id,
+          room_number: String(p.roomNumber).trim(),
+          start_date: p.startDate,
+          end_date: p.endDate,
+          reason: p.reason || "",
+          created_at: p.createdAt || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })).filter((x) => x.id && x.room_number && x.start_date && x.end_date);
+        
+        if (oosRows.length) {
+          try {
+            const { error: oosErr } = await sb
+              .from("ocean_oos_periods")
+              .upsert(oosRows, { onConflict: "id" });
+            if (oosErr) console.error("ocean_oos_periods upsert error:", oosErr);
+          } catch (e) {
+            console.error("ocean_oos_periods upsert exception:", e);
+          }
         }
       }
 
