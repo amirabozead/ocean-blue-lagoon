@@ -996,6 +996,37 @@ export default function App() {
     }
   };
 
+  // Two-way sync: fetch latest OOS from Supabase and update state + localStorage (call when opening OOS modal or when needing fresh data)
+  const refreshOOSFromCloud = () => {
+    const sb = getSupabaseClient();
+    const cfg = loadSupabaseCfg();
+    if (!sb || !cfg.enabled || cfg.pull === false) return;
+    (async () => {
+      try {
+        const { data, error } = await sb
+          .from("ocean_oos_periods")
+          .select("id,room_number,start_date,end_date,reason,created_at,updated_at");
+        if (error) {
+          console.warn("OOS refresh from cloud failed:", error.message);
+          return;
+        }
+        const cloud = (data || []).map((r) => ({
+          id: r.id,
+          roomNumber: String(r.room_number || "").trim(),
+          startDate: (r.start_date || "").toString().slice(0, 10),
+          endDate: (r.end_date || "").toString().slice(0, 10),
+          reason: r.reason || "",
+          createdAt: r.created_at || new Date().toISOString(),
+          updatedAt: r.updated_at || null,
+        })).filter((x) => x.id && x.roomNumber && x.startDate && x.endDate);
+        setOOSPeriods(cloud);
+        storeSave("ocean_oos_periods_v1", cloud);
+      } catch (e) {
+        console.warn("OOS refresh error:", e?.message || e);
+      }
+    })();
+  };
+
   // 2. Expenses
   const [expenses, setExpenses] = useState(
     () => storeLoad("ocean_expenses_v1") || []
@@ -1467,34 +1498,36 @@ useEffect(() => {
         setExtraRevenues(extraRevenuesCloud);
         storeSave("ocean_extra_rev_v1", extraRevenuesCloud);
         
-        // Load OOS periods from Supabase
+        // Two-way OOS sync: Supabase is source of truth on load
+        const localOOSBefore = storeLoad("ocean_oos_periods_v1", []) || [];
         if (oosPeriodsCloud.length > 0) {
           setOOSPeriods(oosPeriodsCloud);
           storeSave("ocean_oos_periods_v1", oosPeriodsCloud);
-        } else {
-          // If cloud is empty but local has data, keep local (first-time setup)
-          const localOOS = storeLoad("ocean_oos_periods_v1", []) || [];
-          if (localOOS.length > 0) {
-            // Push local to cloud
-            if (allowPush) {
-              try {
-                const oosRows = localOOS.map((p) => ({
-                  id: p.id,
-                  room_number: String(p.roomNumber).trim(),
-                  start_date: p.startDate,
-                  end_date: p.endDate,
-                  reason: p.reason || "",
-                  created_at: p.createdAt || new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                }));
-                if (oosRows.length) {
-                  await sb.from("ocean_oos_periods").upsert(oosRows, { onConflict: "id" });
-                }
-              } catch (e) {
-                console.error("OOS periods push error:", e);
-              }
+        } else if (localOOSBefore.length > 0 && allowPush) {
+          // Cloud empty but local has data: seed cloud then use cloud
+          try {
+            const oosRows = localOOSBefore.map((p) => ({
+              id: p.id,
+              room_number: String(p.roomNumber).trim(),
+              start_date: p.startDate,
+              end_date: p.endDate,
+              reason: p.reason || "",
+              created_at: p.createdAt || new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }));
+            if (oosRows.length) {
+              await sb.from("ocean_oos_periods").upsert(oosRows, { onConflict: "id" });
             }
+            setOOSPeriods(localOOSBefore);
+            storeSave("ocean_oos_periods_v1", localOOSBefore);
+          } catch (e) {
+            console.error("OOS periods push error:", e);
+            setOOSPeriods(oosPeriodsCloud);
+            storeSave("ocean_oos_periods_v1", oosPeriodsCloud);
           }
+        } else {
+          setOOSPeriods(oosPeriodsCloud);
+          storeSave("ocean_oos_periods_v1", oosPeriodsCloud);
         }
         
         setCloudBootstrapped(true);
@@ -2358,6 +2391,7 @@ useEffect(() => {
             onAddOOSPeriod={addOOSPeriod}
             onUpdateOOSPeriod={updateOOSPeriod}
             onDeleteOOSPeriod={deleteOOSPeriod}
+            onRefreshOOS={refreshOOSFromCloud}
           />
         )}
 

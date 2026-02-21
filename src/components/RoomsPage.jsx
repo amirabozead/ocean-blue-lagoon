@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { FaThLarge, FaCalendarAlt, FaChevronLeft, FaChevronRight, FaBed, FaLayerGroup, FaBroom, FaBan, FaDoorOpen, FaTools } from "react-icons/fa"; 
 import { BASE_ROOMS } from "../data/constants";
 import RoomGridCard from "./RoomGridCard";
@@ -18,10 +18,16 @@ export default function RoomsPage({
   oosPeriods = [],
   onAddOOSPeriod,
   onUpdateOOSPeriod,
-  onDeleteOOSPeriod
+  onDeleteOOSPeriod,
+  onRefreshOOS,
 }) {
   const [viewMode, setViewMode] = useState("grid");
   const [showOOSModal, setShowOOSModal] = useState(false);
+
+  // Two-way sync: when OOS modal opens, fetch latest from Supabase so Vercel and local stay in sync
+  useEffect(() => {
+    if (showOOSModal && onRefreshOOS) onRefreshOOS();
+  }, [showOOSModal, onRefreshOOS]);
 
   // معالجة البيانات
   const roomsWithData = useMemo(() => {
