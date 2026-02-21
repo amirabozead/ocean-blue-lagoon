@@ -824,13 +824,26 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
 function loadSupabaseCfg() {
   try {
     const raw = JSON.parse(localStorage.getItem(SB_LS_CFG) || "{}");
-    const enabled = raw.enabled === true || raw.enabled === "true" || raw.enabled === 1 || raw.enabled === "1";
-    let url = (raw.url || "").trim();
-    const anonKey = (raw.anon || raw.anonKey || raw.key || "").trim();
+    const envUrl = (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env.VITE_SUPABASE_URL || "")) || "";
+    const envAnon = (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env.VITE_SUPABASE_ANON_KEY || "")) || "";
+
+    // Prefer env when set. Vercel: add VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY in Project → Environment Variables, then redeploy.
+    const useEnv = (envUrl || "").trim().length > 0 && (envAnon || "").trim().length > 0;
+    let url = useEnv ? (envUrl || "").trim() : (raw.url || "").trim();
+    let anonKey = useEnv ? (envAnon || "").trim() : (raw.anon || raw.anonKey || raw.key || "").trim();
+    if (!useEnv && (!url || !anonKey)) {
+      const fallbackUrl = (envUrl || "").trim();
+      const fallbackAnon = (envAnon || "").trim();
+      if (fallbackUrl && fallbackAnon) {
+        url = fallbackUrl;
+        anonKey = fallbackAnon;
+      }
+    }
+    const enabled = useEnv || (raw.enabled === true || raw.enabled === "true" || raw.enabled === 1 || raw.enabled === "1") || (url.length > 0 && anonKey.length > 0);
 
     if (url && !url.startsWith("http://") && !url.startsWith("https://")) url = "https://" + url;
 
-    return { enabled, url, anonKey, push: raw.push !== false, pull: raw.pull !== false };
+    return { enabled: !!(enabled && url && anonKey), url, anonKey, push: raw.push !== false, pull: raw.pull !== false };
   } catch {
     return { enabled: false, url: "", anonKey: "", push: true, pull: true };
   }
@@ -901,8 +914,10 @@ export default function App() {
     setOOSPeriods(updated);
     storeSave("ocean_oos_periods_v1", updated);
     
-    // Sync to Supabase
-    if (supabase && supabaseEnabled) {
+    // Sync to Supabase (use getSupabaseClient so local + Vercel both sync from current config)
+    const sb = getSupabaseClient();
+    const oosCfg = loadSupabaseCfg();
+    if (sb && oosCfg.enabled && oosCfg.push !== false) {
       (async () => {
         try {
           const row = {
@@ -914,11 +929,9 @@ export default function App() {
             created_at: newPeriod.createdAt,
             updated_at: new Date().toISOString()
           };
-          
-          const { error } = await supabase
+          const { error } = await sb
             .from("ocean_oos_periods")
             .upsert(row, { onConflict: "id" });
-          
           if (error) console.error("SUPABASE upsert ocean_oos_periods error:", error);
         } catch (e) {
           console.error("OOS period sync error:", e);
@@ -934,8 +947,9 @@ export default function App() {
     setOOSPeriods(updated);
     storeSave("ocean_oos_periods_v1", updated);
     
-    // Sync to Supabase
-    if (supabase && supabaseEnabled) {
+    const sb = getSupabaseClient();
+    const oosCfg = loadSupabaseCfg();
+    if (sb && oosCfg.enabled && oosCfg.push !== false) {
       (async () => {
         try {
           const period = updated.find(p => p.id === id);
@@ -948,11 +962,9 @@ export default function App() {
               reason: period.reason || "",
               updated_at: new Date().toISOString()
             };
-            
-            const { error } = await supabase
+            const { error } = await sb
               .from("ocean_oos_periods")
               .upsert(row, { onConflict: "id" });
-            
             if (error) console.error("SUPABASE update ocean_oos_periods error:", error);
           }
         } catch (e) {
@@ -967,15 +979,15 @@ export default function App() {
     setOOSPeriods(updated);
     storeSave("ocean_oos_periods_v1", updated);
     
-    // Sync to Supabase
-    if (supabase && supabaseEnabled) {
+    const sb = getSupabaseClient();
+    const oosCfg = loadSupabaseCfg();
+    if (sb && oosCfg.enabled && oosCfg.push !== false) {
       (async () => {
         try {
-          const { error } = await supabase
+          const { error } = await sb
             .from("ocean_oos_periods")
             .delete()
             .eq("id", id);
-          
           if (error) console.error("SUPABASE delete ocean_oos_periods error:", error);
         } catch (e) {
           console.error("OOS period delete sync error:", e);
@@ -1336,9 +1348,8 @@ const supabase = useMemo(() => {
 useEffect(() => {
   if (cloudBootstrapped) return;
 
-  const cfg = lsGet(SB_LS_CFG, null);
-  const anon = (cfg?.anon || cfg?.anonKey || "").trim();
-  if (!cfg?.enabled || !cfg?.url || !anon) {
+  const cfg = loadSupabaseCfg();
+  if (!cfg.enabled || !cfg.url || !cfg.anonKey) {
     setCloudBootstrapped(true);
     return;
   }
@@ -1346,7 +1357,11 @@ useEffect(() => {
   let cancelled = false;
   (async () => {
     try {
-      const sb = createClient(cfg.url, anon);
+      const sb = getSupabaseClient();
+      if (!sb) {
+        setCloudBootstrapped(true);
+        return;
+      }
 
       const allowPull = cfg.pull !== false;
       const allowPush = cfg.push !== false;
