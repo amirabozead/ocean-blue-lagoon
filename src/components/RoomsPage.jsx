@@ -61,14 +61,18 @@ export default function RoomsPage({
           isDateBetween(today, r?.stay?.checkIn, r?.stay?.checkOut)
         );
       });
+      // Room card status: if room is in an OOS period today, show OOS; otherwise use physical status (Clean/Dirty)
+      const isOOSToday = isRoomOOSOnDate(room.roomNumber, today, oosPeriods);
+      const physicalStatus = roomPhysicalStatus?.[room.roomNumber] || "Clean";
+      const roomStatus = isOOSToday ? "OutOfOrder" : physicalStatus;
       return {
         ...room,
         currentReservation: activeRes,
-        roomStatus: roomPhysicalStatus?.[room.roomNumber] || "Clean",
+        roomStatus,
         isOccupied: !!activeRes
       };
     });
-  }, [reservations, roomPhysicalStatus]);
+  }, [reservations, roomPhysicalStatus, oosPeriods]);
 
   // حساب الإحصائيات
   const stats = useMemo(() => {
