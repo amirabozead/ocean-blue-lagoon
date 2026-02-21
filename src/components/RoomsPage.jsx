@@ -20,11 +20,17 @@ export default function RoomsPage({
   onUpdateOOSPeriod,
   onDeleteOOSPeriod,
   onRefreshOOS,
+  onRoomsMount,
 }) {
   const [viewMode, setViewMode] = useState("grid");
   const [showOOSModal, setShowOOSModal] = useState(false);
 
-  // Two-way sync: when OOS modal opens, fetch latest from Supabase so Vercel and local stay in sync
+  // Two-way sync: when Rooms page is shown, fetch latest OOS from Supabase (web + local stay in sync)
+  useEffect(() => {
+    if (onRoomsMount) onRoomsMount();
+  }, []);
+
+  // When OOS modal opens, refresh again so list is up to date
   useEffect(() => {
     if (showOOSModal && onRefreshOOS) onRefreshOOS();
   }, [showOOSModal, onRefreshOOS]);

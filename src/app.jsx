@@ -1,5 +1,6 @@
 /* ================= IMPORTS ================= */
 import { createClient } from "@supabase/supabase-js";
+import { getSupabaseFromEnv } from "./services/supabase";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FaBars, FaTimes } from "react-icons/fa";
 import "./app.css";
@@ -854,16 +855,19 @@ let _sbSig = "";
 
 function getSupabaseClient() {
   const cfg = loadSupabaseCfg();
-  if (!cfg.enabled || !cfg.url || !cfg.anonKey) return null;
-
-  const sig = `${cfg.url}::${cfg.anonKey.slice(0, 12)}`;
-  if (_sb && _sbSig === sig) return _sb;
-
-  _sb = createClient(cfg.url, cfg.anonKey, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-  });
-  _sbSig = sig;
-  return _sb;
+  if (cfg.enabled && cfg.url && cfg.anonKey) {
+    const sig = `${cfg.url}::${cfg.anonKey.slice(0, 12)}`;
+    if (_sb && _sbSig === sig) return _sb;
+    _sb = createClient(cfg.url, cfg.anonKey, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+    });
+    _sbSig = sig;
+    return _sb;
+  }
+  // Fallback: use env-based client (Vercel or local .env) so sync works without Settings
+  const envClient = getSupabaseFromEnv();
+  if (envClient) return envClient;
+  return null;
 }
 
 
@@ -2392,6 +2396,7 @@ useEffect(() => {
             onUpdateOOSPeriod={updateOOSPeriod}
             onDeleteOOSPeriod={deleteOOSPeriod}
             onRefreshOOS={refreshOOSFromCloud}
+            onRoomsMount={refreshOOSFromCloud}
           />
         )}
 

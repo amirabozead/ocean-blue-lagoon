@@ -1,12 +1,19 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = (import.meta.env && import.meta.env.VITE_SUPABASE_URL) || "";
+const supabaseAnonKey = (import.meta.env && import.meta.env.VITE_SUPABASE_ANON_KEY) || "";
+const hasEnv = typeof supabaseUrl === "string" && supabaseUrl.trim().length > 0 && typeof supabaseAnonKey === "string" && supabaseAnonKey.trim().length > 0;
 
-// ✅ Singleton client (avoids multiple GoTrueClient instances during HMR / React dev reload)
 const g = globalThis;
-if (!g.__ocean_supabase_client__) {
-  g.__ocean_supabase_client__ = createClient(supabaseUrl, supabaseAnonKey);
+if (!g.__ocean_supabase_env_client__ && hasEnv) {
+  g.__ocean_supabase_env_client__ = createClient(supabaseUrl.trim(), supabaseAnonKey.trim(), {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  });
 }
 
-export const supabase = g.__ocean_supabase_client__;
+/** Use when env vars (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) are set - e.g. Vercel or local .env */
+export function getSupabaseFromEnv() {
+  return hasEnv ? (g.__ocean_supabase_env_client__ || null) : null;
+}
+
+export const supabase = hasEnv ? g.__ocean_supabase_env_client__ : null;
