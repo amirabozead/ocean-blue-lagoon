@@ -1003,8 +1003,7 @@ export default function App() {
   // Two-way sync: fetch latest OOS from Supabase and update state + localStorage (call when opening OOS modal or when needing fresh data)
   const refreshOOSFromCloud = () => {
     const sb = getSupabaseClient();
-    const cfg = loadSupabaseCfg();
-    if (!sb || !cfg.enabled || cfg.pull === false) return;
+    if (!sb) return;
     (async () => {
       try {
         const { data, error } = await sb
@@ -1030,6 +1029,15 @@ export default function App() {
       }
     })();
   };
+
+  // On Vercel/web: refetch OOS when user returns to tab so room cards stay in sync
+  useEffect(() => {
+    const onFocus = () => {
+      if (page === "rooms") refreshOOSFromCloud();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [page]);
 
   // 2. Expenses
   const [expenses, setExpenses] = useState(
@@ -1383,23 +1391,18 @@ const supabase = useMemo(() => {
 useEffect(() => {
   if (cloudBootstrapped) return;
 
-  const cfg = loadSupabaseCfg();
-  if (!cfg.enabled || !cfg.url || !cfg.anonKey) {
+  const sb = getSupabaseClient();
+  if (!sb) {
     setCloudBootstrapped(true);
     return;
   }
+  const cfg = loadSupabaseCfg();
+  const allowPull = cfg.pull !== false;
+  const allowPush = cfg.push !== false;
 
   let cancelled = false;
   (async () => {
     try {
-      const sb = getSupabaseClient();
-      if (!sb) {
-        setCloudBootstrapped(true);
-        return;
-      }
-
-      const allowPull = cfg.pull !== false;
-      const allowPush = cfg.push !== false;
 
       const [itemsRes, movesRes, suppliersRes, expRes, drRes, resRes, extraRevRes, oosPeriodsRes] = await Promise.all([
         allowPull ? sb.from("ocean_store_items").select("id,data") : Promise.resolve({ data: [] }),
