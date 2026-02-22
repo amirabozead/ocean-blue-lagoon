@@ -72,9 +72,37 @@ export default function ReservationModal({
 
   const [roomNumber, setRoomNumber] = useState(() => initialData?.room?.roomNumber || roomNumbersForType[0] || "");
 
+  // Manual overrides: room rate per night & F&B per night per person (optional)
+  const nightsForInitial = calcNights(initialData?.stay?.checkIn, initialData?.stay?.checkOut) || 1;
+  const paxForInitial = Math.max(1, Number(initialData?.pax ?? 1));
+  const [manualRoomRatePerNight, setManualRoomRatePerNight] = useState(() => {
+    const pr = initialData?.pricing;
+    if (pr?.roomSubtotal != null && nightsForInitial > 0) return String(roundTo2(Number(pr.roomSubtotal) / nightsForInitial));
+    if (initialData?.room?.roomRate != null) return String(Number(initialData.room.roomRate));
+    return "";
+  });
+  const [manualFnbPerNightPerPax, setManualFnbPerNightPerPax] = useState(() => {
+    const pr = initialData?.pricing;
+    if (pr?.packageSubtotal != null && nightsForInitial > 0 && paxForInitial > 0)
+      return String(roundTo2(Number(pr.packageSubtotal) / (nightsForInitial * paxForInitial)));
+    return "";
+  });
+
   useEffect(() => {
     if (!roomNumbersForType.includes(roomNumber)) setRoomNumber(roomNumbersForType[0] || "");
   }, [roomType, roomNumbersForType, roomNumber]);
+
+  // When opening for edit, pre-fill manual rate/F&B from existing reservation
+  useEffect(() => {
+    if (mode !== "edit" || !initialData) return;
+    const pr = initialData.pricing;
+    const n = calcNights(initialData?.stay?.checkIn, initialData?.stay?.checkOut) || 1;
+    const p = Math.max(1, Number(initialData?.pax ?? 1));
+    if (pr?.roomSubtotal != null && n > 0) setManualRoomRatePerNight(String(roundTo2(Number(pr.roomSubtotal) / n)));
+    else if (initialData?.room?.roomRate != null) setManualRoomRatePerNight(String(Number(initialData.room.roomRate)));
+    if (pr?.packageSubtotal != null && n > 0 && p > 0)
+      setManualFnbPerNightPerPax(String(roundTo2(Number(pr.packageSubtotal) / (n * p))));
+  }, [mode, initialData?.id]);
 
   // --- Logic: Financials ---
   const nights = calcNights(checkIn, checkOut);
@@ -85,6 +113,11 @@ export default function ReservationModal({
   const closedThrough = String(sFinance?.closedThrough || "2026-01-31");
   const isLocked = mode === "edit" && String(initialData?.stay?.checkOut || "") && String(initialData?.stay?.checkOut || "") <= closedThrough;
 
+  const useManualRoomRate = manualRoomRatePerNight !== "" && Number(manualRoomRatePerNight) >= 0;
+  const useManualFnb = manualFnbPerNightPerPax !== "" && Number(manualFnbPerNightPerPax) >= 0;
+  const fnbPerNightPerPax = useManualFnb ? Number(manualFnbPerNightPerPax) : 0;
+  const paxNum = Math.max(1, Number(pax));
+
   const pricing = useMemo(() => {
     if (!roomType || !checkIn || !checkOut || nights <= 0) return { ok: false };
     const start = new Date(checkIn);
@@ -93,8 +126,36 @@ export default function ReservationModal({
     const rateSnapshotsMap = new Map();
     let totalRoomBase = 0;
     let totalMealAddon = 0;
+    const addonKey = String(mealPlan || "BO").toUpperCase();
 
-    for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+    if (useManualRoomRate) {
+      // Manual room rate per night (and optional manual F&B per night per person)
+      const basePerNight = roundTo2(Number(manualRoomRatePerNight));
+      const mealAddonPerNight = roundTo2(fnbPerNightPerPax * paxNum); // F&B per night for room = rate × pax
+      for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+        const nightStr = d.toISOString().slice(0, 10);
+        const mealAddonTotal = mealAddonPerNight;
+        const nightTotal = roundTo2(basePerNight + mealAddonTotal);
+        totalRoomBase += basePerNight;
+        totalMealAddon += mealAddonTotal;
+        nightlyBreakdown.push({
+          date: nightStr,
+          label: d.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short" }),
+          base: basePerNight,
+          mealAddon: mealAddonTotal,
+          rate: nightTotal,
+        });
+      }
+      rateSnapshotsMap.set("manual", {
+        from: checkIn,
+        to: checkOut,
+        roomType,
+        base: basePerNight,
+        bb: 0, hb: 0, fb: 0,
+      });
+    } else {
+      // From daily rates
+      for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
         const nightStr = d.toISOString().slice(0, 10);
         const rateMatch = (dailyRates || []).find(r =>
           (r.roomType === roomType || r.room_type === roomType) && nightStr >= (r.from || r.date_from || "") && nightStr < (r.to || r.date_to || "")
@@ -115,9 +176,8 @@ export default function ReservationModal({
             bb, hb, fb,
           });
         }
-        const addonKey = String(mealPlan || "BO").toUpperCase();
         let addon = addonKey === "BB" ? bb : addonKey === "HB" ? hb : addonKey === "FB" ? fb : 0;
-        const mealAddonTotal = addon * Math.max(1, pax);
+        const mealAddonTotal = roundTo2(addon * Math.max(1, pax));
         const nightTotal = roundTo2(base + mealAddonTotal);
         totalRoomBase += base;
         totalMealAddon += mealAddonTotal;
@@ -125,9 +185,18 @@ export default function ReservationModal({
           date: nightStr,
           label: d.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short" }),
           base: roundTo2(base),
-          mealAddon: roundTo2(mealAddonTotal),
+          mealAddon: mealAddonTotal,
           rate: nightTotal,
         });
+      }
+      if (useManualFnb) {
+        const mealAddonPerNight = roundTo2(fnbPerNightPerPax * paxNum);
+        totalMealAddon = roundTo2(mealAddonPerNight * nights);
+        nightlyBreakdown.forEach((row) => {
+          row.mealAddon = mealAddonPerNight;
+          row.rate = roundTo2(row.base + mealAddonPerNight);
+        });
+      }
     }
 
     const subtotal = roundTo2(totalRoomBase + totalMealAddon);
@@ -136,19 +205,31 @@ export default function ReservationModal({
     const cityTaxAmount = roundTo2(cityTaxFixed * pax * nights);
     const total = roundTo2(subtotal + taxAmount + serviceAmount + cityTaxAmount);
     const rateSnapshots = Array.from(rateSnapshotsMap.values());
+    // nightly array in format app.jsx expects: { date, rate, baseRate, packageAddon, mealPlan }
+    const nightly = nightlyBreakdown.map((row) => ({
+      date: row.date,
+      rate: row.rate,
+      baseRate: row.base,
+      packageAddon: row.mealAddon,
+      mealPlan: addonKey,
+    }));
     return {
         ok: true,
         roomBase: totalRoomBase,
         mealBase: totalMealAddon,
         nightlyBreakdown,
+        nightly,
         rateSnapshots,
         taxAmount,
         serviceAmount,
         cityTaxAmount,
+        subtotal,
         total,
-        avgNightly: nights > 0 ? roundTo2(subtotal / nights) : 0
+        avgNightly: nights > 0 ? roundTo2(subtotal / nights) : 0,
+        roomSubtotal: roundTo2(totalRoomBase),
+        packageSubtotal: roundTo2(totalMealAddon),
     };
-  }, [roomType, checkIn, checkOut, dailyRates, mealPlan, pax, taxRate, serviceChargeRate, cityTaxFixed, nights]);
+  }, [roomType, checkIn, checkOut, dailyRates, mealPlan, pax, taxRate, serviceChargeRate, cityTaxFixed, nights, useManualRoomRate, useManualFnb, manualRoomRatePerNight, manualFnbPerNightPerPax, fnbPerNightPerPax, paxNum]);
 
   const handleSubmit = () => {
     // Clear any previous errors
@@ -163,13 +244,15 @@ export default function ReservationModal({
       return; 
     }
     
-    if (!pricing.ok) { 
+    if (!pricing.ok) {
       setErrorMessage({
         title: "Missing Rates",
-        message: "Daily rates are not configured for the selected dates. Please check your Daily Rate settings.",
+        message: useManualRoomRate
+          ? "Please enter a valid Room rate per night."
+          : "Daily rates are not configured for the selected dates, or enter Room rate per night manually.",
         type: "error"
       });
-      return; 
+      return;
     }
     
     // Validation: Required fields
@@ -427,6 +510,30 @@ export default function ReservationModal({
                     <div className="field"><label>Meal Plan</label><select value={mealPlan} onChange={e => setMealPlan(e.target.value)}>
                       <option value="BO">Bed Only (BO)</option><option value="BB">Bed & Breakfast (BB)</option><option value="HB">Half Board (HB)</option><option value="FB">Full Board (FB)</option>
                     </select></div>
+                  </div>
+                  <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'15px', marginTop:'12px'}}>
+                    <div className="field">
+                      <label>Room rate per night (optional)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="From daily rates if empty"
+                        value={manualRoomRatePerNight}
+                        onChange={e => setManualRoomRatePerNight(e.target.value)}
+                      />
+                    </div>
+                    <div className="field">
+                      <label>F&B per night per person (optional)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Per night, per pax"
+                        value={manualFnbPerNightPerPax}
+                        onChange={e => setManualFnbPerNightPerPax(e.target.value)}
+                      />
+                    </div>
                   </div>
                 </div>
 

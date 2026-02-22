@@ -1758,27 +1758,43 @@ useEffect(() => {
     const taxRate = Number(s?.taxRate ?? 17);
     const serviceCharge = Number(s?.serviceCharge ?? 10);
     const cityTaxFixed = Number(s?.cityTax ?? 0);
-    const snap = computeSplitPricingSnapshot({
-      roomType: savedRes?.room?.roomType,
-      checkIn: savedRes?.stay?.checkIn,
-      checkOut: savedRes?.stay?.checkOut,
-      dailyRates,
-      taxRate,
-      serviceCharge,
-      mealPlan: savedRes?.mealPlan ?? data?.mealPlan ?? "BO",
-      pax: savedRes?.pax ?? data?.pax ?? 1,
-    });
-    if (snap.ok) {
-      const roomSubtotal = snap.nightly.reduce((sum, x) => sum + Number(x.baseRate ?? 0), 0);
-      const packageSubtotal = snap.nightly.reduce((sum, x) => sum + Math.max(0, Number(x.rate ?? 0) - Number(x.baseRate ?? 0)), 0);
-      const cityTaxAmount = roundTo2((savedRes?.pax ?? 1) * cityTaxFixed * calcNights(savedRes?.stay?.checkIn, savedRes?.stay?.checkOut));
-      const total = roundTo2(snap.total + cityTaxAmount);
-      const idx = editingIndex !== null ? editingIndex : next.length - 1;
-      next = [...next];
-      next[idx] = {
-        ...next[idx],
-        pricing: {
-          ...next[idx].pricing,
+    const cityTaxAmount = roundTo2((savedRes?.pax ?? 1) * cityTaxFixed * calcNights(savedRes?.stay?.checkIn, savedRes?.stay?.checkOut));
+
+    // Use modal's pricing when it includes nightly (e.g. manual rate/F&B); otherwise recompute from daily rates
+    const fromModal = data.pricing && Array.isArray(data.pricing.nightly) && data.pricing.nightly.length > 0;
+    let finalPricing;
+    if (fromModal) {
+      const pr = data.pricing;
+      const total = roundTo2((pr.subtotal ?? 0) + (pr.taxAmount ?? 0) + (pr.serviceAmount ?? 0) + cityTaxAmount);
+      finalPricing = {
+        ...(next[editingIndex !== null ? editingIndex : next.length - 1].pricing),
+        nightly: pr.nightly,
+        subtotal: pr.subtotal,
+        taxAmount: pr.taxAmount,
+        serviceAmount: pr.serviceAmount,
+        roomSubtotal: pr.roomSubtotal ?? pr.roomBase,
+        packageSubtotal: pr.packageSubtotal ?? pr.mealBase,
+        cityTaxFixed,
+        cityTaxAmount,
+        total,
+      };
+    } else {
+      const snap = computeSplitPricingSnapshot({
+        roomType: savedRes?.room?.roomType,
+        checkIn: savedRes?.stay?.checkIn,
+        checkOut: savedRes?.stay?.checkOut,
+        dailyRates,
+        taxRate,
+        serviceCharge,
+        mealPlan: savedRes?.mealPlan ?? data?.mealPlan ?? "BO",
+        pax: savedRes?.pax ?? data?.pax ?? 1,
+      });
+      if (snap.ok) {
+        const roomSubtotal = snap.nightly.reduce((sum, x) => sum + Number(x.baseRate ?? 0), 0);
+        const packageSubtotal = snap.nightly.reduce((sum, x) => sum + Math.max(0, Number(x.rate ?? 0) - Number(x.baseRate ?? 0)), 0);
+        const total = roundTo2(snap.total + cityTaxAmount);
+        finalPricing = {
+          ...(next[editingIndex !== null ? editingIndex : next.length - 1].pricing),
           nightly: snap.nightly,
           subtotal: snap.subtotal,
           taxAmount: snap.taxAmount,
@@ -1788,7 +1804,15 @@ useEffect(() => {
           cityTaxFixed,
           cityTaxAmount,
           total,
-        },
+        };
+      }
+    }
+    if (finalPricing) {
+      const idx = editingIndex !== null ? editingIndex : next.length - 1;
+      next = [...next];
+      next[idx] = {
+        ...next[idx],
+        pricing: finalPricing,
         updatedAt: new Date().toISOString(),
       };
     }

@@ -1,7 +1,7 @@
 import React from "react";
 import { FaUser, FaClock, FaBed, FaChevronDown, FaBan, FaBroom } from "react-icons/fa";
 
-export default function RoomGridCard({ room, onStatusChange, onClick }) {
+export default function RoomGridCard({ room, onStatusChange, onClick, allowStatusChange = true }) {
   // تفكيك البيانات من الـ room
   const { isOccupied, roomStatus, roomNumber, roomType, currentReservation } = room;
 
@@ -149,14 +149,15 @@ export default function RoomGridCard({ room, onStatusChange, onClick }) {
         )}
       </div>
 
-      {/* FOOTER - STATUS DROPDOWN */}
+      {/* FOOTER - STATUS DROPDOWN (only when viewing today) */}
+      {allowStatusChange && (
       <div 
         style={{ padding: "10px 15px", background: "#f8fafc", borderTop: "1px solid #e2e8f0" }}
         onClick={(e) => e.stopPropagation()} 
       >
         <div style={{ position: "relative", width: "100%" }}>
           <select
-            value={roomStatus}
+            value={roomStatus === "OutOfOrder" ? "Clean" : roomStatus}
             onChange={(e) => onStatusChange(roomNumber, e.target.value)}
             style={{
               width: "100%",
@@ -196,6 +197,7 @@ export default function RoomGridCard({ room, onStatusChange, onClick }) {
           }}></div>
         </div>
       </div>
+      )}
     </div>
   );
 }

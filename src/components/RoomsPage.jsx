@@ -24,6 +24,8 @@ export default function RoomsPage({
 }) {
   const [viewMode, setViewMode] = useState("grid");
   const [showOOSModal, setShowOOSModal] = useState(false);
+  const todayYMD = new Date().toISOString().split("T")[0];
+  const [gridViewDate, setGridViewDate] = useState(todayYMD);
 
   // Two-way sync: when Rooms page is shown, fetch latest OOS from Supabase (web + local stay in sync)
   useEffect(() => {
@@ -35,11 +37,11 @@ export default function RoomsPage({
     if (showOOSModal && onRefreshOOS) onRefreshOOS();
   }, [showOOSModal, onRefreshOOS]);
 
-  // معالجة البيانات
+  // Grid data and stats use the selected date
   const roomsWithData = useMemo(() => {
-    const today = new Date().toISOString().split("T")[0];
-    // 🔥 حماية إضافية
+    const selectedDate = gridViewDate || todayYMD;
     const safeReservations = Array.isArray(reservations) ? reservations : [];
+    const isSelectedToday = selectedDate === todayYMD;
 
     return BASE_ROOMS.map((room) => {
       const activeRes = safeReservations.find((r) => {
@@ -58,13 +60,12 @@ export default function RoomsPage({
         return (
           isOccStatus &&
           rRoomNo === roomNo &&
-          isDateBetween(today, r?.stay?.checkIn, r?.stay?.checkOut)
+          isDateBetween(selectedDate, r?.stay?.checkIn, r?.stay?.checkOut)
         );
       });
-      // Room card status: if room is in an OOS period today, show OOS; otherwise use physical status (Clean/Dirty)
-      const isOOSToday = isRoomOOSOnDate(room.roomNumber, today, oosPeriods);
+      const isOOSOnDate = isRoomOOSOnDate(room.roomNumber, selectedDate, oosPeriods);
       const physicalStatus = roomPhysicalStatus?.[room.roomNumber] || "Clean";
-      const roomStatus = isOOSToday ? "OutOfOrder" : physicalStatus;
+      const roomStatus = isOOSOnDate ? "OutOfOrder" : (isSelectedToday ? physicalStatus : "Clean");
       return {
         ...room,
         currentReservation: activeRes,
@@ -72,28 +73,23 @@ export default function RoomsPage({
         isOccupied: !!activeRes
       };
     });
-  }, [reservations, roomPhysicalStatus, oosPeriods]);
+  }, [reservations, roomPhysicalStatus, oosPeriods, gridViewDate, todayYMD]);
 
-  // حساب الإحصائيات
   const stats = useMemo(() => {
-    const today = new Date().toISOString().split("T")[0];
-    const todayOOSCount = getOOSRoomsCountOnDate(today, oosPeriods);
-    
+    const selectedDate = gridViewDate || todayYMD;
+    const oosCount = getOOSRoomsCountOnDate(selectedDate, oosPeriods);
     return {
         total: roomsWithData.length,
         available: roomsWithData.filter(r => {
           if (r.isOccupied) return false;
           if (r.roomStatus !== "Clean") return false;
-          // Check if room is OOS today (from OOS periods)
-          const isOOS = isRoomOOSOnDate(r.roomNumber, today, oosPeriods);
-          return !isOOS;
+          return !isRoomOOSOnDate(r.roomNumber, selectedDate, oosPeriods);
         }).length,
-        // عدد الغرف التي تحتاج Cleaning (حالة Dirty)
         housekeeping: roomsWithData.filter(r => r.roomStatus === "Dirty").length,
         clean: roomsWithData.filter(r => r.roomStatus === "Clean").length,
-        oos: todayOOSCount // Count from OOS periods, not just physical status
+        oos: oosCount
     };
-  }, [roomsWithData, oosPeriods]);
+  }, [roomsWithData, oosPeriods, gridViewDate, todayYMD]);
 
   // Styles
   const headerStyles = {
@@ -154,34 +150,78 @@ export default function RoomsPage({
            <FaBed style={{ fontSize: "22px", color: "#3b82f6", opacity: 0.9 }} />
         </div>
         
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          <div style={{ background: "white", padding: "5px", borderRadius: "12px", boxShadow: "0 2px 5px rgba(0,0,0,0.05)", display: "flex", gap: "5px", border: "1px solid #e2e8f0" }}>
-              <button onClick={() => setViewMode("grid")} style={{ padding: "8px 12px", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", background: viewMode === "grid" ? "#3b82f6" : "transparent", color: viewMode === "grid" ? "white" : "#64748b" }}>
-                  <FaThLarge /> Grid
-              </button>
-              <button onClick={() => setViewMode("timeline")} style={{ padding: "8px 12px", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", background: viewMode === "timeline" ? "#3b82f6" : "transparent", color: viewMode === "timeline" ? "white" : "#64748b" }}>
-                  <FaCalendarAlt /> Calendar
-              </button>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "10px" }}>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            <div style={{ background: "white", padding: "5px", borderRadius: "12px", boxShadow: "0 2px 5px rgba(0,0,0,0.05)", display: "flex", gap: "5px", border: "1px solid #e2e8f0" }}>
+                <button onClick={() => setViewMode("grid")} style={{ padding: "8px 12px", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", background: viewMode === "grid" ? "#3b82f6" : "transparent", color: viewMode === "grid" ? "white" : "#64748b" }}>
+                    <FaThLarge /> Grid
+                </button>
+                <button onClick={() => setViewMode("timeline")} style={{ padding: "8px 12px", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", background: viewMode === "timeline" ? "#3b82f6" : "transparent", color: viewMode === "timeline" ? "white" : "#64748b" }}>
+                    <FaCalendarAlt /> Calendar
+                </button>
+            </div>
+            <button 
+              onClick={() => setShowOOSModal(true)}
+              style={{ 
+                padding: "8px 16px", 
+                border: "none", 
+                borderRadius: "8px", 
+                cursor: "pointer", 
+                fontWeight: "bold", 
+                display: "flex", 
+                alignItems: "center", 
+                gap: "8px", 
+                fontSize: "12px", 
+                background: "#dc2626",
+                color: "white",
+                boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
+              }}
+            >
+              <FaTools /> Manage OOS
+            </button>
           </div>
-          <button 
-            onClick={() => setShowOOSModal(true)}
-            style={{ 
-              padding: "8px 16px", 
-              border: "none", 
-              borderRadius: "8px", 
-              cursor: "pointer", 
-              fontWeight: "bold", 
-              display: "flex", 
-              alignItems: "center", 
-              gap: "8px", 
-              fontSize: "12px", 
-              background: "#dc2626",
-              color: "white",
-              boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
-            }}
-          >
-            <FaTools /> Manage OOS
-          </button>
+          {viewMode === "grid" && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <label style={{ fontSize: "12px", fontWeight: "600", color: "#475569" }}>View date:</label>
+              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                <input
+                  type="date"
+                  value={gridViewDate}
+                  onChange={(e) => setGridViewDate(e.target.value || todayYMD)}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: "8px",
+                    border: "1px solid #e2e8f0",
+                    fontSize: "13px",
+                    fontWeight: "500",
+                    color: "#1e293b",
+                    minWidth: "140px"
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setGridViewDate(todayYMD)}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid #e2e8f0",
+                    background: "#f8fafc",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    color: "#475569",
+                    cursor: "pointer"
+                  }}
+                >
+                  Today
+                </button>
+              </div>
+              {gridViewDate !== todayYMD && (
+                <span style={{ fontSize: "12px", color: "#64748b" }}>
+                  Showing {gridViewDate}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -219,19 +259,20 @@ export default function RoomsPage({
 
       {/* GRID / TIMELINE */}
       {viewMode === "grid" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "25px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "25px" }}>
           {roomsWithData.map((room) => (
             <RoomGridCard
               key={room.roomNumber}
               room={room}
               onStatusChange={updateRoomStatus}
+              allowStatusChange={gridViewDate === todayYMD}
               onClick={() => {
                 if (room.isOccupied) setSelectedRoom(room);
                 else onAddReservation(room.roomNumber);
               }}
             />
           ))}
-        </div>
+          </div>
       ) : (
         <RoomTimelineView 
           rooms={BASE_ROOMS} 
