@@ -2428,7 +2428,7 @@ useEffect(() => {
         )}
 
         {page === "dailyRate" && (
-          <DailyRatePage dailyRates={dailyRates} setDailyRates={updateDailyRates} />
+          <DailyRatePage reservations={toArray(reservations)} />
         )}
 
         {page === "revenue" && (

@@ -38,7 +38,7 @@ const theme = {
 };
 
 const iconMap = {
-  "Room Revenue": <FaBed />,
+  "Reservation Revenue": <FaBed />,
   "F&B Revenue": <FaUtensils />,
   "Spa Revenue": <FaSpa />,
   "Activities": <FaUmbrellaBeach />,
@@ -125,6 +125,209 @@ const getCountrySegment = (geo) => {
   return countryToSegment[isoCode] || null;
 };
 
+/** Normalize any date value to local YYYY-MM-DD for consistent range filtering (avoids timezone bugs). */
+function toDateOnlyString(d) {
+  if (d == null || d === "") return "";
+  const s = String(d).trim().slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const date = new Date(d);
+  if (!Number.isFinite(date.getTime())) return "";
+  const y = date.getFullYear(), m = String(date.getMonth() + 1).padStart(2, "0"), day = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Compute key financial/operational KPIs for a given date range (for trend segments). */
+function computeKpiForDateRange(reservationsArr, roomsArr, expensesArr, extraRevenuesArr, startDate, endDate) {
+  const todayDate = new Date();
+  todayDate.setHours(23, 59, 59, 999);
+  const reportEndDate = endDate > todayDate ? todayDate : endDate;
+  const startStr = toDateOnlyString(startDate);
+  const endStr = toDateOnlyString(reportEndDate);
+  const filterByDate = (d) => { const dateStr = toDateOnlyString(d); return dateStr && dateStr >= startStr && dateStr <= endStr; };
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const checkedInRes = reservationsArr.filter(r => {
+    const status = (r.status || "").toLowerCase();
+    const isCheckedIn = status === "checked-in" || status === "checked in" || status === "checked-out" || status === "checked out" || status === "in house";
+    if (!isCheckedIn) return false;
+    const ci = r?.stay?.checkIn;
+    const co = r?.stay?.checkOut;
+    if (!ci || !co) return false;
+    const checkInDate = new Date(String(ci).slice(0, 10) + "T12:00:00");
+    const checkOutDate = new Date(String(co).slice(0, 10) + "T12:00:00");
+    return checkInDate <= reportEndDate && checkOutDate >= startDate;
+  });
+
+  const calcNights = (ci, co) => {
+    const a = new Date(String(ci || "").slice(0, 10) + "T12:00:00").getTime();
+    const b = new Date(String(co || "").slice(0, 10) + "T12:00:00").getTime();
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
+    return Math.max(0, Math.round((b - a) / (1000 * 60 * 60 * 24)));
+  };
+
+  // Reservation revenue (room + F&B subtotal) + proportional taxes — same definition as Reports "revenue"
+  let roomRev = 0;
+  let roomNightsSold = 0;
+  let totalTax = 0;
+  let totalServiceCharge = 0;
+  let totalCityTax = 0;
+  checkedInRes.forEach((r) => {
+    const ci = String(r?.stay?.checkIn || "").slice(0, 10);
+    const co = String(r?.stay?.checkOut || "").slice(0, 10);
+    if (!ci || !co) return;
+    const totalNights = calcNights(ci, co);
+    if (totalNights === 0) return;
+    const p = r?.pricing || {};
+    let totalRevenue = Number(p.subtotal ?? p.roomSubtotal ?? p.roomBase ?? 0);
+    if (!Number.isFinite(totalRevenue) || totalRevenue < 0) {
+      const nightly = Array.isArray(p.nightly) ? p.nightly : [];
+      totalRevenue = nightly.length ? nightly.reduce((a, x) => a + Number(x?.rate ?? x?.baseRate ?? 0), 0) : Number(p.total ?? 0);
+    }
+    if (!Number.isFinite(totalRevenue) || totalRevenue < 0) return;
+    const ciD = new Date(ci + "T12:00:00");
+    const coD = new Date(co + "T12:00:00");
+    const periodEndExcl = new Date(endStr + "T12:00:00");
+    periodEndExcl.setDate(periodEndExcl.getDate() + 1);
+    let countNights = 0;
+    for (let d = new Date(Math.max(ciD.getTime(), new Date(startStr + "T12:00:00").getTime())); d < coD && d < periodEndExcl; d.setDate(d.getDate() + 1)) {
+      const dayStr = toDateOnlyString(d);
+      if (dayStr >= startStr && dayStr <= endStr) countNights += 1;
+    }
+    if (countNights > 0) {
+      const ratio = countNights / totalNights;
+      roomRev += totalRevenue * ratio;
+      roomNightsSold += countNights;
+      totalTax += Number(p.taxAmount ?? p.tax ?? 0) * ratio;
+      totalServiceCharge += Number(p.serviceAmount ?? p.serviceCharge ?? p.service ?? 0) * ratio;
+      totalCityTax += Number(p.cityTaxAmount ?? p.cityTax ?? 0) * ratio;
+    }
+  });
+  roomRev = Math.round(roomRev * 100) / 100;
+  const totalExp = expensesArr.filter(e => filterByDate(e.date || e.expense_date)).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const getExtra = (cat) => extraRevenuesArr.filter(x => {
+    const d = x.date ?? x.revenue_date ?? x.createdAt;
+    return x.type === cat && d && toDateOnlyString(d) >= startStr && toDateOnlyString(d) <= endStr;
+  }).reduce((sum, x) => sum + Number(x.amount || 0), 0);
+  const revData = { "Reservation Revenue": roomRev, "F&B Revenue": getExtra("F&B"), "Spa Revenue": getExtra("Spa"), "Activities": getExtra("Activities"), "Laundry": getExtra("Laundry"), "Services": getExtra("Services") };
+  const totalRev = Math.round(Object.values(revData).reduce((a, b) => a + b, 0) * 100) / 100;
+  totalTax = Math.round(totalTax * 100) / 100;
+  totalServiceCharge = Math.round(totalServiceCharge * 100) / 100;
+  totalCityTax = Math.round(totalCityTax * 100) / 100;
+  const totalRooms = Math.max(1, roomsArr.length);
+  const totalDaysInclusive = Math.max(1, 1 + Math.round((new Date(endStr + "T12:00:00") - new Date(startStr + "T12:00:00")) / (24 * 3600 * 1000)));
+  const occ = (roomNightsSold / (totalRooms * totalDaysInclusive)) * 100;
+  const adr = roomNightsSold > 0 ? Math.round((roomRev / roomNightsSold) * 100) / 100 : 0;
+  const revpar = totalRooms * totalDaysInclusive > 0 ? Math.round((roomRev / (totalRooms * totalDaysInclusive)) * 100) / 100 : 0;
+  const arrivals = reservationsArr.filter(r => r.stay?.checkIn && filterByDate(r.stay.checkIn) && r.status !== "Cancelled").length;
+
+  return { totalRev, totalExp, gop: totalRev - totalExp, roomNightsSold, occ, adr, revpar, totalTax, totalServiceCharge, totalCityTax, arrivals };
+}
+
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** Build segment ranges (label + start/end) for the current period. */
+function getTrendSegments(period, customStart, customEnd, selectedMonth) {
+  const todayDate = new Date();
+  todayDate.setHours(23, 59, 59, 999);
+  let startDate = new Date();
+  let endDate = new Date();
+  endDate.setHours(23, 59, 59, 999);
+
+  if (period === "CUSTOM") {
+    startDate = new Date(customStart);
+    startDate.setHours(0, 0, 0, 0);
+    endDate = new Date(customEnd);
+    endDate.setHours(23, 59, 59, 999);
+  } else if (period === "MONTH") {
+    const [y, m] = selectedMonth.split('-');
+    startDate = new Date(y, m - 1, 1);
+    startDate.setHours(0, 0, 0, 0);
+    endDate = new Date(y, m, 0);
+    endDate.setHours(23, 59, 59, 999);
+  } else if (period === "MTD") {
+    startDate = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
+    startDate.setHours(0, 0, 0, 0);
+    endDate = new Date(todayDate);
+  } else if (period === "YTD") {
+    startDate = new Date(todayDate.getFullYear(), 0, 1);
+    startDate.setHours(0, 0, 0, 0);
+    endDate = new Date(todayDate);
+  } else {
+    // TODAY: show last 7 days so x-axis shows days
+    endDate = new Date(todayDate);
+    startDate = new Date(todayDate);
+    startDate.setDate(startDate.getDate() - 6);
+    startDate.setHours(0, 0, 0, 0);
+  }
+  if (endDate > todayDate) endDate = new Date(todayDate);
+
+  const segments = [];
+
+  if (period === "YTD") {
+    // One segment per month; x-axis = month names
+    const y = startDate.getFullYear();
+    const endMonth = endDate.getMonth();
+    for (let m = 0; m <= endMonth; m++) {
+      const segStart = new Date(y, m, 1);
+      segStart.setHours(0, 0, 0, 0);
+      const segEnd = new Date(y, m + 1, 0);
+      segEnd.setHours(23, 59, 59, 999);
+      if (segEnd > todayDate) segEnd.setTime(todayDate.getTime());
+      segments.push({ label: MONTH_NAMES[m], startDate: segStart, endDate: segEnd });
+    }
+    return segments;
+  }
+
+  if (period === "MTD") {
+    // Segments by week within month; x-axis = Week 1, Week 2, ...
+    const monthStart = new Date(startDate);
+    const monthEnd = new Date(endDate);
+    const dayCount = monthEnd.getDate();
+    let weekNum = 1;
+    for (let day = 1; day <= dayCount; ) {
+      const segStart = new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
+      segStart.setHours(0, 0, 0, 0);
+      const lastDayOfWeek = Math.min(day + 6, dayCount);
+      const segEnd = new Date(monthStart.getFullYear(), monthStart.getMonth(), lastDayOfWeek);
+      segEnd.setHours(23, 59, 59, 999);
+      if (segEnd > todayDate) segEnd.setTime(todayDate.getTime());
+      segments.push({ label: `Week ${weekNum}`, startDate: segStart, endDate: segEnd });
+      day = lastDayOfWeek + 1;
+      weekNum++;
+    }
+    return segments;
+  }
+
+  if (period === "TODAY") {
+    // One segment per day; x-axis = day names (e.g. Mon 17)
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      d.setHours(0, 0, 0, 0);
+      const segEnd = new Date(d);
+      segEnd.setHours(23, 59, 59, 999);
+      if (segEnd > todayDate) segEnd.setTime(todayDate.getTime());
+      const label = `${DAY_NAMES[d.getDay()]} ${d.getDate()}`;
+      segments.push({ label, startDate: d, endDate: segEnd });
+    }
+    return segments;
+  }
+
+  // MONTH + CUSTOM: generic segments with W1, W2 or similar
+  const diffMs = endDate - startDate;
+  const totalDays = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+  const numSegments = Math.min(6, Math.max(4, Math.ceil(totalDays / 7)));
+  for (let i = 0; i < numSegments; i++) {
+    const segStart = new Date(startDate.getTime() + (i * diffMs) / numSegments);
+    const segEnd = new Date(startDate.getTime() + ((i + 1) * diffMs) / numSegments - 1);
+    segEnd.setHours(23, 59, 59, 999);
+    const label = period === "MONTH" ? `Week ${i + 1}` : `W${i + 1}`;
+    segments.push({ label, startDate: segStart, endDate: segEnd });
+  }
+  return segments;
+}
+
 // --- المكون الرئيسي ---
 export default function DashboardPage({ reservations = [], rooms = [], expenses = [], extraRevenues = [] }) {
   // Ensure we always work with arrays (App may pass objects/maps during cloud sync)
@@ -165,6 +368,7 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
   const [customStart, setCustomStart] = useState(new Date().toISOString().split('T')[0]);
   const [customEnd, setCustomEnd] = useState(new Date().toISOString().split('T')[0]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedTrendKpi, setSelectedTrendKpi] = useState("Revenue");
 
   const kpi = useMemo(() => {
     let startDate = new Date();
@@ -185,12 +389,18 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
         endDate.setHours(23, 59, 59, 999);
     }
     else if (period === "MTD") {
-        startDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+        const now = new Date();
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
         startDate.setHours(0, 0, 0, 0);
-    } 
+        endDate = new Date(now);
+        endDate.setHours(23, 59, 59, 999);
+    }
     else if (period === "YTD") {
-        startDate = new Date(new Date().getFullYear(), 0, 1);
+        const now = new Date();
+        startDate = new Date(now.getFullYear(), 0, 1);
         startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(now);
+        endDate.setHours(23, 59, 59, 999);
     } 
     else {
         startDate = new Date();
@@ -199,11 +409,13 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
 
     const diffTime = Math.abs(endDate - startDate);
     const totalDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-    const filterByDate = (d) => { const date = new Date(d); return date >= startDate && date <= endDate; };
-    const todayStr = new Date().toISOString().split('T')[0];
     const todayDate = new Date();
     todayDate.setHours(23, 59, 59, 999);
     const reportEndDate = endDate > todayDate ? todayDate : endDate;
+    const startStr = toDateOnlyString(startDate);
+    const endStr = toDateOnlyString(reportEndDate);
+    const filterByDate = (d) => { const dateStr = toDateOnlyString(d); return dateStr && dateStr >= startStr && dateStr <= endStr; };
+    const todayStr = new Date().toISOString().split('T')[0];
 
     const arrivals = reservationsArr.filter(r => r.stay?.checkIn === todayStr && r.status !== "Cancelled").length;
     const departures = reservationsArr.filter(r => r.stay?.checkOut === todayStr && r.status !== "Cancelled").length;
@@ -235,9 +447,6 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
     });
     
     const currentRes = checkedInRes;
-    const totalTax = currentRes.reduce((sum, r) => sum + Number(r.pricing?.taxAmount ?? r.pricing?.tax ?? 0), 0);
-    const totalServiceCharge = currentRes.reduce((sum, r) => sum + Number(r.pricing?.serviceAmount ?? r.pricing?.serviceCharge ?? 0), 0);
-    const totalCityTax = currentRes.reduce((sum, r) => sum + Number(r.pricing?.cityTaxAmount ?? r.pricing?.cityTax ?? 0), 0);
 
     const calcNights = (ci, co) => {
       const a = new Date(String(ci || "").slice(0, 10) + "T12:00:00").getTime();
@@ -246,80 +455,63 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
       return Math.max(0, Math.round((b - a) / (1000 * 60 * 60 * 24)));
     };
 
-    // Calculate room revenue day by day from check-in onwards
-    const roomRev = currentRes.reduce((sum, r) => {
+    // Reservation revenue (room + F&B subtotal) + proportional taxes — same definition as Reports "revenue"
+    let roomRev = 0;
+    let roomNightsSold = 0;
+    let totalTax = 0;
+    let totalServiceCharge = 0;
+    let totalCityTax = 0;
+    currentRes.forEach((r) => {
       const ci = String(r?.stay?.checkIn || "").slice(0, 10);
       const co = String(r?.stay?.checkOut || "").slice(0, 10);
-      if (!ci || !co) return sum;
-      
-      // Only count nights from check-in day onwards
-      const checkInDate = new Date(ci + "T12:00:00");
-      const checkOutDate = new Date(co + "T12:00:00");
-      
-      // Count nights from check-in to check-out, but only within report period
-      const calcStartDate = checkInDate > startDate ? checkInDate : startDate;
-      const calcEndDate = checkOutDate < reportEndDate ? checkOutDate : reportEndDate;
-      
-      if (calcStartDate >= calcEndDate) return sum;
-      
-      const nightsInPeriod = Math.max(0, Math.ceil((calcEndDate - calcStartDate) / (1000 * 60 * 60 * 24)));
+      if (!ci || !co) return;
       const totalNights = calcNights(ci, co);
-      if (totalNights === 0) return sum;
-      
+      if (totalNights === 0) return;
       const p = r?.pricing || {};
-      let totalRevenue = 0;
-      const v1 = Number(p.roomRevenue);
-      if (Number.isFinite(v1)) {
-        totalRevenue = v1;
-      } else {
-        const v2 = Number(p.roomSubtotal);
-        if (Number.isFinite(v2)) {
-          totalRevenue = v2;
-        } else {
-          const nightly = Array.isArray(p.nightly) ? p.nightly : [];
-          if (nightly.length) {
-            totalRevenue = nightly.reduce((a, x) => a + Number(x?.baseRate ?? x?.rate ?? 0), 0);
-          } else {
-            totalRevenue = Number(p.total || 0);
-          }
-        }
+      let totalRevenue = Number(p.subtotal ?? p.roomSubtotal ?? p.roomBase ?? 0);
+      if (!Number.isFinite(totalRevenue) || totalRevenue < 0) {
+        const nightly = Array.isArray(p.nightly) ? p.nightly : [];
+        totalRevenue = nightly.length ? nightly.reduce((a, x) => a + Number(x?.rate ?? x?.baseRate ?? 0), 0) : Number(p.total ?? 0);
       }
-      
-      // Calculate per-night revenue and multiply by nights in period
-      const perNightRevenue = totalRevenue / totalNights;
-      return sum + (perNightRevenue * nightsInPeriod);
-    }, 0);
-
-    const roomNightsSold = currentRes.reduce((sum, r) => {
-      const ci = String(r?.stay?.checkIn || "").slice(0, 10);
-      const co = String(r?.stay?.checkOut || "").slice(0, 10);
-      if (!ci || !co) return sum;
-      
-      // Only count nights from check-in day onwards
-      const checkInDate = new Date(ci + "T12:00:00");
-      const checkOutDate = new Date(co + "T12:00:00");
-      
-      const calcStartDate = checkInDate > startDate ? checkInDate : startDate;
-      const calcEndDate = checkOutDate < reportEndDate ? checkOutDate : reportEndDate;
-      
-      if (calcStartDate >= calcEndDate) return sum;
-      
-      const nightsInPeriod = Math.max(0, Math.ceil((calcEndDate - calcStartDate) / (1000 * 60 * 60 * 24)));
-      return sum + nightsInPeriod;
-    }, 0);
+      if (!Number.isFinite(totalRevenue) || totalRevenue < 0) return;
+      const ciD = new Date(ci + "T12:00:00");
+      const coD = new Date(co + "T12:00:00");
+      const periodEndExcl = new Date(endStr + "T12:00:00");
+      periodEndExcl.setDate(periodEndExcl.getDate() + 1);
+      let countNights = 0;
+      for (let d = new Date(Math.max(ciD.getTime(), new Date(startStr + "T12:00:00").getTime())); d < coD && d < periodEndExcl; d.setDate(d.getDate() + 1)) {
+        const dayStr = toDateOnlyString(d);
+        if (dayStr >= startStr && dayStr <= endStr) countNights += 1;
+      }
+      if (countNights > 0) {
+        const ratio = countNights / totalNights;
+        roomRev += totalRevenue * ratio;
+        roomNightsSold += countNights;
+        totalTax += Number(p.taxAmount ?? p.tax ?? 0) * ratio;
+        totalServiceCharge += Number(p.serviceAmount ?? p.serviceCharge ?? p.service ?? 0) * ratio;
+        totalCityTax += Number(p.cityTaxAmount ?? p.cityTax ?? 0) * ratio;
+      }
+    });
+    roomRev = Math.round(roomRev * 100) / 100;
     const totalExp = expensesArr.filter(e => filterByDate(e.date || e.expense_date)).reduce((sum, e) => sum + Number(e.amount || 0), 0);
-    
-    const getExtra = (cat) => extraRevenuesArr.filter(x => x.type === cat && filterByDate(x.date || x.createdAt)).reduce((sum, x) => sum + Number(x.amount || 0), 0);
-    const revData = { "Room Revenue": roomRev, "F&B Revenue": getExtra("F&B"), "Spa Revenue": getExtra("Spa"), "Activities": getExtra("Activities"), "Laundry": getExtra("Laundry"), "Services": getExtra("Services") };
-    const totalRev = Object.values(revData).reduce((a, b) => a + b, 0);
-    
+    const getExtra = (cat) => extraRevenuesArr.filter(x => {
+      const d = x.date ?? x.revenue_date ?? x.createdAt;
+      return x.type === cat && d && toDateOnlyString(d) >= startStr && toDateOnlyString(d) <= endStr;
+    }).reduce((sum, x) => sum + Number(x.amount || 0), 0);
+    const revData = { "Reservation Revenue": roomRev, "F&B Revenue": getExtra("F&B"), "Spa Revenue": getExtra("Spa"), "Activities": getExtra("Activities"), "Laundry": getExtra("Laundry"), "Services": getExtra("Services") };
+    const totalRev = Math.round(Object.values(revData).reduce((a, b) => a + b, 0) * 100) / 100;
+    totalTax = Math.round(totalTax * 100) / 100;
+    totalServiceCharge = Math.round(totalServiceCharge * 100) / 100;
+    totalCityTax = Math.round(totalCityTax * 100) / 100;
+
     const getExpVal = (cat) => expensesArr.filter(e => e.category === cat && filterByDate(e.date || e.expense_date)).reduce((sum, e) => sum + Number(e.amount || 0), 0);
     const expData = { "Salary": getExpVal("Salary"), "Maintenance": getExpVal("Maintenance"), "Utilities": getExpVal("Utilities"), "Marketing": getExpVal("Marketing"), "F&B Cost": getExpVal("F&B"), "General": getExpVal("General") };
 
     const totalRooms = Math.max(1, roomsArr.length);
-    const occ = (roomNightsSold / (totalRooms * totalDays)) * 100;
-    const adr = roomNightsSold > 0 ? roomRev / roomNightsSold : 0;
-    const revpar = roomRev / (totalRooms * totalDays);
+    const totalDaysInclusive = Math.max(1, 1 + Math.round((new Date(endStr + "T12:00:00") - new Date(startStr + "T12:00:00")) / (24 * 3600 * 1000)));
+    const occ = (roomNightsSold / (totalRooms * totalDaysInclusive)) * 100;
+    const adr = roomNightsSold > 0 ? Math.round((roomRev / roomNightsSold) * 100) / 100 : 0;
+    const revpar = totalRooms * totalDaysInclusive > 0 ? Math.round((roomRev / (totalRooms * totalDaysInclusive)) * 100) / 100 : 0;
 
     // Calculate top nationalities based on arrivals (check-ins)
     const arrivalsReservations = reservationsArr.filter(r => {
@@ -356,6 +548,90 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
         topNationalitiesData
     };
   }, [reservations, rooms, expenses, extraRevenuesArr, period, customStart, customEnd, selectedMonth]);
+
+  const trendSegments = useMemo(() => getTrendSegments(period, customStart, customEnd, selectedMonth), [period, customStart, customEnd, selectedMonth]);
+
+  const trendChartData = useMemo(() => {
+    const kpiKeyMap = {
+      Revenue: "totalRev",
+      Expenses: "totalExp",
+      "GOP Profit": "gop",
+      ADR: "adr",
+      "Rooms Sold": "roomNightsSold",
+      Occupancy: "occ",
+      RevPAR: "revpar",
+      "Total Tax": "totalTax",
+      "Service Charge": "totalServiceCharge",
+      "City Tax": "totalCityTax",
+      Arrivals: "arrivals"
+    };
+    const key = kpiKeyMap[selectedTrendKpi] || "totalRev";
+    const values = trendSegments.map(seg => {
+      const k = computeKpiForDateRange(reservationsArr, roomsArr, expensesArr, extraRevenuesArr, seg.startDate, seg.endDate);
+      return key === "occ" ? Number(k[key].toFixed(1)) : (typeof k[key] === "number" ? k[key] : 0);
+    });
+    const isCurrency = ["totalRev", "totalExp", "gop", "adr", "revpar", "totalTax", "totalServiceCharge", "totalCityTax"].includes(key);
+    const isPercent = key === "occ";
+    return {
+      labels: trendSegments.map(s => s.label),
+      datasets: [{
+        label: selectedTrendKpi,
+        data: values,
+        borderColor: theme.primary,
+        backgroundColor: "rgba(14, 165, 233, 0.08)",
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: theme.primary,
+        pointBorderColor: "#fff",
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6
+      }]
+    };
+  }, [trendSegments, selectedTrendKpi, reservationsArr, roomsArr, expensesArr, extraRevenuesArr]);
+
+  const trendChartOptions = useMemo(() => {
+    const isCurrency = ["Revenue", "Expenses", "GOP Profit", "ADR", "RevPAR", "Total Tax", "Service Charge", "City Tax"].includes(selectedTrendKpi);
+    const isPercent = selectedTrendKpi === "Occupancy";
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: "index" },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const v = ctx.raw;
+              if (isCurrency) return ` ${selectedTrendKpi}: $${Number(v).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+              if (isPercent) return ` ${selectedTrendKpi}: ${Number(v).toFixed(1)}%`;
+              return ` ${selectedTrendKpi}: ${Number(v).toLocaleString()}`;
+            }
+          },
+          backgroundColor: "rgba(0,0,0,0.85)",
+          padding: 12,
+          titleFont: { size: 13, weight: "bold" },
+          bodyFont: { size: 12 }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 }, color: theme.textSub } },
+        y: {
+          grid: { color: "rgba(0,0,0,0.06)" },
+          ticks: {
+            font: { size: 11 },
+            color: theme.textSub,
+            callback: (value) => {
+              if (isCurrency) return "$" + (value >= 1000 ? (value / 1000) + "k" : value);
+              if (isPercent) return value + "%";
+              return value;
+            }
+          }
+        }
+      }
+    };
+  }, [selectedTrendKpi]);
 
   // --- Styles for Header ---
   const headerStyles = {
@@ -513,9 +789,40 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
         
         {/* Trend Chart */}
         <div style={{ gridColumn: "span 6", ...cardStyle, padding: "24px" }}>
-          <h3 style={sectionTitle}>Financial Performance Trend</h3>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "16px" }}>
+            <h3 style={{ ...sectionTitle, marginBottom: 0 }}>Financial Performance Trend</h3>
+            <select
+              value={selectedTrendKpi}
+              onChange={(e) => setSelectedTrendKpi(e.target.value)}
+              style={{
+                padding: "8px 14px",
+                borderRadius: "10px",
+                border: `1px solid ${theme.border}`,
+                background: "#fff",
+                color: theme.textMain,
+                fontSize: "13px",
+                fontWeight: "600",
+                cursor: "pointer",
+                minWidth: "180px",
+                outline: "none",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+              }}
+            >
+              <option value="Revenue">Revenue</option>
+              <option value="Expenses">Expenses</option>
+              <option value="GOP Profit">GOP Profit</option>
+              <option value="ADR">ADR</option>
+              <option value="Rooms Sold">Rooms Sold</option>
+              <option value="Occupancy">Occupancy</option>
+              <option value="RevPAR">RevPAR</option>
+              <option value="Total Tax">Total Tax</option>
+              <option value="Service Charge">Service Charge</option>
+              <option value="City Tax">City Tax</option>
+              <option value="Arrivals">Arrivals</option>
+            </select>
+          </div>
           <div style={{ height: "320px" }}>
-            <Line data={trendChartData} options={chartOptions} />
+            <Line data={trendChartData} options={trendChartOptions} />
           </div>
         </div>
         
@@ -851,5 +1158,4 @@ const cardStyle = { background: "#fff", borderRadius: "20px", border: `1px solid
 const sectionTitle = { fontSize: "16px", fontWeight: "900", color: theme.textMain, marginBottom: "20px", display: "flex", alignItems: "center", gap: "10px" };
 const chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
 const doughnutOptions = { cutout: "75%", plugins: { legend: { display: false } }, responsive: true, maintainAspectRatio: false };
-const trendChartData = { labels: ["W1", "W2", "W3", "W4"], datasets: [{ label: 'Rev', data: [4000, 5500, 4800, 7000], borderColor: theme.primary, borderWidth: 3, fill: true, backgroundColor: "rgba(14, 165, 233, 0.08)", tension: 0.4 }] };
 const getDoughnutData = (data, colors) => ({ labels: Object.keys(data), datasets: [{ data: Object.values(data), backgroundColor: colors, borderWidth: 0 }] });

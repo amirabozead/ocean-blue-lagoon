@@ -7,6 +7,7 @@ import {
   FaStore,
   FaMoneyBillWave,
   FaChartBar,
+  FaChartLine,
   FaCog,
   FaLock,
   FaUnlock,
@@ -150,8 +151,8 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, set
 
         {secCanAccessPage(currentUser, "dailyRate") && (
           <SidebarItem
-            icon={<FaDollarSign />}
-            label="Daily Rate"
+            icon={<FaChartLine />}
+            label="Rate Analysis"
             active={page === "dailyRate"}
             locked={isLocked}
             onClick={() => handleNav("dailyRate")}

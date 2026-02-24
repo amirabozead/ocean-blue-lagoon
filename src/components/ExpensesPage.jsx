@@ -278,7 +278,7 @@ export default function ExpensesPage({ paymentMethods, expenses, setExpenses, su
         
         {/* Main Toolbar: Period + Toggles */}
         <div className="toolbar-actions">
-          {/* Period Selectors (Left) */}
+          {/* Period Selectors (Left) + Custom range inline */}
           <div className="period-group">
             {["TODAY", "MTD", "YTD", "CUSTOM"].map((p) => (
               <button 
@@ -289,6 +289,25 @@ export default function ExpensesPage({ paymentMethods, expenses, setExpenses, su
                 {p}
               </button>
             ))}
+            {period === "CUSTOM" && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 8 }}>
+                <FaCalendarAlt style={{ color: "#64748b" }} />
+                <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#475569" }}>From</span>
+                <input
+                  className="date-input-styled"
+                  type="date"
+                  value={range.from}
+                  onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))}
+                />
+                <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#475569" }}>to</span>
+                <input
+                  className="date-input-styled"
+                  type="date"
+                  value={range.to}
+                  onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))}
+                />
+              </div>
+            )}
           </div>
 
           {/* Action Toggles (Right) */}
@@ -400,17 +419,6 @@ export default function ExpensesPage({ paymentMethods, expenses, setExpenses, su
                  Reset
               </button>
             </div>
-
-            {/* Custom Date Range (Only visible if Custom Period is selected AND Search is open) */}
-            {period === "CUSTOM" && (
-              <div className="custom-date-row">
-                <FaCalendarAlt />
-                <span>Custom Range:</span>
-                <input className="date-input-styled" type="date" value={range.from} onChange={(e) => setRange(r => ({ ...r, from: e.target.value }))} />
-                <span>to</span>
-                <input className="date-input-styled" type="date" value={range.to} onChange={(e) => setRange(r => ({ ...r, to: e.target.value }))} />
-              </div>
-            )}
           </div>
         )}
 

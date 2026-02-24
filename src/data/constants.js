@@ -67,7 +67,7 @@ export const APP_PAGES = [
   { key: "dashboard", label: "Dashboard" },
   { key: "reservations", label: "Reservations" },
   { key: "rooms", label: "Rooms" },
-  { key: "dailyRate", label: "Daily Rate" },
+  { key: "dailyRate", label: "Rate Analysis" },
   { key: "revenue", label: "Revenue Center" },
   { key: "store", label: "Store" },
   { key: "expenses", label: "Expenses" },

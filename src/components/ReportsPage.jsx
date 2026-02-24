@@ -209,14 +209,19 @@ export default function ReportsPage({ reservations, expenses, extraRevenues, tot
         return; // Skip revenue calculation for Booked/Cancelled
       }
       
+      // Room revenue = room only (roomSubtotal/roomBase). Main revenue = subtotal (room + F&B) for backward compat.
+          const roomOnly = Number(r.pricing?.roomSubtotal ?? r.pricing?.roomBase ?? 0);
+          const stayRoomRevenue = Number.isFinite(roomOnly) && roomOnly >= 0 ? roomOnly : Number(r.pricing?.subtotal ?? r.room?.roomRate ?? 0);
+          const staySubtotal = Number(r.pricing?.subtotal ?? r.room?.roomRate ?? 0);
       nightDays.forEach((day) => {
         // Only count revenue from check-in day onwards (day >= ci)
         if (day >= ci && day < co) {
           const ratio = 1 / stayNights;
-          const perNightRevenue = Number(r.pricing?.subtotal || r.room?.roomRate || 0) * ratio;
+          const perNightRevenue = staySubtotal * ratio;
+          const perNightRoomRevenue = stayRoomRevenue * ratio;
           
           revenue += perNightRevenue;
-          roomRevenue += perNightRevenue; 
+          roomRevenue += perNightRoomRevenue; 
 
           // Tax calculation: use full amounts, not per-night allocation
           const taxAmt = Number(r.pricing?.taxAmount ?? r.pricing?.tax ?? 0);

@@ -1,363 +1,824 @@
 import React, { useState, useMemo } from "react";
-import { FaCalendarAlt, FaTrash, FaEdit, FaPlus, FaSave, FaUtensils, FaBed, FaFilter, FaTags } from "react-icons/fa";
-import { ROOM_TYPES } from "../data/constants"; 
-import { money, uid, toDate, startOfDay, rateCoversDay } from "../utils/helpers";
+import { FaChartLine } from "react-icons/fa";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Line } from "react-chartjs-2";
+import { ROOM_TYPES, BOOKING_CHANNELS } from "../data/constants";
+import { toDate, calcNights, ymd } from "../utils/helpers";
 
-// 🔥 تأكد من وجود الصورة في مجلد public باسم logo.png
-const HOTEL_LOGO = "/logo.png"; 
+ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Tooltip, Legend);
 
-export default function DailyRatePage({ dailyRates, setDailyRates }) {
-  // 1. States
-  const [rateForm, setRateForm] = useState({
-    roomType: "Standard Double Room",
-    from: "",
-    to: "",
-    rate: "",
-    pkgBB: "",
-    pkgHB: "",
-    pkgFB: "",
-  });
-  
-  const [editingRateId, setEditingRateId] = useState(null); 
-  const [previewType, setPreviewType] = useState("Standard Double Room");
-  const [previewStart, setPreviewStart] = useState(() => new Date().toISOString().slice(0, 10));
+const HOTEL_LOGO = "/logo.png";
 
-  // Filter States
-  const [filterRoom, setFilterRoom] = useState("All");
-  const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
-  const [filterYear, setFilterYear] = useState(new Date().getFullYear());
+// Project theme (aligned with Dashboard & Reports)
+const theme = {
+  primary: "#0ea5e9",
+  secondary: "#6366f1",
+  success: "#10b981",
+  danger: "#f43f5e",
+  warning: "#f59e0b",
+  bg: "#f8fafc",
+  textMain: "#1e293b",
+  textSub: "#64748b",
+  card: "#ffffff",
+  border: "#e2e8f0",
+  ocean: "#0b6a8a",
+  oceanDark: "#084e68",
+};
 
-  // 2. Logic
-  const previewDays = useMemo(() => {
-    const start = toDate(previewStart) || new Date();
-    const s = startOfDay(start);
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(s);
-      d.setDate(d.getDate() + i);
-      const dayStr = d.toISOString().slice(0, 10);
-      
-      const safeRates = Array.isArray(dailyRates) ? dailyRates : [];
-      const match = safeRates.find((r) => (r.roomType ?? r.room_type) === previewType && rateCoversDay(r, dayStr));
-      
-      const rateVal = match ? (match.rate ?? match.nightlyRate ?? match.nightly_rate ?? null) : null;
-      return {
-        date: dayStr,
-        label: d.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short" }),
-        rate: rateVal,
-        status: match ? "Set" : "Empty",
-      };
-    });
-  }, [previewStart, previewType, dailyRates]);
+export default function DailyRatePage({ reservations = [] }) {
+  const safeReservations = Array.isArray(reservations) ? reservations : [];
 
-  const filteredRates = useMemo(() => {
-    return (dailyRates || []).filter(r => {
-      const roomType = r.roomType ?? r.room_type;
-      const from = r.from ?? r.date_from;
-      if (filterRoom !== "All" && roomType !== filterRoom) return false;
-      const rateDate = new Date(from);
-      if (filterMonth !== "All" && (rateDate.getMonth() + 1) !== Number(filterMonth)) return false;
-      if (filterYear !== "All" && rateDate.getFullYear() !== Number(filterYear)) return false;
-      return true;
-    });
-  }, [dailyRates, filterRoom, filterMonth, filterYear]);
+  const now = new Date();
+  const todayStr = ymd(now);
+  const [periodPreset, setPeriodPreset] = useState("mtd");
+  const [analysisYear, setAnalysisYear] = useState(now.getFullYear());
+  const [analysisMonth, setAnalysisMonth] = useState("All");
+  const [analysisDate, setAnalysisDate] = useState("");
 
-  // 3. Actions
-  const saveRate = () => {
-    const { roomType, from, to, rate, pkgBB, pkgHB, pkgFB } = rateForm;
-    if (!roomType || !from || !to || !rate) return alert("Please fill in all required fields.");
+  const getPeriodBounds = () => {
+    if (periodPreset === "today") {
+      return { periodFromStr: todayStr, periodToStr: todayStr };
+    }
+    if (periodPreset === "mtd") {
+      const y = now.getFullYear();
+      const m = now.getMonth() + 1;
+      return { periodFromStr: `${y}-${String(m).padStart(2, "0")}-01`, periodToStr: todayStr };
+    }
+    if (periodPreset === "ytd") {
+      const y = now.getFullYear();
+      return { periodFromStr: `${y}-01-01`, periodToStr: todayStr };
+    }
+    if (analysisDate) {
+      const d = analysisDate.slice(0, 10);
+      return { periodFromStr: d, periodToStr: d };
+    }
+    if (analysisMonth !== "All" && Number(analysisMonth) >= 1 && Number(analysisMonth) <= 12) {
+      const y = Number(analysisYear) || now.getFullYear();
+      const m = Number(analysisMonth);
+      const periodFromStr = `${y}-${String(m).padStart(2, "0")}-01`;
+      const lastDay = new Date(y, m, 0);
+      return { periodFromStr, periodToStr: ymd(lastDay) };
+    }
+    const y = Number(analysisYear) || now.getFullYear();
+    return { periodFromStr: `${y}-01-01`, periodToStr: `${y}-12-31` };
+  };
 
-    const payload = {
-      id: editingRateId || uid(),
-      roomType,
-      from,
-      to,
-      rate: Number(rate),
-      packages: {
-        BB: Number(pkgBB || 0),
-        HB: Number(pkgHB || 0),
-        FB: Number(pkgFB || 0),
-      },
-      updatedAt: new Date().toISOString(),
+  const resAnalysis = useMemo(() => {
+    const { periodFromStr, periodToStr } = getPeriodBounds();
+    const periodFrom = toDate(periodFromStr);
+    const periodTo = toDate(periodToStr);
+    if (!periodFrom || !periodTo) return { revenue: 0, reservationsCount: 0, nightsInPeriod: 0, adr: 0, byRoomType: {}, periodFromStr, periodToStr };
+
+    const periodToExclusive = new Date(periodTo);
+    periodToExclusive.setDate(periodToExclusive.getDate() + 1);
+
+    let revenue = 0;
+    let nightsInPeriod = 0;
+    const byRoomType = {};
+
+    const addToRoom = (roomType, rev, nights) => {
+      const rt = roomType || "Other";
+      if (!byRoomType[rt]) byRoomType[rt] = { revenue: 0, nights: 0 };
+      byRoomType[rt].revenue += rev;
+      byRoomType[rt].nights += nights;
     };
 
-    if (editingRateId) {
-      setDailyRates((prev) => prev.map((r) => (r.id === editingRateId ? payload : r)));
-    } else {
-      setDailyRates((prev) => [payload, ...prev]);
-    }
-    resetForm();
-  };
+    // Room revenue = room only (roomSubtotal/roomBase). Only count checked-in/checked-out (same as Reports).
+    const isCountedStatus = (s) => {
+      const t = (s || "").toLowerCase();
+      return t === "checked-in" || t === "checked in" || t === "checked-out" || t === "checked out" || t === "in house";
+    };
+    safeReservations.forEach((r) => {
+      const status = (r.status || "").toLowerCase();
+      if (status === "cancelled") return;
+      if (!isCountedStatus(r.status)) return;
+      const ci = r.stay?.checkIn ?? r.checkIn;
+      const co = r.stay?.checkOut ?? r.checkOut;
+      if (!ci || !co) return;
+      const ciD = toDate(ci);
+      const coD = toDate(co);
+      if (!ciD || !coD) return;
+      if (ciD >= periodToExclusive || coD <= periodFrom) return;
 
-  const handleEdit = (r) => {
-    const id = r.id ?? `${r.roomType ?? r.room_type}__${r.from ?? r.date_from}__${r.to ?? r.date_to}`;
-    setEditingRateId(id);
-    const roomType = r.roomType ?? r.room_type;
-    const from = r.from ?? r.date_from;
-    const to = r.to ?? r.date_to;
-    const rate = r.rate ?? r.nightlyRate ?? r.nightly_rate ?? "";
-    const pkgBB = r.packages?.BB ?? r.pkg_bb ?? r.bb ?? "";
-    const pkgHB = r.packages?.HB ?? r.pkg_hb ?? r.hb ?? "";
-    const pkgFB = r.packages?.FB ?? r.pkg_fb ?? r.fb ?? "";
-    setRateForm({
-      roomType: roomType || "Standard Double Room",
-      from: from || "",
-      to: to || "",
-      rate: rate,
-      pkgBB: pkgBB !== undefined && pkgBB !== null ? pkgBB : "",
-      pkgHB: pkgHB !== undefined && pkgHB !== null ? pkgHB : "",
-      pkgFB: pkgFB !== undefined && pkgFB !== null ? pkgFB : "",
+      const stayNights = Math.max(1, calcNights(ci, co));
+      const roomType = r.room?.roomType ?? r.roomType ?? "Other";
+      const totalStayRoomRevenue = Number(r.pricing?.roomSubtotal ?? r.pricing?.roomBase ?? r.pricing?.subtotal ?? 0);
+      if (!Number.isFinite(totalStayRoomRevenue) || totalStayRoomRevenue < 0) return;
+
+      let countNights = 0;
+      for (let d = new Date(Math.max(ciD.getTime(), periodFrom.getTime())); d < coD && d < periodToExclusive; d.setDate(d.getDate() + 1)) {
+        const dayStr = ymd(d);
+        if (dayStr >= periodFromStr && dayStr <= periodToStr) countNights += 1;
+      }
+      if (countNights <= 0) return;
+
+      const allocatedRevenue = totalStayRoomRevenue * (countNights / stayNights);
+      revenue += allocatedRevenue;
+      nightsInPeriod += countNights;
+      addToRoom(roomType, allocatedRevenue, countNights);
     });
-  };
 
-  const resetForm = () => {
-    setRateForm({ roomType: "Standard Double Room", from: "", to: "", rate: "", pkgBB: "", pkgHB: "", pkgFB: "" });
-    setEditingRateId(null);
-  };
+    Object.keys(byRoomType).forEach((rt) => {
+      const row = byRoomType[rt];
+      row.adr = row.nights > 0 ? row.revenue / row.nights : 0;
+    });
 
-  // 4. Styles
+    const adr = nightsInPeriod > 0 ? revenue / nightsInPeriod : 0;
+    const reservationsInPeriod = safeReservations.filter((r) => {
+      if ((r.status || "").toLowerCase() === "cancelled") return false;
+      if (!isCountedStatus(r.status)) return false;
+      const ci = r.stay?.checkIn ?? r.checkIn;
+      const co = r.stay?.checkOut ?? r.checkOut;
+      if (!ci || !co) return false;
+      const ciD = toDate(ci);
+      const coD = toDate(co);
+      if (!ciD || !coD) return false;
+      return ciD < periodToExclusive && coD > periodFrom;
+    }).length;
+
+    return { revenue, reservationsCount: reservationsInPeriod, nightsInPeriod, adr, byRoomType, periodFromStr, periodToStr };
+  }, [safeReservations, periodPreset, analysisYear, analysisMonth, analysisDate, now, todayStr]);
+
+  // Room type × Channel: RN and rate (ADR) per channel for same period
+  const byRoomTypeByChannel = useMemo(() => {
+    const { periodFromStr, periodToStr } = getPeriodBounds();
+    const periodFrom = toDate(periodFromStr);
+    const periodTo = toDate(periodToStr);
+    const out = {};
+    const ensure = (rt, ch) => {
+      if (!out[rt]) out[rt] = {};
+      if (!out[rt][ch]) out[rt][ch] = { nights: 0, revenue: 0, rates: [] };
+      return out[rt][ch];
+    };
+
+    if (!periodFrom || !periodTo) return out;
+    const periodToExclusive = new Date(periodTo);
+    periodToExclusive.setDate(periodToExclusive.getDate() + 1);
+    const isCountedStatus = (s) => {
+      const t = (s || "").toLowerCase();
+      return t === "checked-in" || t === "checked in" || t === "checked-out" || t === "checked out" || t === "in house";
+    };
+
+    safeReservations.forEach((r) => {
+      const status = (r.status || "").toLowerCase();
+      if (status === "cancelled") return;
+      if (!isCountedStatus(r.status)) return;
+      const ci = r.stay?.checkIn ?? r.checkIn;
+      const co = r.stay?.checkOut ?? r.checkOut;
+      if (!ci || !co) return;
+      const ciD = toDate(ci);
+      const coD = toDate(co);
+      if (!ciD || !coD) return;
+      if (ciD >= periodToExclusive || coD <= periodFrom) return;
+
+      const stayNights = Math.max(1, calcNights(ci, co));
+      const roomType = r.room?.roomType ?? r.roomType ?? "Other";
+      const chRaw = (r.channel ?? r.source ?? "Direct booking").trim() || "Direct booking";
+      const channel = BOOKING_CHANNELS.find((c) => c.toLowerCase() === chRaw.toLowerCase()) || chRaw;
+      const totalStayRoomRevenue = Number(r.pricing?.roomSubtotal ?? r.pricing?.roomBase ?? r.pricing?.subtotal ?? 0);
+      if (!Number.isFinite(totalStayRoomRevenue) || totalStayRoomRevenue < 0) return;
+
+      let countNights = 0;
+      for (let d = new Date(Math.max(ciD.getTime(), periodFrom.getTime())); d < coD && d < periodToExclusive; d.setDate(d.getDate() + 1)) {
+        const dayStr = ymd(d);
+        if (dayStr >= periodFromStr && dayStr <= periodToStr) countNights += 1;
+      }
+      if (countNights <= 0) return;
+
+      const stayRate = totalStayRoomRevenue / stayNights;
+      const allocatedRevenue = totalStayRoomRevenue * (countNights / stayNights);
+      const cell = ensure(roomType, channel);
+      cell.nights += countNights;
+      cell.revenue += allocatedRevenue;
+      cell.rates.push(stayRate);
+    });
+
+    Object.keys(out).forEach((rt) => {
+      Object.keys(out[rt]).forEach((ch) => {
+        const c = out[rt][ch];
+        c.adr = c.nights > 0 ? c.revenue / c.nights : 0;
+        c.min = c.rates.length ? Math.min(...c.rates) : 0;
+        c.max = c.rates.length ? Math.max(...c.rates) : 0;
+      });
+    });
+    return out;
+  }, [safeReservations, periodPreset, analysisYear, analysisMonth, analysisDate, now, todayStr]);
+
+  // Chart data: room type comparison by revenue (line with markers)
+  const roomTypeChartData = useMemo(() => {
+    const byRoom = resAnalysis.byRoomType;
+    const roomTypes = [...ROOM_TYPES, ...Object.keys(byRoom).filter((rt) => !ROOM_TYPES.includes(rt))];
+    const labels = roomTypes.filter((rt) => byRoom[rt] && byRoom[rt].nights > 0);
+    const revenueData = labels.map((rt) => (byRoom[rt]?.revenue ?? 0));
+    const colors = [theme.primary, theme.success, theme.secondary, theme.warning, theme.ocean];
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Revenue ($)",
+          data: revenueData,
+          backgroundColor: labels.map((_, i) => colors[i % colors.length] + "33"),
+          borderColor: labels.map((_, i) => colors[i % colors.length]),
+          borderWidth: 2,
+          tension: 0.3,
+          pointRadius: 4,
+          pointHoverRadius: 5,
+          pointBackgroundColor: labels.map((_, i) => colors[i % colors.length]),
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 1.5,
+        },
+      ],
+    };
+  }, [resAnalysis.byRoomType]);
+
+  const roomTypeChartOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const value = ctx.parsed.y;
+              const num = Number(value);
+              if (!Number.isFinite(num)) return "";
+              return `Revenue: $${num.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: "rgba(0,0,0,0.06)" },
+          ticks: { color: "#64748b", font: { size: 11 } },
+        },
+        y: {
+          grid: { display: false },
+          ticks: { color: "#475569", font: { size: 11 } },
+        },
+      },
+    }),
+    []
+  );
+
+  // Channel-level summary (aggregated from room type × channel matrix)
+  const channelSummary = useMemo(() => {
+    const out = {};
+    BOOKING_CHANNELS.forEach((ch) => {
+      out[ch] = { revenue: 0, nights: 0, adr: 0 };
+    });
+    Object.keys(byRoomTypeByChannel).forEach((rt) => {
+      const row = byRoomTypeByChannel[rt] || {};
+      Object.keys(row).forEach((ch) => {
+        const cell = row[ch];
+        if (!cell) return;
+        if (!out[ch]) out[ch] = { revenue: 0, nights: 0, adr: 0 };
+        out[ch].revenue += cell.revenue || 0;
+        out[ch].nights += cell.nights || 0;
+      });
+    });
+    Object.keys(out).forEach((ch) => {
+      const row = out[ch];
+      if (!row) return;
+      row.adr = row.nights > 0 ? row.revenue / row.nights : 0;
+    });
+    return out;
+  }, [byRoomTypeByChannel]);
+
+  // Channel productivity chart (revenue by channel)
+  const channelChartData = useMemo(() => {
+    const labels = BOOKING_CHANNELS;
+    const colors = [theme.primary, theme.success, theme.secondary, theme.warning, theme.ocean];
+    const revenueData = labels.map((ch) => (channelSummary[ch]?.revenue ?? 0));
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Revenue ($)",
+          data: revenueData,
+          backgroundColor: labels.map((_, i) => colors[i % colors.length] + "33"),
+          borderColor: labels.map((_, i) => colors[i % colors.length]),
+          borderWidth: 2,
+          tension: 0.3,
+          pointRadius: 4,
+          pointHoverRadius: 5,
+          pointBackgroundColor: labels.map((_, i) => colors[i % colors.length]),
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 1.5,
+        },
+      ],
+    };
+  }, [channelSummary]);
+
+  const channelChartOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const value = ctx.parsed.y ?? ctx.parsed.x;
+              const num = Number(value);
+              if (!Number.isFinite(num)) return "";
+              return `Revenue: $${num.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: "rgba(0,0,0,0.06)" },
+          ticks: { color: "#64748b", font: { size: 11 } },
+        },
+        y: {
+          grid: { display: false },
+          ticks: { color: "#475569", font: { size: 11 } },
+        },
+      },
+    }),
+    []
+  );
+
   const styles = {
-    container: { padding: "30px", background: "#f8fafc", minHeight: "100vh", fontFamily: "Segoe UI, sans-serif" },
-    
-    headerCard: { 
-        position: "relative", 
-        background: "linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)", 
-        padding: "20px 30px", 
-        borderRadius: "16px", 
-        boxShadow: "0 4px 20px rgba(0,0,0,0.05)", 
-        display: "flex", 
-        justifyContent: "space-between", 
-        alignItems: "center", 
-        marginBottom: "30px", 
-        border: "1px solid #bae6fd" 
+    container: {
+      padding: "30px",
+      background: theme.bg,
+      minHeight: "100vh",
+      fontFamily: "Segoe UI, Inter, sans-serif",
+      boxSizing: "border-box",
     },
-    
-    grid: { display: "grid", gridTemplateColumns: "380px 1fr", gap: "30px" },
-    card: { background: "white", borderRadius: "20px", boxShadow: "0 10px 30px rgba(0,0,0,0.08)", overflow: "hidden", border: "1px solid #f1f5f9" },
-    cardHeader: { background: editingRateId ? "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)" : "linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)", padding: "20px", color: "white", fontWeight: "bold", display: "flex", alignItems: "center", gap: "10px", boxShadow: "0 4px 6px rgba(0,0,0,0.05)" },
-    cardBody: { padding: "25px" },
-    inputGroup: { marginBottom: "15px" },
-    label: { display: "block", fontSize: "12px", color: "#64748b", fontWeight: "bold", marginBottom: "5px", textTransform: "uppercase" },
-    input: { width: "100%", padding: "12px", borderRadius: "10px", border: "1px solid #e2e8f0", background: "#f8fafc", fontSize: "14px", outline: "none", transition: "0.3s" },
-    selectInput: { width: "100%", maxWidth: "280px", padding: "10px 12px", borderRadius: "10px", border: "1px solid #cbd5e1", background: "#ffffff", fontSize: "14px", outline: "none", fontWeight: "600", color: "#334155", cursor: "pointer" },
-    previewSelect: { padding: "6px 12px", borderRadius: "8px", border: "1px solid #e2e8f0", outline: "none", fontSize: "13px", color: "#475569", cursor: "pointer", maxWidth: "200px" },
-    rateInput: { width: "100%", padding: "10px 12px", borderRadius: "10px", border: "none", background: "transparent", fontSize: "18px", fontWeight: "bold", color: "#0369a1", outline: "none" },
-    pkgInput: { width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #cbd5e1", textAlign: "center", fontWeight: "normal", color: "#334155", fontSize: "14px", backgroundColor: "#ffffff", outline: "none", transition: "border-color 0.3s" },
-    btnPrimary: { width: "100%", padding: "15px", background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)", color: "white", border: "none", borderRadius: "12px", fontWeight: "bold", cursor: "pointer", fontSize: "16px", marginTop: "15px", boxShadow: "0 4px 10px rgba(37, 99, 235, 0.2)" },
-    previewContainer: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "10px", marginTop: "15px" },
-    previewBox: (isActive) => ({ background: isActive ? "#eff6ff" : "#f8fafc", border: isActive ? "2px solid #3b82f6" : "1px solid #e2e8f0", borderRadius: "12px", padding: "15px", textAlign: "center" }),
-    filterBar: { padding: "15px 20px", background: "#f8fafc", borderBottom: "1px solid #f1f5f9", display: "flex", gap: "10px", alignItems: "center" },
-    filterInput: { padding: "8px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", color: "#334155", outline: "none", background: "white", cursor: "pointer" },
-    
-    // Logo Style
+    headerCard: {
+      position: "relative",
+      background: "linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)",
+      padding: "20px 30px",
+      borderRadius: "16px",
+      boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "28px",
+      border: "1px solid #bae6fd",
+      minHeight: "100px",
+    },
     logoImage: {
-        width: "80px",
-        height: "80px",
-        objectFit: "cover",
-        borderRadius: "50%",
-        border: "3px solid #e0f2fe", 
-        boxShadow: "0 4px 6px rgba(0,0,0,0.1)", 
-    }
+      width: "80px",
+      height: "80px",
+      objectFit: "cover",
+      borderRadius: "50%",
+      border: "3px solid #e0f2fe",
+      boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+    },
+    card: {
+      background: theme.card,
+      borderRadius: "20px",
+      boxShadow: "0 4px 6px -1px rgba(0,0,0,0.03)",
+      overflow: "hidden",
+      border: `1px solid ${theme.border}`,
+    },
+    cardHeader: {
+      padding: "18px 24px",
+      color: "white",
+      fontWeight: "bold",
+      fontSize: "15px",
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+    },
+    kpiCard: (color) => ({
+      background: theme.card,
+      borderRadius: "16px",
+      padding: "20px",
+      boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+      border: `1px solid ${theme.border}`,
+      borderLeft: `4px solid ${color}`,
+    }),
+    label: { display: "block", fontSize: "11px", color: theme.textSub, fontWeight: "bold", marginBottom: "6px", textTransform: "uppercase" },
+    filterInput: {
+      padding: "8px 12px",
+      borderRadius: "10px",
+      border: `1px solid ${theme.border}`,
+      fontSize: "13px",
+      color: theme.textMain,
+      outline: "none",
+      background: theme.card,
+      cursor: "pointer",
+    },
+    pillContainer: {
+      background: theme.card,
+      padding: "4px",
+      borderRadius: "50px",
+      boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+      display: "flex",
+      gap: "4px",
+      border: `1px solid ${theme.border}`,
+    },
+    pillButton: (active) => ({
+      padding: "8px 16px",
+      borderRadius: "50px",
+      border: "none",
+      fontWeight: "600",
+      fontSize: "12px",
+      cursor: "pointer",
+      textTransform: "uppercase",
+      transition: "0.2s",
+      background: active ? theme.primary : "transparent",
+      color: active ? "#ffffff" : theme.textSub,
+    }),
+    tableHead: {
+      background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+      borderBottom: `2px solid ${theme.border}`,
+    },
+    sectionTitle: { fontSize: "14px", fontWeight: "700", color: theme.textMain, marginBottom: "12px" },
+  };
+
+  const fmt = (n) => {
+    if (n == null || Number.isNaN(n)) return "—";
+    const num = Number(n);
+    if (!Number.isFinite(num)) return "—";
+    return `$${num.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   };
 
   return (
     <div style={styles.container}>
       <div style={styles.headerCard}>
-        {/* Left Side: Logo & Hotel Name */}
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <img src={HOTEL_LOGO} alt="Ocean Blue Lagoon" style={styles.logoImage} onError={(e) => e.target.style.display='none'} />
-          
+          <img src={HOTEL_LOGO} alt="Ocean Blue Lagoon" style={styles.logoImage} onError={(e) => (e.target.style.display = "none")} />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <h1 style={{ margin: 0, color: "#0f172a", fontSize: "36px", fontFamily: "'Brush Script MT', cursive", letterSpacing: "1px", fontWeight: "normal", lineHeight: "1" }}>
+            <h1 style={{ margin: 0, color: theme.textMain, fontSize: "36px", fontFamily: "'Brush Script MT', cursive", letterSpacing: "1px", fontWeight: "normal", lineHeight: "1" }}>
               Ocean Blue Lagoon
             </h1>
-            <span style={{ fontSize: "22px", fontFamily: "'Brush Script MT', cursive", color: "#64748b", marginTop: "5px" }}>
-              Maldives Resort
-            </span>
+            <span style={{ fontSize: "22px", fontFamily: "'Brush Script MT', cursive", color: theme.textSub, marginTop: "5px" }}>Maldives Resort</span>
           </div>
         </div>
-
-        {/* 🔥 Center Title & Icon: Side by Side (Row) */}
-        <div style={{ 
-          position: "absolute", 
-          left: "50%", 
-          transform: "translateX(-50%)", 
-          display: "flex",          // جعلنا العناصر بجانب بعضها
-          alignItems: "center",     // محاذاة عمودية
-          gap: "10px"               // مسافة بين الكلمة والأيقونة
-        }}>
-           <span style={{ 
-             fontSize: "24px", 
-             fontWeight: "bold", 
-             color: "#1e293b", 
-             fontFamily: "'Playfair Display', serif", 
-             fontStyle: "italic",
-             textShadow: "0px 2px 4px rgba(0,0,0,0.1)",
-             lineHeight: "1"
-           }}>
-             Rates Manager
-           </span>
-           {/* 🔥 The Icon is now NEXT to the text */}
-           <FaTags style={{ fontSize: "22px", color: "#3b82f6", opacity: 0.9 }} />
+        <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "10px" }}>
+          <span style={{ fontSize: "24px", fontWeight: "bold", color: theme.textMain, fontFamily: "'Playfair Display', serif", fontStyle: "italic", textShadow: "0 2px 4px rgba(0,0,0,0.08)", lineHeight: "1" }}>
+            Rate Analysis
+          </span>
+          <FaChartLine style={{ fontSize: "22px", color: theme.primary, opacity: 0.95 }} />
         </div>
-        
-        {/* Right Side: Total Records */}
         <div style={{ textAlign: "right" }}>
-          <span style={{ display: "block", fontSize: "11px", fontWeight: "bold", color: "#0ea5e9", textTransform: "uppercase" }}>Total Records</span>
-          <span style={{ fontSize: "28px", fontWeight: "900", color: "#0f172a" }}>{dailyRates?.length || 0}</span>
+          <span style={{ display: "block", fontSize: "11px", fontWeight: "bold", color: theme.primary, textTransform: "uppercase" }}>Reservations</span>
+          <span style={{ fontSize: "28px", fontWeight: "900", color: theme.textMain }}>{safeReservations.length}</span>
         </div>
       </div>
 
-      <div style={styles.grid}>
-        {/* Editor Form */}
-        <div style={{ height: "fit-content" }}>
-          <div style={styles.card}>
-            <div style={styles.cardHeader}>
-              {editingRateId ? <FaEdit /> : <FaPlus />} 
-              {editingRateId ? "Update Rate" : "Add New Rate"}
-            </div>
-            <div style={styles.cardBody}>
-              <div style={styles.inputGroup}>
-                <label style={styles.label}><FaBed style={{marginRight:5}}/> Room Type</label>
-                <select style={styles.selectInput} value={rateForm.roomType} onChange={(e) => setRateForm({...rateForm, roomType: e.target.value})}>
-                  {ROOM_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "15px" }}>
-                <div><label style={styles.label}>From</label><input type="date" style={styles.input} value={rateForm.from} onChange={(e) => setRateForm({...rateForm, from: e.target.value})} /></div>
-                <div><label style={styles.label}>To</label><input type="date" style={styles.input} value={rateForm.to} onChange={(e) => setRateForm({...rateForm, to: e.target.value})} /></div>
-              </div>
-
-              <div style={{ background: "#f0f9ff", padding: "12px", borderRadius: "12px", border: "1px solid #bae6fd", marginBottom: "20px" }}>
-                <label style={{ ...styles.label, color: "#0284c7" }}>Nightly Rate ($)</label>
-                <input type="number" placeholder="0.00" style={styles.rateInput} value={rateForm.rate} onChange={(e) => setRateForm({...rateForm, rate: e.target.value})} />
-              </div>
-
-              <div style={{ background: "#f8fafc", padding: "15px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-                <label style={{ ...styles.label, display: "flex", alignItems: "center", gap: "5px", marginBottom: "10px" }}><FaUtensils size={10}/> Food Package Rates (Add-on)</label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
-                  <div>
-                    <span style={{ fontSize: "10px", fontWeight: "bold", color: "#64748b", display: "block", marginBottom: "3px", textAlign:"center" }}>BB</span>
-                    <input type="number" placeholder="0" style={styles.pkgInput} value={rateForm.pkgBB} onChange={(e) => setRateForm({...rateForm, pkgBB: e.target.value})} />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: "10px", fontWeight: "bold", color: "#64748b", display: "block", marginBottom: "3px", textAlign:"center" }}>HB</span>
-                    <input type="number" placeholder="0" style={styles.pkgInput} value={rateForm.pkgHB} onChange={(e) => setRateForm({...rateForm, pkgHB: e.target.value})} />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: "10px", fontWeight: "bold", color: "#64748b", display: "block", marginBottom: "3px", textAlign:"center" }}>FB</span>
-                    <input type="number" placeholder="0" style={styles.pkgInput} value={rateForm.pkgFB} onChange={(e) => setRateForm({...rateForm, pkgFB: e.target.value})} />
-                  </div>
-                </div>
-              </div>
-
-              <button style={styles.btnPrimary} onClick={saveRate}>
-                <FaSave style={{ marginRight: "8px" }}/>
-                {editingRateId ? "Update Rate" : "Save Rate"}
-              </button>
-              
-              {editingRateId && (
-                <button onClick={resetForm} style={{ width: "100%", padding: "10px", background: "transparent", border: "none", color: "#64748b", cursor: "pointer", marginTop: "10px" }}>Cancel</button>
-              )}
-            </div>
-          </div>
+      <div style={{ ...styles.card, marginBottom: "24px" }}>
+        <div style={{ ...styles.cardHeader, background: `linear-gradient(135deg, ${theme.primary} 0%, #0284c7 100%)` }}>
+          <FaChartLine /> Rate analysis from reservations
         </div>
-
-        {/* Preview & List */}
-        <div>
-          <div style={{ ...styles.card, marginBottom: "30px" }}>
-            <div style={{ padding: "20px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "10px", color: "#334155" }}><FaCalendarAlt color="#3b82f6"/> Availability Pulse (7 Days)</h3>
-              <select style={styles.previewSelect} value={previewType} onChange={(e) => setPreviewType(e.target.value)}>
-                 {ROOM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div style={{ padding: "20px" }}>
-              <div style={styles.previewContainer}>
-                {previewDays.map((d) => (
-                  <div key={d.date} style={styles.previewBox(d.status === "Set")}>
-                    <div style={{ fontSize: "11px", color: "#94a3b8", textTransform: "uppercase" }}>{d.label.split(' ')[0]}</div>
-                    <div style={{ fontSize: "16px", fontWeight: "bold", margin: "5px 0", color: "#1e293b" }}>{d.label.split(' ')[1]}</div>
-                    <div style={{ fontSize: "13px", fontWeight: "bold", color: d.status === "Set" ? "#2563eb" : "#cbd5e1" }}>
-                      {d.rate ? `$${d.rate}` : "—"}
-                    </div>
-                  </div>
+        <div style={{ padding: "20px 24px" }}>
+          <p style={{ margin: "0 0 12px 0", fontSize: "12px", color: theme.textSub }}>
+            Room revenue = room only (excl. F&B). Only checked-in / checked-out reservations are counted (same as Reports).
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", alignItems: "center", marginBottom: "20px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginRight: "16px" }}>
+              <span style={{ ...styles.label, marginBottom: "4px", marginRight: "4px" }}>Period</span>
+              <div style={styles.pillContainer}>
+                {(["today", "mtd", "ytd", "custom"]).map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => {
+                      setPeriodPreset(preset);
+                      if (preset === "today") setAnalysisDate(todayStr);
+                    }}
+                    style={styles.pillButton(periodPreset === preset)}
+                  >
+                    {preset === "mtd" ? "MTD" : preset === "ytd" ? "YTD" : preset === "today" ? "Today" : "Custom"}
+                  </button>
                 ))}
               </div>
             </div>
+            {periodPreset === "custom" && (
+              <>
+                <div>
+                  <span style={{ ...styles.label, marginBottom: "4px" }}>Year</span>
+                  <select style={styles.filterInput} value={analysisYear} onChange={(e) => setAnalysisYear(Number(e.target.value))}>
+                    {[2024, 2025, 2026, 2027, 2028].map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <span style={{ ...styles.label, marginBottom: "4px" }}>Month</span>
+                  <select style={styles.filterInput} value={analysisMonth} onChange={(e) => setAnalysisMonth(e.target.value)}>
+                    <option value="All">All months</option>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                      <option key={m} value={m}>{new Date(0, m - 1).toLocaleString("en", { month: "long" })}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <span style={{ ...styles.label, marginBottom: "4px" }}>Date (optional)</span>
+                  <input
+                    type="date"
+                    style={{ ...styles.filterInput, minWidth: "160px" }}
+                    value={analysisDate}
+                    onChange={(e) => setAnalysisDate(e.target.value.slice(0, 10))}
+                  />
+                </div>
+              </>
+            )}
+            <div style={{ marginLeft: periodPreset === "custom" ? "0" : "auto", alignSelf: "flex-end", fontSize: "12px", color: theme.textSub, fontWeight: "600" }}>
+              Period: {resAnalysis.periodFromStr}
+              {resAnalysis.periodFromStr !== resAnalysis.periodToStr ? ` → ${resAnalysis.periodToStr}` : ""}
+            </div>
           </div>
 
-          <div style={styles.card}>
-            <div style={{ padding: "20px", borderBottom: "1px solid #f1f5f9" }}>
-              <h3 style={{ margin: 0, color: "#334155" }}>Active Rates</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "24px" }}>
+            <div style={styles.kpiCard(theme.primary)}>
+              <span style={styles.label}>Room revenue (period)</span>
+              <div style={{ fontSize: "22px", fontWeight: "800", color: theme.textMain }}>{fmt(resAnalysis.revenue)}</div>
             </div>
-            
-            {/* Filter Bar */}
-            <div style={styles.filterBar}>
-               <FaFilter color="#94a3b8" />
-               <select style={styles.filterInput} value={filterRoom} onChange={(e) => setFilterRoom(e.target.value)}>
-                 <option value="All">All Rooms</option>
-                 {ROOM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-               </select>
-
-               <select style={styles.filterInput} value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}>
-                 <option value="All">All Months</option>
-                 {Array.from({length: 12}, (_, i) => i + 1).map(m => (
-                   <option key={m} value={m}>{new Date(0, m - 1).toLocaleString('en', {month: 'short'})}</option>
-                 ))}
-               </select>
-
-               <select style={styles.filterInput} value={filterYear} onChange={(e) => setFilterYear(e.target.value)}>
-                 <option value="All">All Years</option>
-                 {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-               </select>
-
-               <div style={{ marginLeft: "auto", fontSize: "12px", color: "#64748b", fontWeight: "bold" }}>
-                 Found: {filteredRates.length}
-               </div>
+            <div style={styles.kpiCard(theme.secondary)}>
+              <span style={styles.label}>Reservations</span>
+              <div style={{ fontSize: "22px", fontWeight: "800", color: theme.textMain }}>{resAnalysis.reservationsCount}</div>
             </div>
+            <div style={styles.kpiCard(theme.success)}>
+              <span style={styles.label}>Nights (period)</span>
+              <div style={{ fontSize: "22px", fontWeight: "800", color: theme.textMain }}>{resAnalysis.nightsInPeriod}</div>
+            </div>
+            <div style={styles.kpiCard(theme.warning)}>
+              <span style={styles.label}>ADR</span>
+              <div style={{ fontSize: "22px", fontWeight: "800", color: theme.textMain }}>{fmt(resAnalysis.adr)}</div>
+            </div>
+          </div>
 
-            <div style={{ maxHeight: "400px", overflowY: "auto", padding: "10px" }}>
-              {filteredRates.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "30px", color: "#94a3b8" }}>No rates found matching filters.</div>
-              ) : (
-                filteredRates.map((r) => {
-                  const rId = r.id ?? `${r.roomType ?? r.room_type ?? "rt"}__${r.from ?? r.date_from ?? ""}__${r.to ?? r.date_to ?? ""}`;
-                  const roomType = r.roomType ?? r.room_type ?? "";
-                  const from = r.from ?? r.date_from ?? "";
-                  const to = r.to ?? r.date_to ?? "";
-                  const rate = r.rate ?? r.nightlyRate ?? r.nightly_rate ?? 0;
-                  const bb = r.packages?.BB ?? r.pkg_bb ?? r.bb ?? 0;
-                  const hb = r.packages?.HB ?? r.pkg_hb ?? r.hb ?? 0;
-                  const fb = r.packages?.FB ?? r.pkg_fb ?? r.fb ?? 0;
-                  return (
-                  <div key={rId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "15px", marginBottom: "10px", background: "white", border: "1px solid #f1f5f9", borderRadius: "12px", boxShadow: "0 2px 5px rgba(0,0,0,0.02)" }}>
-                    <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
-                      <div style={{ height: "40px", width: "4px", background: roomType.includes("Standard") ? "#06b6d4" : "#8b5cf6", borderRadius: "2px" }}></div>
-                      <div>
-                        <div style={{ fontWeight: "bold", color: "#1e293b" }}>{roomType}</div>
-                        <div style={{ fontSize: "12px", color: "#64748b" }}>{from} ➔ {to}</div>
-                        <div style={{ fontSize: "14px", color: "#64748b", marginTop: "5px", fontWeight: "normal" }}>
-                          Add-ons: BB ${bb} • HB ${hb} • FB ${fb}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-                      <span style={{ fontSize: "18px", fontWeight: "bold", color: "#0f172a" }}>${rate}</span>
-                      <div style={{ display: "flex", gap: "10px" }}>
-                        <button onClick={() => handleEdit(r)} style={{ background: "#eff6ff", color: "#3b82f6", border: "none", padding: "8px", borderRadius: "8px", cursor: "pointer" }}><FaEdit /></button>
-                        <button onClick={() => {
-                          const getId = (x) => x.id != null ? x.id : (x.roomType ?? x.room_type) + "__" + (x.from ?? x.date_from) + "__" + (x.to ?? x.date_to);
-                          setDailyRates(prev => prev.filter(x => getId(x) !== rId));
-                        }} style={{ background: "#fef2f2", color: "#ef4444", border: "none", padding: "8px", borderRadius: "8px", cursor: "pointer" }}><FaTrash /></button>
-                      </div>
-                    </div>
+          <div>
+            <h4 style={{ ...styles.sectionTitle, margin: "0 0 12px 0" }}>By room type & by channel (from reservations in period)</h4>
+            {/* Row 1: two tables side by side */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(240px, 1fr))", gap: "24px", alignItems: "start" }}>
+              <div>
+                <div style={{ fontSize: "12px", color: theme.textSub, fontWeight: "600", marginBottom: "8px" }}>By room type</div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
+                  <thead>
+                    <tr style={styles.tableHead}>
+                      <th style={{ textAlign: "left", padding: "12px 10px", color: theme.textSub, fontWeight: "600" }}>Room type</th>
+                      <th style={{ textAlign: "right", padding: "12px 10px", color: theme.textSub, fontWeight: "600" }}>Revenue</th>
+                      <th style={{ textAlign: "right", padding: "12px 10px", color: theme.textSub, fontWeight: "600" }}>Nights</th>
+                      <th style={{ textAlign: "right", padding: "12px 10px", color: theme.textSub, fontWeight: "600" }}>ADR</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ROOM_TYPES.map((rt) => {
+                      const row = resAnalysis.byRoomType[rt];
+                      if (!row || row.nights === 0) return <tr key={rt} style={{ borderBottom: `1px solid ${theme.border}` }}><td style={{ padding: "10px 8px", color: theme.textSub }}>{rt}</td><td colSpan={3} style={{ padding: "10px 8px", color: theme.textSub, textAlign: "right" }}>—</td></tr>;
+                      return (
+                        <tr key={rt} style={{ borderBottom: `1px solid ${theme.border}` }}>
+                          <td style={{ padding: "10px 8px", fontWeight: "600", color: theme.textMain }}>{rt}</td>
+                          <td style={{ padding: "10px 8px", textAlign: "right", color: theme.success, fontWeight: "600" }}>{fmt(row.revenue)}</td>
+                          <td style={{ padding: "10px 8px", textAlign: "right", color: theme.textMain }}>{row.nights}</td>
+                          <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: "600", color: theme.primary }}>{fmt(row.adr)}</td>
+                        </tr>
+                      );
+                    })}
+                    {Object.keys(resAnalysis.byRoomType).filter((rt) => !ROOM_TYPES.includes(rt)).map((rt) => {
+                      const row = resAnalysis.byRoomType[rt];
+                      return (
+                        <tr key={rt} style={{ borderBottom: `1px solid ${theme.border}` }}>
+                          <td style={{ padding: "10px 8px", fontWeight: "600", color: theme.textMain }}>{rt}</td>
+                          <td style={{ padding: "10px 8px", textAlign: "right", color: theme.success, fontWeight: "600" }}>{fmt(row.revenue)}</td>
+                          <td style={{ padding: "10px 8px", textAlign: "right", color: theme.textMain }}>{row.nights}</td>
+                          <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: "600", color: theme.primary }}>{fmt(row.adr)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div>
+                <div style={{ fontSize: "12px", color: theme.textSub, fontWeight: "600", marginBottom: "8px" }}>By channel</div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                  <thead>
+                    <tr style={styles.tableHead}>
+                      <th style={{ textAlign: "left", padding: "10px 10px", color: theme.textSub, fontWeight: "600" }}>Channel</th>
+                      <th style={{ textAlign: "right", padding: "10px 10px", color: theme.textSub, fontWeight: "600" }}>Revenue</th>
+                      <th style={{ textAlign: "right", padding: "10px 10px", color: theme.textSub, fontWeight: "600" }}>Nights</th>
+                      <th style={{ textAlign: "right", padding: "10px 10px", color: theme.textSub, fontWeight: "600" }}>ADR</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {BOOKING_CHANNELS.map((ch) => {
+                      const row = channelSummary[ch] || { revenue: 0, nights: 0, adr: 0 };
+                      const hasData = row.nights > 0 || row.revenue > 0;
+                      return (
+                        <tr key={ch} style={{ borderBottom: `1px solid ${theme.border}` }}>
+                          <td style={{ padding: "8px 8px", fontWeight: "600", color: theme.textMain }}>{ch}</td>
+                          <td style={{ padding: "8px 8px", textAlign: "right", color: theme.success, fontWeight: "600" }}>
+                            {hasData ? fmt(row.revenue) : "—"}
+                          </td>
+                          <td style={{ padding: "8px 8px", textAlign: "right", color: theme.textMain }}>
+                            {hasData ? row.nights : "—"}
+                          </td>
+                          <td style={{ padding: "8px 8px", textAlign: "right", fontWeight: "600", color: theme.primary }}>
+                            {hasData ? fmt(row.adr) : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            {/* Row 2: two graphs side by side under the tables */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(240px, 1fr))", gap: "24px", marginTop: "24px", alignItems: "stretch" }}>
+              <div style={{ background: theme.bg, borderRadius: "12px", padding: "16px", border: `1px solid ${theme.border}`, minHeight: "260px" }}>
+                <div style={{ fontSize: "12px", color: theme.textSub, fontWeight: "600", marginBottom: "8px" }}>Room type comparison</div>
+                {roomTypeChartData.labels.length > 0 ? (
+                  <div style={{ height: "240px" }}>
+                    <Line data={roomTypeChartData} options={roomTypeChartOptions} />
                   </div>
-                  );
-                })
-              )}
+                ) : (
+                  <div style={{ height: "240px", display: "flex", alignItems: "center", justifyContent: "center", color: theme.textSub, fontSize: "13px" }}>
+                    No room data in period
+                  </div>
+                )}
+              </div>
+              <div style={{ background: theme.bg, borderRadius: "12px", padding: "16px", border: `1px solid ${theme.border}`, minHeight: "260px" }}>
+                <div style={{ fontSize: "12px", color: theme.textSub, fontWeight: "600", marginBottom: "8px" }}>Channel productivity</div>
+                {BOOKING_CHANNELS.some((ch) => (channelSummary[ch]?.revenue ?? 0) > 0) ? (
+                  <div style={{ height: "240px" }}>
+                    <Line data={channelChartData} options={channelChartOptions} />
+                  </div>
+                ) : (
+                  <div style={{ height: "240px", display: "flex", alignItems: "center", justifyContent: "center", color: theme.textSub, fontSize: "13px" }}>
+                    No channel data in period
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Room type × Channel: RN, ADR, Total revenue (ocean theme) */}
+      <div style={{ ...styles.card, marginBottom: "24px" }}>
+        <div style={{ ...styles.cardHeader, background: `linear-gradient(135deg, ${theme.ocean} 0%, ${theme.oceanDark} 100%)` }}>
+          <FaChartLine /> Room type × Channel — RN, ADR, Total revenue
+        </div>
+        <div style={{ padding: "20px 24px", overflowX: "auto" }}>
+          <p style={{ margin: "0 0 16px 0", fontSize: "13px", color: theme.textSub }}>
+            Room nights (RN), average daily rate (ADR), and total room revenue per room type and booking channel for the selected period.
+          </p>
+          <table style={{ width: "100%", minWidth: "700px", borderCollapse: "collapse", fontSize: "13px" }}>
+            <thead>
+              <tr style={styles.tableHead}>
+                <th style={{ textAlign: "left", padding: "10px 12px", color: theme.textSub, fontWeight: "600", position: "sticky", left: 0, background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)" }}>Room type</th>
+                {BOOKING_CHANNELS.map((ch) => (
+                  <th key={ch} colSpan={3} style={{ padding: "10px 12px", color: theme.oceanDark, fontWeight: "600", textAlign: "center", borderLeft: `1px solid ${theme.border}` }}>
+                    {ch}
+                  </th>
+                ))}
+              </tr>
+              <tr style={styles.tableHead}>
+                <th style={{ textAlign: "left", padding: "8px 12px", color: theme.textSub, fontWeight: "600", fontSize: "11px", position: "sticky", left: 0, background: theme.bg }}></th>
+                {BOOKING_CHANNELS.map((ch) => (
+                  <React.Fragment key={ch}>
+                    <th style={{ padding: "8px 6px", color: theme.textSub, fontWeight: "600", fontSize: "11px", textAlign: "right", borderLeft: `1px solid ${theme.border}` }}>RN</th>
+                    <th style={{ padding: "8px 6px", color: theme.textSub, fontWeight: "600", fontSize: "11px", textAlign: "right" }}>ADR</th>
+                    <th style={{ padding: "8px 6px", color: theme.textSub, fontWeight: "600", fontSize: "11px", textAlign: "right" }}>Revenue</th>
+                  </React.Fragment>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {ROOM_TYPES.map((rt) => (
+                <tr key={rt} style={{ borderBottom: `1px solid ${theme.border}` }}>
+                  <td style={{ padding: "10px 12px", fontWeight: "600", color: theme.textMain, position: "sticky", left: 0, background: theme.card }}>{rt}</td>
+                  {BOOKING_CHANNELS.map((ch) => {
+                    const cell = byRoomTypeByChannel[rt]?.[ch];
+                    const nights = cell?.nights ?? 0;
+                    const adr = cell?.adr ?? 0;
+                    const revenue = cell?.revenue ?? 0;
+                    return (
+                      <React.Fragment key={ch}>
+                        <td style={{ padding: "8px 6px", textAlign: "right", color: theme.textMain, borderLeft: `1px solid ${theme.border}` }}>{nights}</td>
+                        <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: "600", color: theme.primary }}>{nights > 0 ? fmt(adr) : "—"}</td>
+                        <td style={{ padding: "8px 6px", textAlign: "right", color: theme.success, fontWeight: "600" }}>{nights > 0 ? fmt(revenue) : "—"}</td>
+                      </React.Fragment>
+                    );
+                  })}
+                </tr>
+              ))}
+              {Object.keys(byRoomTypeByChannel).filter((rt) => !ROOM_TYPES.includes(rt)).map((rt) => (
+                <tr key={rt} style={{ borderBottom: `1px solid ${theme.border}` }}>
+                  <td style={{ padding: "10px 12px", fontWeight: "600", color: theme.textMain, position: "sticky", left: 0, background: theme.card }}>{rt}</td>
+                  {BOOKING_CHANNELS.map((ch) => {
+                    const cell = byRoomTypeByChannel[rt]?.[ch];
+                    const nights = cell?.nights ?? 0;
+                    const adr = cell?.adr ?? 0;
+                    const revenue = cell?.revenue ?? 0;
+                    return (
+                      <React.Fragment key={ch}>
+                        <td style={{ padding: "8px 6px", textAlign: "right", color: theme.textMain, borderLeft: `1px solid ${theme.border}` }}>{nights}</td>
+                        <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: "600", color: theme.primary }}>{nights > 0 ? fmt(adr) : "—"}</td>
+                        <td style={{ padding: "8px 6px", textAlign: "right", color: theme.success, fontWeight: "600" }}>{nights > 0 ? fmt(revenue) : "—"}</td>
+                      </React.Fragment>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Room type × Channel: RN, Min / Avg / Max rate (secondary theme) */}
+      <div style={{ ...styles.card, marginBottom: "24px" }}>
+        <div style={{ ...styles.cardHeader, background: `linear-gradient(135deg, ${theme.secondary} 0%, #4f46e5 100%)` }}>
+          <FaChartLine /> Room type × Channel — RN, Min / Avg / Max rate by channel
+        </div>
+        <div style={{ padding: "20px 24px", overflowX: "auto" }}>
+          <p style={{ margin: "0 0 16px 0", fontSize: "13px", color: theme.textSub }}>
+            For the selected period, each room type shows room nights (RN) and minimum, average, and maximum rate per booking channel.
+          </p>
+          <table style={{ width: "100%", minWidth: "900px", borderCollapse: "collapse", fontSize: "13px" }}>
+            <thead>
+              <tr style={styles.tableHead}>
+                <th style={{ textAlign: "left", padding: "10px 12px", color: theme.textSub, fontWeight: "600", position: "sticky", left: 0, background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)" }}>Room type</th>
+                {BOOKING_CHANNELS.map((ch) => (
+                  <th key={ch} colSpan={4} style={{ padding: "10px 12px", color: "#4f46e5", fontWeight: "600", textAlign: "center", borderLeft: `1px solid ${theme.border}` }}>
+                    {ch}
+                  </th>
+                ))}
+              </tr>
+              <tr style={styles.tableHead}>
+                <th style={{ textAlign: "left", padding: "8px 12px", color: theme.textSub, fontWeight: "600", fontSize: "11px", position: "sticky", left: 0, background: theme.bg }}></th>
+                {BOOKING_CHANNELS.map((ch) => (
+                  <React.Fragment key={ch}>
+                    <th style={{ padding: "8px 6px", color: theme.textSub, fontWeight: "600", fontSize: "11px", textAlign: "right", borderLeft: `1px solid ${theme.border}` }}>RN</th>
+                    <th style={{ padding: "8px 6px", color: theme.textSub, fontWeight: "600", fontSize: "11px", textAlign: "right" }}>Min</th>
+                    <th style={{ padding: "8px 6px", color: theme.textSub, fontWeight: "600", fontSize: "11px", textAlign: "right" }}>Avg</th>
+                    <th style={{ padding: "8px 6px", color: theme.textSub, fontWeight: "600", fontSize: "11px", textAlign: "right" }}>Max</th>
+                  </React.Fragment>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {ROOM_TYPES.map((rt) => (
+                <tr key={rt} style={{ borderBottom: `1px solid ${theme.border}` }}>
+                  <td style={{ padding: "10px 12px", fontWeight: "600", color: theme.textMain, position: "sticky", left: 0, background: theme.card }}>{rt}</td>
+                  {BOOKING_CHANNELS.map((ch) => {
+                    const cell = byRoomTypeByChannel[rt]?.[ch];
+                    const nights = cell?.nights ?? 0;
+                    const min = cell?.min ?? 0;
+                    const adr = cell?.adr ?? 0;
+                    const max = cell?.max ?? 0;
+                    return (
+                      <React.Fragment key={ch}>
+                        <td style={{ padding: "8px 6px", textAlign: "right", color: theme.textMain, borderLeft: `1px solid ${theme.border}` }}>{nights}</td>
+                        <td style={{ padding: "8px 6px", textAlign: "right", color: theme.success, fontSize: "12px" }}>{nights > 0 ? fmt(min) : "—"}</td>
+                        <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: "600", color: theme.secondary }}>{nights > 0 ? fmt(adr) : "—"}</td>
+                        <td style={{ padding: "8px 6px", textAlign: "right", color: theme.danger, fontSize: "12px" }}>{nights > 0 ? fmt(max) : "—"}</td>
+                      </React.Fragment>
+                    );
+                  })}
+                </tr>
+              ))}
+              {Object.keys(byRoomTypeByChannel).filter((rt) => !ROOM_TYPES.includes(rt)).map((rt) => (
+                <tr key={rt} style={{ borderBottom: `1px solid ${theme.border}` }}>
+                  <td style={{ padding: "10px 12px", fontWeight: "600", color: theme.textMain, position: "sticky", left: 0, background: theme.card }}>{rt}</td>
+                  {BOOKING_CHANNELS.map((ch) => {
+                    const cell = byRoomTypeByChannel[rt]?.[ch];
+                    const nights = cell?.nights ?? 0;
+                    const min = cell?.min ?? 0;
+                    const adr = cell?.adr ?? 0;
+                    const max = cell?.max ?? 0;
+                    return (
+                      <React.Fragment key={ch}>
+                        <td style={{ padding: "8px 6px", textAlign: "right", color: theme.textMain, borderLeft: `1px solid ${theme.border}` }}>{nights}</td>
+                        <td style={{ padding: "8px 6px", textAlign: "right", color: theme.success, fontSize: "12px" }}>{nights > 0 ? fmt(min) : "—"}</td>
+                        <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: "600", color: theme.secondary }}>{nights > 0 ? fmt(adr) : "—"}</td>
+                        <td style={{ padding: "8px 6px", textAlign: "right", color: theme.danger, fontSize: "12px" }}>{nights > 0 ? fmt(max) : "—"}</td>
+                      </React.Fragment>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
