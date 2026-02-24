@@ -1932,6 +1932,61 @@ useEffect(() => {
     })();
   }, [cloudBootstrapped, extraRevenues]);
 
+  // Expenses: keep Supabase in sync with local (same pattern as extra revenues)
+  useEffect(() => {
+    if (!cloudBootstrapped) return;
+    const cfg = lsGet(SB_LS_CFG, null);
+    const anon = (cfg?.anon || cfg?.anonKey || "").trim();
+    if (!cfg?.enabled || !cfg?.url || !anon) return;
+
+    const localList = Array.isArray(expenses) ? expenses : [];
+    const localIds = new Set(localList.filter((e) => e && e.id).map((e) => String(e.id)));
+
+    const rows = localList
+      .filter((e) => e && e.id)
+      .map((e) => {
+        const dateStr = (e.expense_date || e.date || "").toString().trim().slice(0, 10);
+        const expenseDate =
+          /^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr : new Date().toISOString().slice(0, 10);
+        const nowIso = new Date().toISOString();
+        return {
+          id: String(e.id),
+          expense_date: expenseDate,
+          category: (e.category || "Other").trim(),
+          vendor: (e.vendor || "").trim(),
+          description: (e.description || "").trim(),
+          amount: Number(e.amount ?? 0),
+          method: (e.method || "").trim(),
+          ref: (e.ref || "").trim(),
+          updated_at: nowIso,
+        };
+      });
+
+    (async () => {
+      try {
+        const sb = createClient(cfg.url, anon);
+        if (rows.length) {
+          const { error: upErr } = await sb.from("ocean_expenses").upsert(rows, { onConflict: "id" });
+          if (upErr) {
+            console.error("ocean_expenses upsert error:", upErr.message, upErr.details);
+            return;
+          }
+        }
+        const { data: existing, error: selErr } = await sb.from("ocean_expenses").select("id");
+        if (selErr) {
+          console.error("ocean_expenses select error:", selErr.message);
+          return;
+        }
+        const idsToRemove = (existing || []).map((r) => r.id).filter((id) => id && !localIds.has(id));
+        if (idsToRemove.length) {
+          await sb.from("ocean_expenses").delete().in("id", idsToRemove);
+        }
+      } catch (e) {
+        console.error("ocean_expenses sync failed:", e);
+      }
+    })();
+  }, [cloudBootstrapped, expenses]);
+
   useEffect(() => {
     storeSave("oceanstay_daily_rates_v1", dailyRates);
   }, [dailyRates]);
