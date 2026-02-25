@@ -486,15 +486,16 @@ export default function ReportsPage({ reservations, expenses, extraRevenues, tot
 
   // --- Styles from RoomsPage ---
   const headerStyles = {
-    headerCard: { 
-        position: "relative", 
-        background: "linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)", 
-        padding: "20px 30px", 
-        borderRadius: "16px", 
-        boxShadow: "0 4px 20px rgba(0,0,0,0.05)", 
-        display: "flex", 
-        justifyContent: "space-between", 
-        alignItems: "center", 
+headerCard: {
+        position: "relative",
+        background: "var(--header-card-bg)",
+        padding: "20px 28px",
+        borderRadius: "var(--radius-card)",
+        boxShadow: "var(--header-card-shadow)",
+        border: "var(--header-card-border)",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
         marginBottom: "20px",
         border: "1px solid #bae6fd" 
     },
@@ -913,15 +914,15 @@ export default function ReportsPage({ reservations, expenses, extraRevenues, tot
       {/* HEADER */}
       <div style={headerStyles.headerCard}>
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <img src={HOTEL_LOGO} alt="Ocean Blue Lagoon" style={headerStyles.logoImage} onError={(e) => e.target.style.display='none'} />
+          <img src={HOTEL_LOGO} alt="Ocean Stay" style={headerStyles.logoImage} onError={(e) => e.target.style.display='none'} />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <h1 style={{ margin: 0, color: "#0f172a", fontSize: "36px", fontFamily: "'Brush Script MT', cursive", letterSpacing: "1px", fontWeight: "normal", lineHeight: "1" }}>Ocean Blue Lagoon</h1>
-            <span style={{ fontSize: "22px", fontFamily: "'Brush Script MT', cursive", color: "#64748b", marginTop: "5px" }}>Maldives Resort</span>
+            <h1 className="app-page-title">Ocean Stay</h1>
+            <span className="app-page-subtitle" style={{ marginTop: "5px" }}>Maldives</span>
           </div>
         </div>
 
         <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "10px" }}>
-           <span style={{ fontSize: "24px", fontWeight: "bold", color: "#1e293b", fontFamily: "'Playfair Display', serif", fontStyle: "italic", lineHeight: "1" }}>Financial Reports</span>
+           <span className="app-page-address" style={{ fontSize: "24px", fontWeight: "bold", color: "#1e293b", lineHeight: "1" }}>Financial Reports</span>
            <FaChartLine style={{ fontSize: "22px", color: "#3b82f6", opacity: 0.9 }} />
         </div>
         

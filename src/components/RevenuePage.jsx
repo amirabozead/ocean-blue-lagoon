@@ -121,7 +121,7 @@ const TrendDot = ({ cx, cy, payload, isMax, isMin }) => {
       cx={cx}
       cy={cy}
       r={showPulse ? 5 : 3.5}
-      fill={isMax ? "#2563eb" : isMin ? "#f97316" : "#2563eb"}
+      fill={isMax ? "#0d9488" : isMin ? "#f97316" : "#0d9488"}
       fillOpacity={showPulse ? 1 : 0.85}
       stroke="#ffffff"
       strokeWidth={2}
@@ -230,23 +230,24 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
   const headerStyles = {
     headerCard: {
       position: "relative",
-      background: "linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)",
-      padding: "20px 30px",
-      borderRadius: "16px",
-      boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
+      background: "var(--header-card-bg)",
+      padding: "20px 28px",
+      borderRadius: "var(--radius-card)",
+      boxShadow: "var(--header-card-shadow)",
+      border: "var(--header-card-border)",
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: "12px",
-      border: "1px solid #bae6fd",
+      marginBottom: "16px",
+      border: "1px solid rgba(20, 184, 166, 0.2)",
     },
     logoImage: {
-      width: "80px",
-      height: "80px",
+      width: "72px",
+      height: "72px",
       objectFit: "cover",
       borderRadius: "50%",
-      border: "3px solid #e0f2fe",
-      boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+      border: "3px solid rgba(20, 184, 166, 0.35)",
+      boxShadow: "0 6px 16px rgba(13, 148, 136, 0.15)",
     },
   };
 
@@ -406,10 +407,9 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
 
   // --- Styles ---
   const pageStyles = {
-    padding: "22px",
-    backgroundColor: "#f8fafc",
-    fontFamily: "Segoe UI, sans-serif",
-    minHeight: "100vh",
+    padding: "0",
+    fontFamily: "DM Sans, sans-serif",
+    minHeight: "100%",
   };
 
   const sectionCard = {
@@ -478,14 +478,14 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
       gap: 8,
       fontSize: 12,
     };
-    if (variant === "edit") return { ...base, color: "#2563eb" };
+    if (variant === "edit") return { ...base, color: "#0d9488" };
     if (variant === "del") return { ...base, color: "#ef4444" };
     return base;
   };
 
   // ✅ Date Range Bar (same background as header)
   const rangeBar = {
-    background: "linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)",
+    background: "linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%)",
     border: "1px solid #bae6fd",
     borderRadius: "14px",
     padding: "12px 16px",
@@ -503,7 +503,7 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
     padding: "9px 10px",
     borderRadius: 12,
     border: "1px solid #e2e8f0",
-    background: disabled ? "#f8fafc" : "white",
+    background: disabled ? "#f0fdfa" : "white",
     color: disabled ? "#94a3b8" : "#0f172a",
     fontSize: 12,
     fontWeight: 800,
@@ -545,7 +545,7 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    background: "linear-gradient(180deg, #ffffff 0%, #f5f9ff 100%)",
+    background: "linear-gradient(180deg, #ffffff 0%, #f0fdfa 100%)",
     borderBottom: "1px solid #e2e8f0",
   };
 
@@ -595,15 +595,15 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
   const primaryBtn = {
     padding: "11px 14px",
     borderRadius: 12,
-    border: "1px solid #2563eb",
-    background: "#2563eb",
+    border: "1px solid rgba(255,255,255,0.2)",
+    background: "linear-gradient(135deg, #0d9488, #0f766e)",
     color: "white",
-    fontWeight: 950,
+    fontWeight: 600,
     cursor: "pointer",
     display: "inline-flex",
     alignItems: "center",
     gap: 10,
-    boxShadow: "0 10px 20px rgba(37,99,235,0.18)",
+    boxShadow: "0 6px 20px rgba(13, 148, 136, 0.25)",
   };
 
   const ghostBtn = {
@@ -623,34 +623,13 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
           <img
             src={HOTEL_LOGO}
-            alt="Ocean Blue Lagoon"
+            alt="Ocean Stay"
             style={headerStyles.logoImage}
             onError={(e) => (e.target.style.display = "none")}
           />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <h1
-              style={{
-                margin: 0,
-                color: "#0f172a",
-                fontSize: "36px",
-                fontFamily: "'Brush Script MT', cursive",
-                letterSpacing: "1px",
-                fontWeight: "normal",
-                lineHeight: "1",
-              }}
-            >
-              Ocean Blue Lagoon
-            </h1>
-            <span
-              style={{
-                fontSize: "22px",
-                fontFamily: "'Brush Script MT', cursive",
-                color: "#64748b",
-                marginTop: "5px",
-              }}
-            >
-              Maldives Resort
-            </span>
+            <h1 className="app-page-title">Ocean Stay</h1>
+            <span className="app-page-subtitle" style={{ marginTop: "5px" }}>Maldives</span>
           </div>
         </div>
 
@@ -666,18 +645,17 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
           }}
         >
           <span
+            className="app-page-address"
             style={{
-              fontSize: "24px",
-              fontWeight: "bold",
-              color: "#1e293b",
-              fontFamily: "'Playfair Display', serif",
-              fontStyle: "italic",
+              fontSize: "22px",
+              fontWeight: "600",
+              color: "#134e4a",
               lineHeight: "1",
             }}
           >
             Revenue Center
           </span>
-          <FaMoneyBillWave style={{ fontSize: "20px", color: "#2563eb", opacity: 0.9 }} />
+          <FaMoneyBillWave style={{ fontSize: "20px", color: "#0d9488", opacity: 0.95 }} />
         </div>
 
         {/* Right controls (same height as RoomsPage) */}
@@ -707,8 +685,8 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
                 alignItems: "center",
                 gap: "8px",
                 fontSize: "12px",
-                background: timeFilter === k ? "#2563eb" : "transparent",
-                color: timeFilter === k ? "white" : "#64748b",
+                background: timeFilter === k ? "#0d9488" : "transparent",
+                color: timeFilter === k ? "white" : "#54716e",
               }}
             >
               {k}
@@ -729,7 +707,7 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
               alignItems: "center",
               gap: "8px",
               fontSize: "12px",
-              background: "#2563eb",
+              background: "linear-gradient(135deg, #0d9488, #0f766e)",
               color: "white",
             }}
           >
@@ -782,14 +760,14 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
           style={{
             ...statCardBase,
             border: "1px solid rgba(37,99,235,0.22)",
-            background: "linear-gradient(180deg, #ffffff 0%, #f5f9ff 100%)",
+            background: "linear-gradient(180deg, #ffffff 0%, #f0fdfa 100%)",
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: 11, color: "#475569", textTransform: "uppercase", fontWeight: 900 }}>
               Total Revenue
             </span>
-            <span style={iconBadge("#eff6ff", "#2563eb")}>
+            <span style={iconBadge("#ccfbf1", "#0d9488")}>
               <FaMoneyBillWave size={14} />
             </span>
           </div>
@@ -912,9 +890,9 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
               <AreaChart data={chartData} margin={{ top: 10, right: 18, left: 6, bottom: 0 }}>
                 <defs>
                   <linearGradient id="revFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#2563eb" stopOpacity={0.28} />
-                    <stop offset="75%" stopColor="#2563eb" stopOpacity={0.06} />
-                    <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#0d9488" stopOpacity={0.28} />
+                    <stop offset="75%" stopColor="#0d9488" stopOpacity={0.06} />
+                    <stop offset="100%" stopColor="#0d9488" stopOpacity={0} />
                   </linearGradient>
                 </defs>
 
@@ -945,7 +923,7 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
                 <Area
                   type="monotone"
                   dataKey="amount"
-                  stroke="#2563eb"
+                  stroke="#0d9488"
                   strokeWidth={3}
                   fill="url(#revFill)"
                   dot={(props) => {

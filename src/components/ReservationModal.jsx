@@ -4,13 +4,13 @@ import {
   FaInfoCircle, FaTimes, FaCheck, FaExclamationTriangle 
 } from "react-icons/fa";
 import { 
-  NATIONALITIES, STATUS_LIST, PAYMENT_METHODS, ROOM_TYPES, BASE_ROOMS, BOOKING_CHANNELS 
+  NATIONALITIES, STATUS_LIST, PAYMENT_METHODS, BASE_ROOMS, BOOKING_CHANNELS 
 } from "../data/constants"; 
 import { money, calcNights, storeLoad, roundTo2 } from "../utils/helpers";
 import { isRoomOOSDuringPeriod, isRoomOOSOnDate } from "../utils/oosHelpers"; 
 
 export default function ReservationModal({ 
-  onClose, onSave, initialData, mode, dailyRates, roomPhysicalStatus 
+  onClose, onSave, initialData, mode, dailyRates, roomPhysicalStatus, reservations = [] 
 }) {
   // --- States ---
   const [firstName, setFirstName] = useState(initialData?.guest?.firstName || "");
@@ -42,6 +42,12 @@ export default function ReservationModal({
       return () => clearTimeout(timer);
     }
   }, [errorMessage]);
+
+  // Room types that actually exist (from BASE_ROOMS) — e.g. only "Standard Double Room" for the 5 units
+  const availableRoomTypes = useMemo(() => {
+    const types = [...new Set(BASE_ROOMS.map((r) => r.roomType))];
+    return types.length ? types : ["Standard Double Room"];
+  }, []);
 
   // --- Logic: Room Availability ---
   const roomNumbersForType = useMemo(() => {
@@ -91,6 +97,11 @@ export default function ReservationModal({
   useEffect(() => {
     if (!roomNumbersForType.includes(roomNumber)) setRoomNumber(roomNumbersForType[0] || "");
   }, [roomType, roomNumbersForType, roomNumber]);
+
+  // If current room type is not in available types (e.g. after reducing to 5 Standard rooms), use first available
+  useEffect(() => {
+    if (availableRoomTypes.length && !availableRoomTypes.includes(roomType)) setRoomType(availableRoomTypes[0]);
+  }, [availableRoomTypes, roomType]);
 
   // When opening for edit, pre-fill manual rate/F&B from existing reservation
   useEffect(() => {
@@ -293,6 +304,67 @@ export default function ReservationModal({
       });
       return;
     }
+
+    // Restriction: prevent double booking for same room and overlapping period
+    if (roomNumber && checkIn && checkOut) {
+      const newRoom = String(roomNumber).trim();
+      const newCiStr = String(checkIn).slice(0, 10);
+      const newCoStr = String(checkOut).slice(0, 10);
+      const newCi = new Date(`${newCiStr}T12:00:00`);
+      const newCo = new Date(`${newCoStr}T12:00:00`);
+
+      if (Number.isFinite(newCi.getTime()) && Number.isFinite(newCo.getTime()) && newCi < newCo) {
+        const currentId = initialData?.id ? String(initialData.id) : null;
+
+        const conflicts = (reservations || []).filter((r) => {
+          // Skip self when editing
+          if (currentId && String(r?.id || "") === currentId) return false;
+
+          const resRoom = String(r?.room?.roomNumber ?? r?.roomNumber ?? "").trim();
+          if (resRoom !== newRoom) return false;
+
+          const resStatus = String(r?.status || "").toLowerCase();
+          if (resStatus === "cancelled") return false;
+
+          const ciRaw = r?.stay?.checkIn ?? r?.checkIn;
+          const coRaw = r?.stay?.checkOut ?? r?.checkOut;
+          if (!ciRaw || !coRaw) return false;
+
+          const ciStr = String(ciRaw).slice(0, 10);
+          const coStr = String(coRaw).slice(0, 10);
+          const ci = new Date(`${ciStr}T12:00:00`);
+          const co = new Date(`${coStr}T12:00:00`);
+          if (!Number.isFinite(ci.getTime()) || !Number.isFinite(co.getTime())) return false;
+
+          // Overlap if existing.start < newEnd AND existing.end > newStart
+          return ci < newCo && co > newCi;
+        });
+
+        if (conflicts.length > 0) {
+          const summary = conflicts.slice(0, 5).map((r) => {
+            const gFirst = r?.guest?.firstName || "";
+            const gLast = r?.guest?.lastName || "";
+            const guest = `${gFirst} ${gLast}`.trim() || "Guest";
+            const ciRaw = r?.stay?.checkIn ?? r?.checkIn;
+            const coRaw = r?.stay?.checkOut ?? r?.checkOut;
+            const ciStr = ciRaw ? String(ciRaw).slice(0, 10) : "";
+            const coStr = coRaw ? String(coRaw).slice(0, 10) : "";
+            return `${guest} (${ciStr} → ${coStr})`;
+          });
+
+          setErrorMessage({
+            title: `Room ${roomNumber} already booked for this period`,
+            message: [
+              `There is already at least one reservation for room ${roomNumber} overlapping this stay.`,
+              ...summary,
+              conflicts.length > 5 ? `+${conflicts.length - 5} more...` : null,
+            ].filter(Boolean),
+            type: "error",
+          });
+          return;
+        }
+      }
+    }
     
     onSave({
       guest: { firstName, lastName, nationality },
@@ -324,8 +396,8 @@ export default function ReservationModal({
         .reservation-modal-brand { display: flex; align-items: center; gap: 20px; }
         .reservation-modal-brand .reservation-logo { width: 64px; height: 64px; object-fit: cover; border-radius: 50%; border: 3px solid #e0f2fe; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex-shrink: 0; }
         .reservation-modal-brand .brand-text { display: flex; flex-direction: column; align-items: flex-start; }
-        .reservation-modal-brand .brand-name { margin: 0; color: #0f172a; font-size: 28px; font-family: 'Brush Script MT', cursive; letter-spacing: 1px; font-weight: normal; line-height: 1; }
-        .reservation-modal-brand .brand-sub { font-size: 18px; font-family: 'Brush Script MT', cursive; color: #64748b; margin-top: 4px; }
+        .reservation-modal-brand .brand-name { margin: 0; color: var(--text); font-size: 28px; font-family: 'Dancing Script', cursive; font-weight: 600; letter-spacing: 0.5px; line-height: 1; }
+        .reservation-modal-brand .brand-sub { font-size: 20px; font-family: 'Dancing Script', cursive; font-weight: 600; letter-spacing: 0.5px; color: var(--muted); margin-top: 4px; }
         .reservation-modal-brand .brand-badge { font-size: 0.75rem; color: #0369a1; font-weight: 700; margin-top: 6px; }
         .ocean-modal-body { padding: 25px 35px; overflow-y: auto; }
         .ocean-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 30px; }
@@ -472,10 +544,10 @@ export default function ReservationModal({
         <div className="ocean-modal-card">
           <div className="ocean-modal-header">
             <div className="reservation-modal-brand">
-              <img src="/logo.png" alt="Ocean Blue Lagoon" className="reservation-logo" />
+              <img src="/logo.png" alt="Ocean Stay" className="reservation-logo" />
               <div className="brand-text">
-                <h1 className="brand-name">Ocean Blue Lagoon</h1>
-                <span className="brand-sub">Maldives Resort</span>
+                <h1 className="brand-name">Ocean Stay</h1>
+                <span className="brand-sub">Maldives</span>
                 <span className="brand-badge">Reservation</span>
               </div>
             </div>
@@ -504,7 +576,7 @@ export default function ReservationModal({
                     <div className="field"><label>Check-In</label><input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} /></div>
                     <div className="field"><label>Check-Out</label><input type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)} /></div>
                   </div>
-                  <div className="field"><label>Room Category</label><select value={roomType} onChange={e => setRoomType(e.target.value)}>{ROOM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+                  <div className="field"><label>Room Category</label><select value={roomType} onChange={e => setRoomType(e.target.value)}>{availableRoomTypes.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
                   <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'15px'}}>
                     <div className="field"><label>Room No</label><select value={roomNumber} onChange={e => setRoomNumber(e.target.value)}>{roomNumbersForType.map(n => <option key={n} value={n}>Room {n}</option>)}</select></div>
                     <div className="field"><label>Meal Plan</label><select value={mealPlan} onChange={e => setMealPlan(e.target.value)}>

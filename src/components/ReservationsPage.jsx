@@ -379,6 +379,22 @@ export default function ReservationsPage({
     return "#64748b";
   };
 
+  // Upcoming check-ins: today or in the next 3 days (non-cancelled only)
+  const upcomingCheckIns = useMemo(() => {
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+    const end = new Date(now);
+    end.setDate(end.getDate() + 3);
+    const endStr = end.toISOString().slice(0, 10);
+    return (reservations || []).filter((r) => {
+      if ((r?.status || "").toLowerCase() === "cancelled") return false;
+      const ci = r?.stay?.checkIn ?? r?.checkIn;
+      if (!ci) return false;
+      const ciYMD = String(ci).slice(0, 10);
+      return ciYMD >= todayStr && ciYMD <= endStr;
+    });
+  }, [reservations]);
+
   // =======================
   // Header KPI (same vibe as Rooms page)
   // =======================
@@ -478,62 +494,63 @@ export default function ReservationsPage({
   const headerStyles = {
     headerCard: {
       position: "relative",
-      background: "linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)",
-      padding: "20px 30px",
-      borderRadius: "16px",
-      boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
+      background: "var(--header-card-bg)",
+      padding: "20px 28px",
+      borderRadius: "var(--radius-card)",
+      boxShadow: "var(--header-card-shadow)",
+      border: "var(--header-card-border)",
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: "18px",
-      border: "1px solid #bae6fd",
+      marginBottom: "20px",
+      border: "1px solid rgba(20, 184, 166, 0.2)",
       gap: 14,
       flexWrap: "wrap",
     },
     logoImage: {
-      width: "80px",
-      height: "80px",
+      width: "72px",
+      height: "72px",
       objectFit: "cover",
       borderRadius: "50%",
-      border: "3px solid #e0f2fe",
-      boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+      border: "3px solid rgba(20, 184, 166, 0.35)",
+      boxShadow: "0 6px 16px rgba(13, 148, 136, 0.15)",
     },
     statsBar: {
       display: "grid",
       gridTemplateColumns: "repeat(4, 1fr)",
-      gap: "20px",
-      marginBottom: "16px",
+      gap: "18px",
+      marginBottom: "20px",
     },
     statCard: (color) => ({
       background: "white",
-      borderRadius: "12px",
-      padding: "15px 20px",
+      borderRadius: "14px",
+      padding: "16px 20px",
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
-      boxShadow: "0 4px 6px rgba(0,0,0,0.02)",
+      boxShadow: "0 4px 20px rgba(13, 148, 136, 0.06)",
       borderLeft: `5px solid ${color}`,
-      border: "1px solid #f1f5f9",
+      border: "1px solid rgba(20, 184, 166, 0.12)",
       minHeight: 78,
     }),
     statLabel: {
       display: "block",
       fontSize: "11px",
-      color: "#64748b",
-      fontWeight: "bold",
+      color: "#54716e",
+      fontWeight: "600",
       textTransform: "uppercase",
+      letterSpacing: "0.5px",
     },
-    statValue: { fontSize: "24px", fontWeight: 900, color: "#0f172a" },
+    statValue: { fontSize: "24px", fontWeight: 800, color: "#134e4a" },
     pill: (bg) => ({ background: bg, padding: "10px", borderRadius: "50%" }),
   };
 
   return (
     <div
       style={{
-        padding: "24px 20px",
-        background: "#f8fafc",
-        minHeight: "100vh",
-        fontFamily: "Segoe UI, Inter, sans-serif",
+        padding: "0",
+        minHeight: "100%",
+        fontFamily: "DM Sans, sans-serif",
         width: "100%",
         maxWidth: "100%",
         minWidth: 0,
@@ -546,29 +563,15 @@ export default function ReservationsPage({
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
           <img
             src={HOTEL_LOGO}
-            alt="Ocean Blue Lagoon"
+            alt="Ocean Stay"
             style={headerStyles.logoImage}
             onError={(e) => {
               e.target.style.display = "none";
             }}
           />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <h1
-              style={{
-                margin: 0,
-                color: "#0f172a",
-                fontSize: "36px",
-                fontFamily: "'Brush Script MT', cursive",
-                letterSpacing: "1px",
-                fontWeight: "normal",
-                lineHeight: "1",
-              }}
-            >
-              Ocean Blue Lagoon
-            </h1>
-            <span style={{ fontSize: "22px", fontFamily: "'Brush Script MT', cursive", color: "#64748b", marginTop: "5px" }}>
-              Maldives Resort
-            </span>
+            <h1 className="app-page-title">Ocean Stay</h1>
+            <span className="app-page-subtitle" style={{ marginTop: "5px" }}>Maldives</span>
           </div>
         </div>
 
@@ -583,12 +586,11 @@ export default function ReservationsPage({
           }}
         >
           <span
+            className="app-page-address"
             style={{
               fontSize: "24px",
               fontWeight: "bold",
               color: "#1e293b",
-              fontFamily: "'Playfair Display', serif",
-              fontStyle: "italic",
               lineHeight: "1",
               whiteSpace: "nowrap",
             }}
@@ -687,30 +689,68 @@ export default function ReservationsPage({
         </div>
       </div>
 
+      {/* Alert: check-in coming (today or next 3 days) */}
+      {upcomingCheckIns.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "14px 20px",
+            marginBottom: 16,
+            borderRadius: 12,
+            background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+            border: "1px solid #f59e0b",
+            boxShadow: "0 2px 8px rgba(245, 158, 11, 0.15)",
+          }}
+          role="alert"
+        >
+          <FaRegCalendarCheck style={{ fontSize: 22, color: "#b45309", flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <strong style={{ color: "#92400e", fontSize: 14 }}>
+              {upcomingCheckIns.length} reservation{upcomingCheckIns.length !== 1 ? "s" : ""} with check-in in the next 3 days
+            </strong>
+            <div style={{ marginTop: 4, fontSize: 12, color: "#78350f" }}>
+              {upcomingCheckIns
+                .slice(0, 5)
+                .map((r) => {
+                  const ci = r?.stay?.checkIn ?? r?.checkIn;
+                  const ciYMD = ci ? String(ci).slice(0, 10) : "";
+                  const guest = [getGuestFirstName(r), getGuestLastName(r)].filter(Boolean).join(" ") || "Guest";
+                  const room = getRoomNumber(r) ?? "—";
+                  return `${guest} (Room ${room}) — ${ciYMD}`;
+                })
+                .join(" · ")}
+              {upcomingCheckIns.length > 5 && ` · +${upcomingCheckIns.length - 5} more`}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* KPI Cards */}
       <div style={headerStyles.statsBar}>
-        <div style={headerStyles.statCard("#6366f1")}>
+        <div style={headerStyles.statCard("#0d9488")}>
           <div>
             <span style={headerStyles.statLabel}>{headerKpis.mode === "TODAY" ? "Total Rooms Sold" : "Room Nights Sold"}</span>
             <span style={headerStyles.statValue}>
               {headerKpis.mode === "TODAY" ? headerKpis.roomsSoldToday : Math.round(headerKpis.soldRoomNights)}
             </span>
           </div>
-          <div style={{ ...headerStyles.pill("#eef2ff"), color: "#6366f1" }}>
+          <div style={{ ...headerStyles.pill("#ccfbf1"), color: "#0d9488" }}>
             <FaBed size={20} />
           </div>
         </div>
 
-        <div style={headerStyles.statCard("#0ea5e9")}>
+        <div style={headerStyles.statCard("#14b8a6")}>
           <div>
             <span style={headerStyles.statLabel}>
               {headerKpis.mode === "TODAY" ? "Total Rooms Available" : "Room Nights Available"}
             </span>
-            <span style={{ ...headerStyles.statValue, color: "#0ea5e9" }}>
+            <span style={{ ...headerStyles.statValue, color: "#14b8a6" }}>
               {headerKpis.mode === "TODAY" ? headerKpis.roomsAvailableToday : Math.round(headerKpis.availableRoomNights)}
             </span>
           </div>
-          <div style={{ ...headerStyles.pill("#f0f9ff"), color: "#0ea5e9" }}>
+          <div style={{ ...headerStyles.pill("#f0fdfa"), color: "#14b8a6" }}>
             <FaDoorOpen size={20} />
           </div>
         </div>
@@ -761,14 +801,14 @@ export default function ReservationsPage({
         ))}
       </div>
 
-      {/* Table: fit horizontally, sticky header on vertical scroll */}
+      {/* Table: no horizontal scrollbar; vertical scroll only */}
       <div
         style={{
           background: "#fff",
           borderRadius: "16px",
           boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)",
           border: "1px solid #e2e8f0",
-          overflowX: "auto",
+          overflowX: "hidden",
           overflowY: "auto",
           width: "100%",
           maxWidth: "100%",

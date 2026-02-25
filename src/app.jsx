@@ -299,7 +299,7 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
   const [err, setErr] = useState("");
 
   const settings = storeLoad("ocean_settings_v1") || {};
-  const hotelName = settings.hotelName || "Ocean Blue Lagoon";
+  const hotelName = settings.hotelName || "Ocean Stay";
   const logoUrl = settings.logoUrl || "/logo.png";
   const BG_IMAGE = "/maldives.jpg";
 
@@ -396,7 +396,7 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
       display: flex;
       height: 100vh;
       width: 100vw;
-      background: #0f172a;
+      background: #1c1917;
       overflow: hidden;
     }
 
@@ -404,7 +404,7 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
       flex: 1.4;
       min-width: 0;
       height: 100%;
-      background-color: #0f172a;
+      background-color: #1c1917;
       background-image: url('${BG_IMAGE}');
       background-size: cover;
       background-position: center;
@@ -416,7 +416,7 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(30, 58, 138, 0.75) 50%, rgba(15, 23, 42, 0.6) 100%);
+      background: linear-gradient(135deg, rgba(28, 25, 23, 0.92) 0%, rgba(68, 64, 60, 0.75) 50%, rgba(28, 25, 23, 0.6) 100%);
       pointer-events: none;
     }
 
@@ -455,7 +455,7 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
     .brand-side .brand-name {
       font-family: 'Dancing Script', cursive;
       font-size: 48px;
-      font-weight: 700;
+      font-weight: 600;
       line-height: 1.15;
       margin: 0 0 8px 0;
       color: #fff;
@@ -466,7 +466,7 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
     .brand-side .brand-tagline {
       font-family: 'Dancing Script', cursive;
       font-size: 28px;
-      font-weight: 700;
+      font-weight: 600;
       line-height: 1.2;
       color: rgba(255, 255, 255, 0.9);
       margin: 0 0 48px 0;
@@ -549,7 +549,7 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
     .form-subtitle {
       font-size: 26px;
       font-weight: 700;
-      color: #0f172a;
+      color: #1c1917;
       margin: 0 0 8px 0;
       letter-spacing: -0.03em;
       line-height: 1.2;
@@ -591,7 +591,7 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
       content: '';
       width: 3px;
       height: 12px;
-      background: linear-gradient(180deg, #1e40af 0%, #1e3a8a 100%);
+      background: linear-gradient(180deg, #b45309 0%, #92400e 100%);
       border-radius: 2px;
     }
 
@@ -605,7 +605,7 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
       background: #fafbfc;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       box-sizing: border-box;
-      color: #0f172a;
+      color: #1c1917;
       font-weight: 500;
     }
 
@@ -615,7 +615,7 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
     }
 
     .input-field:focus {
-      border-color: #1e40af;
+      border-color: #b45309;
       background: #fff;
       box-shadow: 0 0 0 4px rgba(30, 64, 175, 0.1), 0 2px 8px rgba(30, 64, 175, 0.08);
       outline: none;
@@ -630,7 +630,7 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
     .login-btn {
       width: 100%;
       padding: 17px;
-      background: linear-gradient(180deg, #1e40af 0%, #1e3a8a 100%);
+      background: linear-gradient(180deg, #b45309 0%, #92400e 100%);
       color: #fff;
       font-weight: 700;
       font-size: 15px;
@@ -656,7 +656,7 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
     }
 
     .login-btn:hover {
-      background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%);
+      background: linear-gradient(180deg, #c2410c 0%, #b45309 100%);
       transform: translateY(-2px);
       box-shadow: 0 8px 24px rgba(30, 64, 175, 0.45), 0 4px 8px rgba(30, 64, 175, 0.25);
     }
@@ -695,7 +695,7 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
 
     .settings-btn:hover {
       background: #f8fafc;
-      color: #1e40af;
+      color: #b45309;
       border-color: #cbd5e1;
       transform: translateY(-1px);
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
@@ -758,7 +758,7 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
               onError={(e) => (e.target.style.display = "none")}
             />
             <h1 className="brand-name">{hotelName}</h1>
-            <p className="brand-tagline">Maldives Resort</p>
+            <p className="brand-tagline">Maldives</p>
             <p className="brand-footer">Cloud Authentication · Secure Access</p>
           </div>
         </div>
@@ -2302,7 +2302,7 @@ useEffect(() => {
           }}
         >
           <div>
-            <div style={{ fontWeight: 900, color: "#0f172a", fontSize: 16 }}>
+            <div style={{ fontWeight: 900, color: "var(--text)", fontSize: 16 }}>
               Backup & Restore
             </div>
             <div
@@ -2346,7 +2346,7 @@ useEffect(() => {
             <label
               style={{
                 background: "#f8fafc",
-                color: "#0f172a",
+                color: "var(--text)",
                 border: "1px solid #e2e8f0",
                 padding: "10px 14px",
                 borderRadius: 12,
@@ -2561,6 +2561,7 @@ useEffect(() => {
           onSave={handleSaveReservation}
           dailyRates={dailyRates}
           roomPhysicalStatus={roomPhysicalStatus}
+          reservations={reservations}
         />
       )}
 

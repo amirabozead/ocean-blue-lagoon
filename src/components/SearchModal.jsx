@@ -82,8 +82,8 @@ export default function SearchModal({ filters, setFilters, onClose }) {
 
         .ocean-modal-footer { padding: 20px 30px; background: #f8fafc; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; }
         
-        .ocean-btn-primary { background: #0ea5e9; color: #fff; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.2s; }
-        .ocean-btn-primary:hover { background: #0284c7; }
+        .ocean-btn-primary { background: linear-gradient(135deg, #0d9488, #0f766e); color: #fff; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: box-shadow 0.2s; box-shadow: 0 4px 14px rgba(13, 148, 136, 0.25); }
+        .ocean-btn-primary:hover { box-shadow: 0 6px 20px rgba(13, 148, 136, 0.35); }
         
         .ocean-btn-danger { background: #fff; border: 1.5px solid #fee2e2; color: #ef4444; padding: 12px 24px; border-radius: 10px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
         .ocean-btn-danger:hover { background: #fef2f2; border-color: #ef4444; }
@@ -94,12 +94,12 @@ export default function SearchModal({ filters, setFilters, onClose }) {
           
           <div className="ocean-modal-header">
             <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-              <div style={{background:'#f0f9ff', padding:'10px', borderRadius:'10px', color:'#0ea5e9'}}>
+              <div style={{background:'#ccfbf1', padding:'10px', borderRadius:'10px', color:'#0d9488'}}>
                 <FaSearch size={18} />
               </div>
               <div>
                 <h2 style={{margin:0, fontSize: '1.2rem', color: '#0f172a'}}>Advanced Search</h2>
-                <div style={{fontSize: '0.8rem', color: '#64748b'}}>Ocean Blue Lagoon | Filter Database</div>
+                <div style={{fontSize: '0.8rem', color: '#64748b'}}>Ocean Stay | Maldives — Filter Database</div>
               </div>
             </div>
             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>

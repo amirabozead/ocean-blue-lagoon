@@ -359,32 +359,32 @@ export default function DailyRatePage({ reservations = [] }) {
 
   const styles = {
     container: {
-      padding: "30px",
-      background: theme.bg,
-      minHeight: "100vh",
-      fontFamily: "Segoe UI, Inter, sans-serif",
+      padding: "0",
+      minHeight: "100%",
+      fontFamily: "DM Sans, sans-serif",
       boxSizing: "border-box",
     },
     headerCard: {
       position: "relative",
-      background: "linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)",
-      padding: "20px 30px",
-      borderRadius: "16px",
-      boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
+      background: "var(--header-card-bg)",
+      padding: "20px 28px",
+      borderRadius: "var(--radius-card)",
+      boxShadow: "var(--header-card-shadow)",
+      border: "var(--header-card-border)",
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: "28px",
-      border: "1px solid #bae6fd",
-      minHeight: "100px",
+      marginBottom: "24px",
+      border: "1px solid rgba(20, 184, 166, 0.2)",
+      minHeight: "96px",
     },
     logoImage: {
-      width: "80px",
-      height: "80px",
+      width: "72px",
+      height: "72px",
       objectFit: "cover",
       borderRadius: "50%",
-      border: "3px solid #e0f2fe",
-      boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+      border: "3px solid rgba(20, 184, 166, 0.35)",
+      boxShadow: "0 6px 16px rgba(13, 148, 136, 0.15)",
     },
     card: {
       background: theme.card,
@@ -464,16 +464,14 @@ export default function DailyRatePage({ reservations = [] }) {
     <div style={styles.container}>
       <div style={styles.headerCard}>
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <img src={HOTEL_LOGO} alt="Ocean Blue Lagoon" style={styles.logoImage} onError={(e) => (e.target.style.display = "none")} />
+          <img src={HOTEL_LOGO} alt="Ocean Stay" style={styles.logoImage} onError={(e) => (e.target.style.display = "none")} />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <h1 style={{ margin: 0, color: theme.textMain, fontSize: "36px", fontFamily: "'Brush Script MT', cursive", letterSpacing: "1px", fontWeight: "normal", lineHeight: "1" }}>
-              Ocean Blue Lagoon
-            </h1>
-            <span style={{ fontSize: "22px", fontFamily: "'Brush Script MT', cursive", color: theme.textSub, marginTop: "5px" }}>Maldives Resort</span>
+            <h1 className="app-page-title">Ocean Stay</h1>
+            <span className="app-page-subtitle" style={{ marginTop: "5px" }}>Maldives</span>
           </div>
         </div>
         <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{ fontSize: "24px", fontWeight: "bold", color: theme.textMain, fontFamily: "'Playfair Display', serif", fontStyle: "italic", textShadow: "0 2px 4px rgba(0,0,0,0.08)", lineHeight: "1" }}>
+          <span className="app-page-address" style={{ fontSize: "24px", fontWeight: "bold", color: theme.textMain, textShadow: "0 2px 4px rgba(0,0,0,0.08)", lineHeight: "1" }}>
             Rate Analysis
           </span>
           <FaChartLine style={{ fontSize: "22px", color: theme.primary, opacity: 0.95 }} />
@@ -485,7 +483,7 @@ export default function DailyRatePage({ reservations = [] }) {
       </div>
 
       <div style={{ ...styles.card, marginBottom: "24px" }}>
-        <div style={{ ...styles.cardHeader, background: `linear-gradient(135deg, ${theme.primary} 0%, #0284c7 100%)` }}>
+        <div style={{ ...styles.cardHeader, background: "linear-gradient(135deg, #0d9488 0%, #0f766e 100%)" }}>
           <FaChartLine /> Rate analysis from reservations
         </div>
         <div style={{ padding: "20px 24px" }}>
@@ -747,7 +745,7 @@ export default function DailyRatePage({ reservations = [] }) {
 
       {/* Room type × Channel: RN, Min / Avg / Max rate (secondary theme) */}
       <div style={{ ...styles.card, marginBottom: "24px" }}>
-        <div style={{ ...styles.cardHeader, background: `linear-gradient(135deg, ${theme.secondary} 0%, #4f46e5 100%)` }}>
+        <div style={{ ...styles.cardHeader, background: "linear-gradient(135deg, #0f766e 0%, #134e4a 100%)" }}>
           <FaChartLine /> Room type × Channel — RN, Min / Avg / Max rate by channel
         </div>
         <div style={{ padding: "20px 24px", overflowX: "auto" }}>
@@ -759,7 +757,7 @@ export default function DailyRatePage({ reservations = [] }) {
               <tr style={styles.tableHead}>
                 <th style={{ textAlign: "left", padding: "10px 12px", color: theme.textSub, fontWeight: "600", position: "sticky", left: 0, background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)" }}>Room type</th>
                 {BOOKING_CHANNELS.map((ch) => (
-                  <th key={ch} colSpan={4} style={{ padding: "10px 12px", color: "#4f46e5", fontWeight: "600", textAlign: "center", borderLeft: `1px solid ${theme.border}` }}>
+                  <th key={ch} colSpan={4} style={{ padding: "10px 12px", color: "#0f766e", fontWeight: "600", textAlign: "center", borderLeft: `1px solid ${theme.border}` }}>
                     {ch}
                   </th>
                 ))}

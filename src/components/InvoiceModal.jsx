@@ -80,11 +80,11 @@ export default function InvoiceModal({ reservation, onClose }) {
         }
         .hotel-brand-text { display: flex; flex-direction: column; align-items: center; text-align: center; }
         .hotel-brand-text .invoice-hotel-name {
-          margin: 0; color: #0f172a; font-size: 36px; font-family: 'Brush Script MT', cursive;
-          letter-spacing: 1px; font-weight: normal; line-height: 1;
+          margin: 0; color: var(--text); font-size: 36px; font-family: 'Dancing Script', cursive; font-weight: 600;
+          letter-spacing: 0.6px; line-height: 1;
         }
         .hotel-brand-text .invoice-hotel-sub {
-          font-size: 22px; font-family: 'Brush Script MT', cursive; color: #64748b; margin-top: 5px;
+          font-size: 20px; font-family: 'Dancing Script', cursive; font-weight: 600; color: var(--muted); margin-top: 5px;
         }
         .invoice-badge {
           background: #e0f2fe; color: #0369a1; padding: 6px 14px; border-radius: 8px;
@@ -157,10 +157,10 @@ export default function InvoiceModal({ reservation, onClose }) {
           {/* Header */}
           <div className="invoice-header">
             <div className="hotel-brand">
-              <img src="/logo.png" alt="Ocean Blue Lagoon" className="invoice-logo" />
+              <img src="/logo.png" alt="Ocean Stay" className="invoice-logo" />
               <div className="hotel-brand-text">
-                <h1 className="invoice-hotel-name">Ocean Blue Lagoon</h1>
-                <span className="invoice-hotel-sub">Maldives Resort</span>
+                <h1 className="invoice-hotel-name">Ocean Stay</h1>
+                <span className="invoice-hotel-sub">Maldives</span>
               </div>
             </div>
             <div className="invoice-badge">

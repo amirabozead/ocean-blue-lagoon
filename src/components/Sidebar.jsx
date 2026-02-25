@@ -22,8 +22,8 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, set
 
   const sidebarStyle = useMemo(
     () => ({
-      background: "linear-gradient(180deg, #0b6a8a 0%, #084e68 100%)",
-      color: "#fff",
+      background: "linear-gradient(185deg, #0f766e 0%, #134e4a 45%, #0d4441 100%)",
+      color: "#f0fdfa",
       display: "flex",
       flexDirection: "column",
       height: "100%",
@@ -55,7 +55,7 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, set
       >
         <img
           src={HOTEL_LOGO}
-          alt="Ocean Blue Lagoon"
+          alt="Ocean Stay"
           style={{
             width: 64,
             height: 64,
@@ -71,29 +71,30 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, set
         <div style={{ textAlign: "center", lineHeight: 1 }}>
           <div
             style={{
-              fontSize: 30,
-              fontFamily: "'Brush Script MT', cursive",
+              fontSize: 26,
+              fontFamily: "'Dancing Script', cursive",
               letterSpacing: "0.6px",
-              fontWeight: "normal",
-              color: "#ffffff",
-              textShadow: "0 2px 10px rgba(0,0,0,0.25)",
+              fontWeight: 600,
+              color: "#f0fdfa",
+              textShadow: "0 2px 10px rgba(0,0,0,0.2)",
               whiteSpace: "nowrap",
             }}
           >
-            Ocean Blue Lagoon
+            Ocean Stay
           </div>
 
           <div
             style={{
-              marginTop: 8,
-              fontSize: 18,
-              fontFamily: "'Brush Script MT', cursive",
-              color: "rgba(255,255,255,0.78)",
-              letterSpacing: "0.4px",
+              marginTop: 6,
+              fontSize: 20,
+              fontFamily: "'Dancing Script', cursive",
+              fontWeight: 600,
+              letterSpacing: "0.5px",
+              color: "rgba(245, 158, 11, 0.95)",
               whiteSpace: "nowrap",
             }}
           >
-            Maldives Resort
+            Maldives
           </div>
         </div>
       </div>
@@ -226,8 +227,8 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, set
                     display: "grid",
                     placeItems: "center",
                     fontWeight: 950,
-                    color: "#0f172a",
-                    background: "rgba(255,255,255,0.90)",
+                    color: "#134e4a",
+                    background: "rgba(240,253,250,0.98)",
                     boxShadow: "0 8px 14px rgba(0,0,0,0.15)",
                     flexShrink: 0,
                     fontSize: 16,

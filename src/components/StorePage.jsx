@@ -120,18 +120,19 @@ export default function StorePage({ items, setItems, moves, setMoves, suppliers,
 
   // --- STYLES ---
   const styles = {
-    page: { padding: "30px", background: "#f8fafc", minHeight: "100vh", fontFamily: "Segoe UI, sans-serif" },
+    page: { padding: "0", minHeight: "100%", fontFamily: "DM Sans, sans-serif" },
     
     // Header (Updated to match RoomsPage exactly - No Bold)
-    headerCard: { 
-        position: "relative", 
-        background: "linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)", 
-        padding: "20px 30px", 
-        borderRadius: "16px", 
-        boxShadow: "0 4px 20px rgba(0,0,0,0.05)", 
-        display: "flex", 
-        justifyContent: "space-between", 
-        alignItems: "center", 
+headerCard: {
+        position: "relative",
+        background: "var(--header-card-bg)",
+        padding: "20px 28px",
+        borderRadius: "var(--radius-card)",
+        boxShadow: "var(--header-card-shadow)",
+        border: "var(--header-card-border)",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
         marginBottom: "30px",
         border: "1px solid #bae6fd" 
     },
@@ -144,17 +145,18 @@ export default function StorePage({ items, setItems, moves, setMoves, suppliers,
     // 🔥 التعديل هنا: إضافة fontWeight: "normal" عشان الخط ميبقاش سميك
     hotelName: { 
         margin: 0, 
-        color: "#0f172a", 
+        color: "var(--text)", 
         fontSize: "36px", 
-        fontFamily: "'Brush Script MT', cursive", 
-        letterSpacing: "1px", 
+        fontFamily: "'Dancing Script', cursive", 
+        letterSpacing: "0.6px", 
         lineHeight: "1",
-        fontWeight: "normal" // <--- This fixes the bold issue
+        fontWeight: 600
     },
     subTitle: { 
-        fontSize: "22px", 
-        fontFamily: "'Brush Script MT', cursive", 
-        color: "#64748b", 
+        fontSize: "20px", 
+        fontFamily: "'Dancing Script', cursive", 
+        fontWeight: 600,
+        color: "var(--muted)", 
         marginTop: "5px" 
     },
     
@@ -162,15 +164,15 @@ export default function StorePage({ items, setItems, moves, setMoves, suppliers,
         position: "absolute", left: "50%", transform: "translateX(-50%)", 
         display: "flex", alignItems: "center", gap: "10px" 
     },
-    pageTitle: { fontSize: "24px", fontWeight: "bold", color: "#1e293b", fontFamily: "'Playfair Display', serif", fontStyle: "italic" },
+    pageTitle: { fontSize: "24px", fontWeight: "bold", color: "var(--text)", fontFamily: "'DM Sans', sans-serif", fontStyle: "normal", letterSpacing: "0.2px" },
     
     // Nav Buttons
     navBox: { background: "white", padding: "5px", borderRadius: "12px", boxShadow: "0 2px 5px rgba(0,0,0,0.05)", display: "flex", gap: "5px", border: "1px solid #e2e8f0" },
     navBtn: (active) => ({
         padding: "8px 16px", border: "none", borderRadius: "8px", cursor: "pointer", 
         fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", fontSize: "13px",
-        background: active ? "#3b82f6" : "transparent",
-        color: active ? "white" : "#64748b",
+        background: active ? "var(--primary)" : "transparent",
+        color: active ? "white" : "var(--muted)",
         transition: "all 0.2s"
     }),
 
@@ -207,7 +209,7 @@ export default function StorePage({ items, setItems, moves, setMoves, suppliers,
     actionBtn: { width: "100%", padding: "12px", borderRadius: "10px", border: "none", cursor: "pointer", fontWeight: "600", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", marginBottom: "10px", fontSize: "14px", transition: "transform 0.1s" },
     
     // Buttons
-    btnPrimary: { background: "#3b82f6", color: "white", padding: "10px 20px", borderRadius: "10px", border: "none", cursor: "pointer", fontWeight: "600", display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 2px 5px rgba(59, 130, 246, 0.3)" },
+    btnPrimary: { background: "var(--primary)", color: "white", padding: "10px 20px", borderRadius: "10px", border: "none", cursor: "pointer", fontWeight: "600", display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 2px 8px rgba(180, 83, 9, 0.25)" },
   };
 
   return (
@@ -218,14 +220,14 @@ export default function StorePage({ items, setItems, moves, setMoves, suppliers,
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
           <img src={HOTEL_LOGO} alt="Logo" style={styles.logoImage} onError={(e) => e.target.style.display='none'} />
           <div style={styles.headerTitleBox}>
-            <h1 style={styles.hotelName}>Ocean Blue Lagoon</h1>
-            <span style={styles.subTitle}>Maldives Resort</span>
+            <h1 style={styles.hotelName}>Ocean Stay</h1>
+            <span style={styles.subTitle}>Maldives</span>
           </div>
         </div>
 
         <div style={styles.centerBadge}>
            <span style={styles.pageTitle}>Store Manager</span>
-           <FaStore style={{ fontSize: "22px", color: "#3b82f6", opacity: 0.9 }} />
+           <FaStore style={{ fontSize: "22px", color: "var(--primary)", opacity: 0.9 }} />
         </div>
         
         <div style={styles.navBox}>

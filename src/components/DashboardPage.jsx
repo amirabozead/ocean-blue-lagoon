@@ -635,47 +635,47 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
 
   // --- Styles for Header ---
   const headerStyles = {
-    headerCard: { 
-        position: "relative", 
-        background: "linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)", 
-        padding: "20px 30px", 
-        borderRadius: "16px", 
-        boxShadow: "0 4px 20px rgba(0,0,0,0.05)", 
-        display: "flex", 
-        justifyContent: "space-between", 
-        alignItems: "center", 
-        marginBottom: "25px",
-        border: "1px solid #bae6fd",
-        minHeight: "100px" // لضمان ارتفاع مناسب
+headerCard: {
+        position: "relative",
+        background: "var(--header-card-bg)",
+        padding: "20px 28px",
+        borderRadius: "var(--radius-card)",
+        boxShadow: "var(--header-card-shadow)",
+        border: "var(--header-card-border)",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: "24px",
+        border: "1px solid rgba(20, 184, 166, 0.2)",
+        minHeight: "96px"
     },
     logoImage: {
-        width: "80px",
-        height: "80px",
+        width: "72px",
+        height: "72px",
         objectFit: "cover",
         borderRadius: "50%",
-        border: "3px solid #e0f2fe", 
-        boxShadow: "0 4px 6px rgba(0,0,0,0.1)", 
+        border: "3px solid rgba(20, 184, 166, 0.35)", 
+        boxShadow: "0 6px 16px rgba(13, 148, 136, 0.15)", 
     },
-    // تصميم الكبسولة للأزرار
     pillContainer: {
         background: "#fff",
-        padding: "4px",
+        padding: "5px",
         borderRadius: "50px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+        boxShadow: "0 2px 10px rgba(13, 148, 136, 0.06)",
         display: "flex",
         gap: "4px",
-        border: "1px solid #e2e8f0"
+        border: "1px solid rgba(20, 184, 166, 0.2)"
     },
     pillButton: (active) => ({
         padding: "8px 16px",
         borderRadius: "50px",
         border: "none",
         cursor: "pointer",
-        fontWeight: "bold",
+        fontWeight: "600",
         fontSize: "12px",
         transition: "0.2s",
-        background: active ? "#0ea5e9" : "transparent",
-        color: active ? "#ffffff" : "#64748b"
+        background: active ? "#0d9488" : "transparent",
+        color: active ? "#fff" : "#54716e"
     }),
     // حاوية الجزء الأيمن (الأزرار + التاريخ تحتها)
     rightSection: {
@@ -706,9 +706,8 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
 
   return (
     <div style={{ 
-      padding: "30px", 
-      background: "#f8fafc", 
-      minHeight: "100vh",
+      padding: "0", 
+      minHeight: "100%",
       width: "100%",
       maxWidth: "100%",
       minWidth: 0,
@@ -721,17 +720,17 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
         
         {/* Left: Logo & Hotel Name */}
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <img src={HOTEL_LOGO} alt="Ocean Blue Lagoon" style={headerStyles.logoImage} onError={(e) => e.target.style.display='none'} />
+          <img src={HOTEL_LOGO} alt="Ocean Stay" style={headerStyles.logoImage} onError={(e) => e.target.style.display='none'} />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <h1 style={{ margin: 0, color: "#0f172a", fontSize: "36px", fontFamily: "'Brush Script MT', cursive", letterSpacing: "1px", fontWeight: "normal", lineHeight: "1" }}>Ocean Blue Lagoon</h1>
-            <span style={{ fontSize: "22px", fontFamily: "'Brush Script MT', cursive", color: "#64748b", marginTop: "5px" }}>Maldives Resort</span>
+            <h1 className="app-page-title">Ocean Stay</h1>
+            <span className="app-page-subtitle" style={{ marginTop: "5px" }}>Maldives</span>
           </div>
         </div>
 
         {/* Center: Intelligence Center (Absolute) */}
         <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "10px" }}>
-           <span style={{ fontSize: "24px", fontWeight: "bold", color: "#1e293b", fontFamily: "'Playfair Display', serif", fontStyle: "italic", lineHeight: "1" }}>Intelligence Center</span>
-           <FaChartLine style={{ fontSize: "22px", color: "#3b82f6", opacity: 0.9 }} />
+           <span className="app-page-address" style={{ fontSize: "22px", fontWeight: "600", color: "#134e4a", lineHeight: "1" }}>Intelligence Center</span>
+           <FaChartLine style={{ fontSize: "22px", color: "#0d9488", opacity: 0.95 }} />
         </div>
         
         {/* Right: Controls (Buttons ABOVE, Inputs BELOW) */}
