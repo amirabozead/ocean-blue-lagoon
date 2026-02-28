@@ -1450,7 +1450,31 @@ useEffect(() => {
         hb: Number(r.pkg_hb ?? 0),
         fb: Number(r.pkg_fb ?? 0),
       })).filter((x) => x.roomType && x.from && x.to);
-      const reservationsCloud = (resRes?.data || []).map((r) => r.data).filter(Boolean);
+      let reservationsCloud = [];
+      if (allowPull) {
+        if (!resRes?.error) {
+          reservationsCloud = (resRes?.data || []).map((r) => r.data).filter(Boolean);
+        } else {
+          // Backward compatibility: older schema used external_id + payload
+          const resLegacy = await sb.from("reservations").select("external_id,payload,updated_at");
+          if (!resLegacy?.error) {
+            reservationsCloud = (resLegacy?.data || [])
+              .map((r) => {
+                const payload = r?.payload;
+                if (!payload) return null;
+                return payload?.id ? payload : { ...payload, id: r.external_id };
+              })
+              .filter(Boolean);
+          } else {
+            console.warn(
+              "Reservations pull failed for both schemas:",
+              resRes?.error?.message || "id/data schema error",
+              "|",
+              resLegacy?.error?.message || "external_id/payload schema error"
+            );
+          }
+        }
+      }
       if (extraRevRes?.error) {
         console.warn("Extra revenues pull failed:", extraRevRes.error.message, "→ Run supabase_ocean_extra_revenues.sql in Supabase SQL Editor.");
       }
@@ -1858,6 +1882,8 @@ useEffect(() => {
     if (!cloudBootstrapped || !supabase || !supabaseEnabled) return;
     const saveRes = async () => {
       const localList = reservations || [];
+      // Safety: never wipe cloud when local list is empty (e.g. fresh browser before pull succeeds)
+      if (!localList.length) return;
       const localIds = new Set(localList.filter((r) => r && r.id).map((r) => String(r.id)));
       const rows = localList
         .filter((r) => r && r.id)
@@ -1866,15 +1892,46 @@ useEffect(() => {
           data: r,
           updated_at: r.updatedAt || new Date().toISOString(),
         }));
-      if (rows.length) {
-        await supabase.from("reservations").upsert(rows, { onConflict: "id" });
+      const rowsLegacy = localList
+        .filter((r) => r && r.id)
+        .map((r) => ({
+          external_id: String(r.id),
+          payload: r,
+        }));
+      if (!rows.length) return;
+
+      // Primary schema: id + data
+      const { error: upErr } = await supabase.from("reservations").upsert(rows, { onConflict: "id" });
+      if (!upErr) {
+        const { data: existing } = await supabase.from("reservations").select("id");
+        const idsToRemove = (existing || []).map((r) => r.id).filter((id) => id && !localIds.has(id));
+        if (idsToRemove.length) {
+          await supabase.from("reservations").delete().in("id", idsToRemove);
+        }
+        return;
       }
-      // Remove from Supabase any reservation that was deleted locally
-      const { data: existing } = await supabase.from("reservations").select("id");
-      const idsToRemove = (existing || []).map((r) => r.id).filter((id) => id && !localIds.has(id));
-      if (idsToRemove.length) {
-        await supabase.from("reservations").delete().in("id", idsToRemove);
+
+      // Legacy schema fallback: external_id + payload
+      const { error: upLegacyErr } = await supabase
+        .from("reservations")
+        .upsert(rowsLegacy, { onConflict: "external_id" });
+      if (!upLegacyErr) {
+        const { data: existingLegacy } = await supabase.from("reservations").select("external_id");
+        const idsToRemoveLegacy = (existingLegacy || [])
+          .map((r) => r.external_id)
+          .filter((id) => id && !localIds.has(id));
+        if (idsToRemoveLegacy.length) {
+          await supabase.from("reservations").delete().in("external_id", idsToRemoveLegacy);
+        }
+        return;
       }
+
+      console.error(
+        "Reservations sync failed for both schemas:",
+        upErr?.message || upErr,
+        "|",
+        upLegacyErr?.message || upLegacyErr
+      );
     };
     const t = setTimeout(saveRes, 1000);
     return () => clearTimeout(t);
