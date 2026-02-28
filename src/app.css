@@ -3601,16 +3601,13 @@ select.input { cursor: pointer; }
   /* Give the content some breathing room under the fixed menu button */
   .main{ padding: 70px 16px 18px; }
   
-  /* Tables - Enable horizontal scroll on mobile */
-  table {
-    min-width: 600px;
-  }
-  
-  /* Table wrapper for horizontal scroll */
-  .table-wrapper-mobile,
-  div[style*="overflowX"] {
+  /* Tables - enable horizontal scroll only in explicit wrappers */
+  .table-wrapper-mobile {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
+  }
+  .table-wrapper-mobile table {
+    min-width: 640px;
   }
   
   /* Table wrapper scrollbar styling */
@@ -3632,98 +3629,16 @@ select.input { cursor: pointer; }
     background: #94a3b8;
   }
   
-  /* Cards and Grids - Stack on mobile */
-  .card-panel,
-  .stat-card,
-  .kpi-card {
-    width: 100% !important;
-    margin-bottom: 16px;
-  }
-  
-  /* Dashboard Grid - Stack columns */
-  div[style*="grid-column"] {
-    grid-column: span 12 !important;
-  }
-  
-  /* Filter Cards - Stack */
-  div[style*="flexWrap"] {
-    flex-wrap: wrap;
-  }
-  
-  /* Modals - Full screen on mobile */
-  .modal,
-  .modal-content {
-    width: 100% !important;
-    max-width: 100% !important;
-    height: 100vh !important;
-    max-height: 100vh !important;
-    border-radius: 0 !important;
-    margin: 0 !important;
-  }
-  
-  /* Forms - Stack inputs */
-  .form-group,
-  .form-row {
-    flex-direction: column !important;
-  }
-  
-  /* Buttons - Full width on mobile */
-  button:not(.mobMenuBtn),
-  .btn,
-  .btn-primary,
-  .btn-save {
-    width: 100% !important;
-    margin-bottom: 12px;
-  }
-  
-  /* Charts - Responsive sizing */
-  canvas {
-    max-width: 100% !important;
-    height: auto !important;
-  }
-  
-  /* Room Grid - Single column */
-  div[style*="gridTemplateColumns"] {
-    grid-template-columns: 1fr !important;
-  }
-  
-  /* KPI Cards - Stack */
+  /* Keep typography and wrappers readable without forcing global rewrites */
+  h1 { font-size: 24px; }
+  h2 { font-size: 20px; }
+  h3 { font-size: 18px; }
+  h4 { font-size: 16px; }
+
   .details-grid-4,
   .details-grid-2 {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
     gap: 16px;
-  }
-  
-  /* Header Stats - Stack */
-  div[style*="display: flex"][style*="gap"] {
-    flex-wrap: wrap;
-  }
-  
-  /* Text sizes - Smaller on mobile */
-  h1 { font-size: 24px !important; }
-  h2 { font-size: 20px !important; }
-  h3 { font-size: 18px !important; }
-  h4 { font-size: 16px !important; }
-  
-  /* Padding adjustments */
-  .main > div {
-    padding: 12px !important;
-  }
-  
-  /* Search and Filter bars - Stack */
-  div[style*="display: flex"][style*="justifyContent: space-between"] {
-    flex-direction: column;
-    gap: 12px;
-  }
-  
-  /* Invoice Modal - Mobile friendly */
-  .invoiceTable {
-    font-size: 12px;
-  }
-  
-  .invoiceTable th,
-  .invoiceTable td {
-    padding: 8px 4px !important;
   }
 }
 
