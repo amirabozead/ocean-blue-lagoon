@@ -1450,17 +1450,27 @@ useEffect(() => {
         hb: Number(r.pkg_hb ?? 0),
         fb: Number(r.pkg_fb ?? 0),
       })).filter((x) => x.roomType && x.from && x.to);
-      let reservationsCloud = [];
+      let reservationsCloud = null; // null => pull failed (don't overwrite local)
       if (allowPull) {
+        const parseReservationBlob = (blob) => {
+          if (!blob) return null;
+          if (typeof blob === "object") return blob;
+          if (typeof blob === "string") {
+            try { return JSON.parse(blob); } catch { return null; }
+          }
+          return null;
+        };
         if (!resRes?.error) {
-          reservationsCloud = (resRes?.data || []).map((r) => r.data).filter(Boolean);
+          reservationsCloud = (resRes?.data || [])
+            .map((r) => parseReservationBlob(r.data))
+            .filter(Boolean);
         } else {
           // Backward compatibility: older schema used external_id + payload
           const resLegacy = await sb.from("reservations").select("external_id,payload,updated_at");
           if (!resLegacy?.error) {
             reservationsCloud = (resLegacy?.data || [])
               .map((r) => {
-                const payload = r?.payload;
+                const payload = parseReservationBlob(r?.payload);
                 if (!payload) return null;
                 return payload?.id ? payload : { ...payload, id: r.external_id };
               })
@@ -1518,12 +1528,16 @@ useEffect(() => {
         // SAFETY CHECK: Don't overwrite local reservations with empty cloud data
         // Only sync if cloud has data OR if local is also empty (first time setup)
         const localReservations = reservations || [];
-        if (reservationsCloud.length > 0 || localReservations.length === 0) {
-          setReservations(reservationsCloud);
-          storeSave("oceanstay_reservations_v1", reservationsCloud);
+        if (Array.isArray(reservationsCloud)) {
+          if (reservationsCloud.length > 0 || localReservations.length === 0) {
+            setReservations(reservationsCloud);
+            storeSave("oceanstay_reservations_v1", reservationsCloud);
+          } else {
+            console.warn("⚠️ Cloud sync skipped reservations: Cloud data is empty but local has", localReservations.length, "reservations. To prevent data loss, local reservations are preserved.");
+            // Still sync other data, but preserve local reservations
+          }
         } else {
-          console.warn("⚠️ Cloud sync skipped reservations: Cloud data is empty but local has", localReservations.length, "reservations. To prevent data loss, local reservations are preserved.");
-          // Still sync other data, but preserve local reservations
+          console.warn("⚠️ Reservations pull failed; preserving local reservations and skipping cloud overwrite.");
         }
         
         setExtraRevenues(extraRevenuesCloud);
