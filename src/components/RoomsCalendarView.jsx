@@ -75,8 +75,8 @@ export default function RoomsCalendarView({ rooms, reservations, onCellClick }) 
         style.backgroundColor = "#dcfce7";
         if (isToday) style.backgroundColor = "#bbf7d0";
       } else if (isFuture) {
-        style.backgroundColor = "#dbeafe";
-        if (isToday) style.backgroundColor = "#bfdbfe";
+        style.backgroundColor = "#ffedd5";
+        if (isToday) style.backgroundColor = "#fed7aa";
       }
     }
 
@@ -109,7 +109,7 @@ export default function RoomsCalendarView({ rooms, reservations, onCellClick }) 
       return { ...baseStyle, backgroundColor: "#dcfce7", color: "#166534", border: "1px solid #bbf7d0" };
     }
     if (status === "Booked" || normStatus(status) === "confirmed") {
-      return { ...baseStyle, backgroundColor: "#dbeafe", color: "#1e40af", border: "1px solid #bfdbfe" };
+      return { ...baseStyle, backgroundColor: "#ffedd5", color: "#92400e", border: "1px solid #fed7aa" };
     }
     return { ...baseStyle, backgroundColor: "#f3f4f6", color: "#374151" };
   };

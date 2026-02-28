@@ -56,7 +56,7 @@ const TH = ({ icon, label, title, center, right }) => (
   </th>
 );
 
-const FilterCard = ({ active, icon, label, count, onClick, color = "#0ea5e9" }) => (
+const FilterCard = ({ active, icon, label, count, onClick, color = "#b45309" }) => (
   <button
     onClick={onClick}
     style={{
@@ -370,11 +370,11 @@ export default function ReservationsPage({
 
   const tabColor = (tab) => {
     const t = norm(tab);
-    if (t === "all") return "#0ea5e9";
-    if (t === "booked") return "#f59e0b";
-    if (t === "confirmed") return "#10b981";
-    if (t.includes("check") && t.includes("in")) return "#6366f1";
-    if (t.includes("check") && t.includes("out")) return "#8b5cf6";
+    if (t === "all") return "#b45309";
+    if (t === "booked") return "#d97706";
+    if (t === "confirmed") return "#b45309";
+    if (t.includes("check") && t.includes("in")) return "#92400e";
+    if (t.includes("check") && t.includes("out")) return "#78350f";
     if (t.includes("cancel")) return "#ef4444";
     return "#64748b";
   };
@@ -503,7 +503,7 @@ export default function ReservationsPage({
       justifyContent: "space-between",
       alignItems: "center",
       marginBottom: "20px",
-      border: "1px solid rgba(20, 184, 166, 0.2)",
+      border: "1px solid rgba(180, 83, 9, 0.22)",
       gap: 14,
       flexWrap: "wrap",
     },
@@ -512,8 +512,8 @@ export default function ReservationsPage({
       height: "72px",
       objectFit: "cover",
       borderRadius: "50%",
-      border: "3px solid rgba(20, 184, 166, 0.35)",
-      boxShadow: "0 6px 16px rgba(13, 148, 136, 0.15)",
+      border: "3px solid rgba(180, 83, 9, 0.35)",
+      boxShadow: "0 6px 16px rgba(120, 53, 15, 0.15)",
     },
     statsBar: {
       display: "grid",
@@ -528,9 +528,9 @@ export default function ReservationsPage({
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
-      boxShadow: "0 4px 20px rgba(13, 148, 136, 0.06)",
+      boxShadow: "0 4px 20px rgba(120, 53, 15, 0.08)",
       borderLeft: `5px solid ${color}`,
-      border: "1px solid rgba(20, 184, 166, 0.12)",
+      border: "1px solid rgba(180, 83, 9, 0.15)",
       minHeight: 78,
     }),
     statLabel: {
@@ -541,7 +541,7 @@ export default function ReservationsPage({
       textTransform: "uppercase",
       letterSpacing: "0.5px",
     },
-    statValue: { fontSize: "24px", fontWeight: 800, color: "#134e4a" },
+    statValue: { fontSize: "24px", fontWeight: 800, color: "#0f172a" },
     pill: (bg) => ({ background: bg, padding: "10px", borderRadius: "50%" }),
   };
 
@@ -563,14 +563,14 @@ export default function ReservationsPage({
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
           <img
             src={HOTEL_LOGO}
-            alt="Ocean Stay"
+            alt="Ocean Blue Lagoon"
             style={headerStyles.logoImage}
             onError={(e) => {
               e.target.style.display = "none";
             }}
           />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <h1 className="app-page-title">Ocean Stay</h1>
+            <h1 className="app-page-title">Ocean Blue Lagoon</h1>
             <span className="app-page-subtitle" style={{ marginTop: "5px" }}>Maldives</span>
           </div>
         </div>
@@ -597,7 +597,7 @@ export default function ReservationsPage({
           >
             Reservations Manager
           </span>
-          <FaListUl style={{ fontSize: "20px", color: "#3b82f6", opacity: 0.9 }} />
+          <FaListUl style={{ fontSize: "20px", color: "#b45309", opacity: 0.9 }} />
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
@@ -630,8 +630,8 @@ export default function ReservationsPage({
                     fontSize: 12,
                     letterSpacing: "0.4px",
                     color: active ? "#0f172a" : "#64748b",
-                    background: active ? "#e0f2fe" : "transparent",
-                    boxShadow: active ? "0 6px 14px rgba(14,165,233,0.18)" : "none",
+                    background: active ? "#ffedd5" : "transparent",
+                    boxShadow: active ? "0 6px 14px rgba(180, 83, 9, 0.18)" : "none",
                   }}
                   title={m}
                 >
@@ -674,13 +674,13 @@ export default function ReservationsPage({
                 alignItems: "center",
                 gap: 8,
                 padding: "10px 14px",
-                background: "#3b82f6",
+                background: "#b45309",
                 border: "none",
                 borderRadius: 12,
                 color: "white",
                 fontWeight: 900,
                 cursor: "pointer",
-                boxShadow: "0 8px 18px rgba(59,130,246,0.22)",
+                boxShadow: "0 8px 18px rgba(120, 53, 15, 0.22)",
               }}
             >
               <FaPlus /> New Booking
@@ -729,36 +729,36 @@ export default function ReservationsPage({
 
       {/* KPI Cards */}
       <div style={headerStyles.statsBar}>
-        <div style={headerStyles.statCard("#0d9488")}>
+        <div style={headerStyles.statCard("#b45309")}>
           <div>
             <span style={headerStyles.statLabel}>{headerKpis.mode === "TODAY" ? "Total Rooms Sold" : "Room Nights Sold"}</span>
             <span style={headerStyles.statValue}>
               {headerKpis.mode === "TODAY" ? headerKpis.roomsSoldToday : Math.round(headerKpis.soldRoomNights)}
             </span>
           </div>
-          <div style={{ ...headerStyles.pill("#ccfbf1"), color: "#0d9488" }}>
+          <div style={{ ...headerStyles.pill("#ffedd5"), color: "#b45309" }}>
             <FaBed size={20} />
           </div>
         </div>
 
-        <div style={headerStyles.statCard("#14b8a6")}>
+        <div style={headerStyles.statCard("#d97706")}>
           <div>
             <span style={headerStyles.statLabel}>
               {headerKpis.mode === "TODAY" ? "Total Rooms Available" : "Room Nights Available"}
             </span>
-            <span style={{ ...headerStyles.statValue, color: "#14b8a6" }}>
+            <span style={{ ...headerStyles.statValue, color: "#d97706" }}>
               {headerKpis.mode === "TODAY" ? headerKpis.roomsAvailableToday : Math.round(headerKpis.availableRoomNights)}
             </span>
           </div>
-          <div style={{ ...headerStyles.pill("#f0fdfa"), color: "#14b8a6" }}>
+          <div style={{ ...headerStyles.pill("#fffbeb"), color: "#d97706" }}>
             <FaDoorOpen size={20} />
           </div>
         </div>
 
-        <div style={headerStyles.statCard("#10b981")}>
+        <div style={headerStyles.statCard("#b45309")}>
           <div>
             <span style={headerStyles.statLabel}>OCC</span>
-            <span style={{ ...headerStyles.statValue, color: "#10b981" }}>
+            <span style={{ ...headerStyles.statValue, color: "#b45309" }}>
               {(headerKpis.mode === "TODAY" ? headerKpis.occPctToday : headerKpis.occPctRange).toFixed(1)}%
             </span>
             {headerKpis.mode !== "TODAY" && (
@@ -767,7 +767,7 @@ export default function ReservationsPage({
               </div>
             )}
           </div>
-          <div style={{ ...headerStyles.pill("#ecfdf5"), color: "#10b981" }}>
+          <div style={{ ...headerStyles.pill("#ffedd5"), color: "#b45309" }}>
             <FaChartPie size={20} />
           </div>
         </div>
@@ -906,8 +906,8 @@ export default function ReservationsPage({
                     }}
                     onMouseEnter={(e) => {
                       if (!isEditLocked(r)) {
-                        e.currentTarget.style.background = "#f0f9ff";
-                        e.currentTarget.style.boxShadow = "inset 4px 0 0 #3b82f6";
+                        e.currentTarget.style.background = "#fffbeb";
+                        e.currentTarget.style.boxShadow = "inset 4px 0 0 #b45309";
                         e.currentTarget.style.transform = "scale(1.001)";
                       }
                     }}
@@ -924,7 +924,7 @@ export default function ReservationsPage({
                             width: 36,
                             height: 36,
                             borderRadius: "8px",
-                            background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+                            background: "linear-gradient(135deg, #b45309 0%, #92400e 100%)",
                             color: "#ffffff",
                             display: "flex",
                             alignItems: "center",
@@ -932,7 +932,7 @@ export default function ReservationsPage({
                             fontWeight: "700",
                             fontSize: "0.85rem",
                             flexShrink: 0,
-                            boxShadow: "0 2px 6px rgba(59, 130, 246, 0.3)",
+                            boxShadow: "0 2px 6px rgba(120, 53, 15, 0.3)",
                           }}
                         >
                           {(String(first || "G").charAt(0) || "G").toUpperCase()}
@@ -951,19 +951,19 @@ export default function ReservationsPage({
                     <td style={{ padding: "8px 10px", paddingLeft: "16px", verticalAlign: "middle", textAlign: "center" }}>
                       <span
                         style={{
-                          background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
+                          background: "linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)",
                           padding: "4px 12px",
                           borderRadius: "6px",
                           fontWeight: "600",
-                          color: "#1e40af",
+                          color: "#92400e",
                           display: "inline-flex",
                           alignItems: "center",
                           justifyContent: "center",
                           gap: 5,
                           whiteSpace: "nowrap",
                           fontSize: "0.8rem",
-                          border: "1px solid #93c5fd",
-                          boxShadow: "0 1px 2px rgba(59, 130, 246, 0.2)",
+                          border: "1px solid #fdba74",
+                          boxShadow: "0 1px 2px rgba(120, 53, 15, 0.2)",
                         }}
                       >
                         <FaBed size={11} /> {roomNo}
@@ -1042,10 +1042,10 @@ export default function ReservationsPage({
                             e.stopPropagation();
                             onInvoice?.(r);
                           }}
-                          style={iconBtn("#3b82f6")}
+                          style={iconBtn("#b45309")}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "#eff6ff";
-                            e.currentTarget.style.borderColor = "#93c5fd";
+                            e.currentTarget.style.background = "#ffedd5";
+                            e.currentTarget.style.borderColor = "#fdba74";
                             e.currentTarget.style.transform = "scale(1.05)";
                           }}
                           onMouseLeave={(e) => {

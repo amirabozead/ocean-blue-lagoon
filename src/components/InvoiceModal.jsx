@@ -124,7 +124,7 @@ export default function InvoiceModal({ reservation, onClose }) {
         }
         .total-label { font-size: 1rem; font-weight: 700; color: #0369a1; }
         /* تم تصغير الخط من 1.8rem إلى 1.4rem وتقليل الـ weight */
-        .total-amount { font-size: 1.4rem; font-weight: 700; color: #0284c7; }
+        .total-amount { font-size: 1.4rem; font-weight: 700; color: #92400e; }
 
         /* Footer */
         .invoice-footer {
@@ -157,9 +157,9 @@ export default function InvoiceModal({ reservation, onClose }) {
           {/* Header */}
           <div className="invoice-header">
             <div className="hotel-brand">
-              <img src="/logo.png" alt="Ocean Stay" className="invoice-logo" />
+              <img src="/logo.png" alt="Ocean Blue Lagoon" className="invoice-logo" />
               <div className="hotel-brand-text">
-                <h1 className="invoice-hotel-name">Ocean Stay</h1>
+                <h1 className="invoice-hotel-name">Ocean Blue Lagoon</h1>
                 <span className="invoice-hotel-sub">Maldives</span>
               </div>
             </div>
@@ -175,15 +175,15 @@ export default function InvoiceModal({ reservation, onClose }) {
             <div className="guest-grid">
               <div className="info-item">
                 <span className="info-label">Guest Name</span>
-                <span className="info-value"><FaUser size={11} color="#0ea5e9"/> {reservation.guest?.firstName} {reservation.guest?.lastName}</span>
+                <span className="info-value"><FaUser size={11} color="#b45309"/> {reservation.guest?.firstName} {reservation.guest?.lastName}</span>
               </div>
               <div className="info-item">
                 <span className="info-label">Room Info</span>
-                <span className="info-value"><FaDoorOpen size={11} color="#0ea5e9"/> Room {reservation.room?.roomNumber}</span>
+                <span className="info-value"><FaDoorOpen size={11} color="#b45309"/> Room {reservation.room?.roomNumber}</span>
               </div>
               <div className="info-item">
                 <span className="info-label">Stay Duration</span>
-                <span className="info-value"><FaCalendarAlt size={11} color="#0ea5e9"/> {nights} Nights</span>
+                <span className="info-value"><FaCalendarAlt size={11} color="#b45309"/> {nights} Nights</span>
               </div>
               <div className="info-item">
                 <span className="info-label">Check-In</span>

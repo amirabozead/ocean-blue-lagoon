@@ -139,7 +139,7 @@ export default function SettingsPage({
 }) {
   const [settings, setSettings] = useState(() => {
     const defaults = {
-      hotelName: "Ocean Stay",
+      hotelName: "Ocean Blue Lagoon",
       currency: "USD",
       taxRate: 17,
       serviceCharge: 10,
@@ -173,9 +173,9 @@ export default function SettingsPage({
       {/* --- HEADER --- */}
       <div style={headerStyles.headerCard}>
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <img src={HOTEL_LOGO} alt="Ocean Stay" style={headerStyles.logoImage} onError={(e) => e.target.style.display='none'} />
+          <img src={HOTEL_LOGO} alt="Ocean Blue Lagoon" style={headerStyles.logoImage} onError={(e) => e.target.style.display='none'} />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <h1 className="app-page-title">Ocean Stay</h1>
+            <h1 className="app-page-title">Ocean Blue Lagoon</h1>
             <span className="app-page-subtitle" style={{ marginTop: "5px" }}>Maldives</span>
           </div>
         </div>

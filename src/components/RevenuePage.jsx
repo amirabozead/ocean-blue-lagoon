@@ -121,7 +121,7 @@ const TrendDot = ({ cx, cy, payload, isMax, isMin }) => {
       cx={cx}
       cy={cy}
       r={showPulse ? 5 : 3.5}
-      fill={isMax ? "#0d9488" : isMin ? "#f97316" : "#0d9488"}
+      fill={isMax ? "#b45309" : isMin ? "#f97316" : "#b45309"}
       fillOpacity={showPulse ? 1 : 0.85}
       stroke="#ffffff"
       strokeWidth={2}
@@ -239,15 +239,15 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
       justifyContent: "space-between",
       alignItems: "center",
       marginBottom: "16px",
-      border: "1px solid rgba(20, 184, 166, 0.2)",
+      border: "1px solid rgba(180, 83, 9, 0.22)",
     },
     logoImage: {
       width: "72px",
       height: "72px",
       objectFit: "cover",
       borderRadius: "50%",
-      border: "3px solid rgba(20, 184, 166, 0.35)",
-      boxShadow: "0 6px 16px rgba(13, 148, 136, 0.15)",
+      border: "3px solid rgba(180, 83, 9, 0.35)",
+      boxShadow: "0 6px 16px rgba(120, 53, 15, 0.15)",
     },
   };
 
@@ -478,7 +478,7 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
       gap: 8,
       fontSize: 12,
     };
-    if (variant === "edit") return { ...base, color: "#0d9488" };
+    if (variant === "edit") return { ...base, color: "#b45309" };
     if (variant === "del") return { ...base, color: "#ef4444" };
     return base;
   };
@@ -596,14 +596,14 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
     padding: "11px 14px",
     borderRadius: 12,
     border: "1px solid rgba(255,255,255,0.2)",
-    background: "linear-gradient(135deg, #0d9488, #0f766e)",
+    background: "linear-gradient(135deg, #b45309, #92400e)",
     color: "white",
     fontWeight: 600,
     cursor: "pointer",
     display: "inline-flex",
     alignItems: "center",
     gap: 10,
-    boxShadow: "0 6px 20px rgba(13, 148, 136, 0.25)",
+    boxShadow: "0 6px 20px rgba(120, 53, 15, 0.25)",
   };
 
   const ghostBtn = {
@@ -623,12 +623,12 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
           <img
             src={HOTEL_LOGO}
-            alt="Ocean Stay"
+            alt="Ocean Blue Lagoon"
             style={headerStyles.logoImage}
             onError={(e) => (e.target.style.display = "none")}
           />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <h1 className="app-page-title">Ocean Stay</h1>
+            <h1 className="app-page-title">Ocean Blue Lagoon</h1>
             <span className="app-page-subtitle" style={{ marginTop: "5px" }}>Maldives</span>
           </div>
         </div>
@@ -649,13 +649,13 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
             style={{
               fontSize: "22px",
               fontWeight: "600",
-              color: "#134e4a",
+              color: "#0f172a",
               lineHeight: "1",
             }}
           >
             Revenue Center
           </span>
-          <FaMoneyBillWave style={{ fontSize: "20px", color: "#0d9488", opacity: 0.95 }} />
+          <FaMoneyBillWave style={{ fontSize: "20px", color: "#b45309", opacity: 0.95 }} />
         </div>
 
         {/* Right controls (same height as RoomsPage) */}
@@ -685,7 +685,7 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
                 alignItems: "center",
                 gap: "8px",
                 fontSize: "12px",
-                background: timeFilter === k ? "#0d9488" : "transparent",
+                background: timeFilter === k ? "#b45309" : "transparent",
                 color: timeFilter === k ? "white" : "#54716e",
               }}
             >
@@ -707,7 +707,7 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
               alignItems: "center",
               gap: "8px",
               fontSize: "12px",
-              background: "linear-gradient(135deg, #0d9488, #0f766e)",
+              background: "linear-gradient(135deg, #b45309, #92400e)",
               color: "white",
             }}
           >
@@ -767,7 +767,7 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
             <span style={{ fontSize: 11, color: "#475569", textTransform: "uppercase", fontWeight: 900 }}>
               Total Revenue
             </span>
-            <span style={iconBadge("#ccfbf1", "#0d9488")}>
+            <span style={iconBadge("#ffedd5", "#b45309")}>
               <FaMoneyBillWave size={14} />
             </span>
           </div>
@@ -890,9 +890,9 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
               <AreaChart data={chartData} margin={{ top: 10, right: 18, left: 6, bottom: 0 }}>
                 <defs>
                   <linearGradient id="revFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0d9488" stopOpacity={0.28} />
-                    <stop offset="75%" stopColor="#0d9488" stopOpacity={0.06} />
-                    <stop offset="100%" stopColor="#0d9488" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#b45309" stopOpacity={0.28} />
+                    <stop offset="75%" stopColor="#b45309" stopOpacity={0.06} />
+                    <stop offset="100%" stopColor="#b45309" stopOpacity={0} />
                   </linearGradient>
                 </defs>
 
@@ -923,7 +923,7 @@ export default function RevenuePage({ data = [], reservations = [], onUpdate }) 
                 <Area
                   type="monotone"
                   dataKey="amount"
-                  stroke="#0d9488"
+                  stroke="#b45309"
                   strokeWidth={3}
                   fill="url(#revFill)"
                   dot={(props) => {

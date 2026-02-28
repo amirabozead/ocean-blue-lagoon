@@ -73,17 +73,17 @@ export default function SearchModal({ filters, setFilters, onClose }) {
           padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; 
           font-size: 0.9rem; transition: all 0.2s; color: #1e293b; 
         }
-        .field input:focus, .field select:focus { border-color: #0ea5e9; outline: none; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); }
+        .field input:focus, .field select:focus { border-color: #b45309; outline: none; box-shadow: 0 0 0 3px rgba(180, 83, 9, 0.1); }
         
         .filter-badge {
-          background: #e0f2fe; color: #0284c7; padding: 4px 12px; border-radius: 20px;
+          background: #ffedd5; color: #92400e; padding: 4px 12px; border-radius: 20px;
           font-size: 0.75rem; font-weight: 700; border: 1px solid #bae6fd;
         }
 
         .ocean-modal-footer { padding: 20px 30px; background: #f8fafc; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; }
         
-        .ocean-btn-primary { background: linear-gradient(135deg, #0d9488, #0f766e); color: #fff; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: box-shadow 0.2s; box-shadow: 0 4px 14px rgba(13, 148, 136, 0.25); }
-        .ocean-btn-primary:hover { box-shadow: 0 6px 20px rgba(13, 148, 136, 0.35); }
+        .ocean-btn-primary { background: linear-gradient(135deg, #b45309, #92400e); color: #fff; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: box-shadow 0.2s; box-shadow: 0 4px 14px rgba(120, 53, 15, 0.25); }
+        .ocean-btn-primary:hover { box-shadow: 0 6px 20px rgba(120, 53, 15, 0.35); }
         
         .ocean-btn-danger { background: #fff; border: 1.5px solid #fee2e2; color: #ef4444; padding: 12px 24px; border-radius: 10px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
         .ocean-btn-danger:hover { background: #fef2f2; border-color: #ef4444; }
@@ -94,12 +94,12 @@ export default function SearchModal({ filters, setFilters, onClose }) {
           
           <div className="ocean-modal-header">
             <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-              <div style={{background:'#ccfbf1', padding:'10px', borderRadius:'10px', color:'#0d9488'}}>
+              <div style={{background:'#ffedd5', padding:'10px', borderRadius:'10px', color:'#b45309'}}>
                 <FaSearch size={18} />
               </div>
               <div>
                 <h2 style={{margin:0, fontSize: '1.2rem', color: '#0f172a'}}>Advanced Search</h2>
-                <div style={{fontSize: '0.8rem', color: '#64748b'}}>Ocean Stay | Maldives — Filter Database</div>
+                <div style={{fontSize: '0.8rem', color: '#64748b'}}>Ocean Blue Lagoon | Maldives — Filter Database</div>
               </div>
             </div>
             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
@@ -111,7 +111,7 @@ export default function SearchModal({ filters, setFilters, onClose }) {
           <div className="ocean-modal-body">
             
             <div className="ocean-section">
-              <h4 className="section-label"><FaUser color="#0ea5e9"/> Guest, Room & Payment</h4>
+              <h4 className="section-label"><FaUser color="#b45309"/> Guest, Room & Payment</h4>
               <div className="ocean-grid-search">
                 <div className="field">
                   <label>First Name</label>
@@ -134,7 +134,7 @@ export default function SearchModal({ filters, setFilters, onClose }) {
 
                 <div className="field">
                   <label><span style={{display:'flex', alignItems:'center', gap:'5px'}}><FaInfoCircle size={10}/> Booking Status</span></label>
-                  <select value={f.status || "All"} onChange={(e) => set("status", e.target.value)} style={{fontWeight: 'bold', color: f.status && f.status !== "All" ? '#0284c7' : '#1e293b'}}>
+                  <select value={f.status || "All"} onChange={(e) => set("status", e.target.value)} style={{fontWeight: 'bold', color: f.status && f.status !== "All" ? '#92400e' : '#1e293b'}}>
                     <option value="All">All Statuses</option>
                     {STATUS_LIST.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
@@ -167,7 +167,7 @@ export default function SearchModal({ filters, setFilters, onClose }) {
             </div>
 
             <div className="ocean-section">
-              <h4 className="section-label"><FaCalendarAlt color="#0ea5e9"/> Date Filters</h4>
+              <h4 className="section-label"><FaCalendarAlt color="#b45309"/> Date Filters</h4>
               <div className="ocean-grid-search">
                 <div className="field">
                   <label>Check-in From</label>

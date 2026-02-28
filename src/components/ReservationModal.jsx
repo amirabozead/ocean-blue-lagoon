@@ -43,7 +43,7 @@ export default function ReservationModal({
     }
   }, [errorMessage]);
 
-  // Room types that actually exist (from BASE_ROOMS) — e.g. only "Standard Double Room" for the 5 units
+  // Room types come directly from BASE_ROOMS mapping (single source of truth).
   const availableRoomTypes = useMemo(() => {
     const types = [...new Set(BASE_ROOMS.map((r) => r.roomType))];
     return types.length ? types : ["Standard Double Room"];
@@ -98,7 +98,7 @@ export default function ReservationModal({
     if (!roomNumbersForType.includes(roomNumber)) setRoomNumber(roomNumbersForType[0] || "");
   }, [roomType, roomNumbersForType, roomNumber]);
 
-  // If current room type is not in available types (e.g. after reducing to 5 Standard rooms), use first available
+  // If current room type is no longer available in current mapping, fall back safely.
   useEffect(() => {
     if (availableRoomTypes.length && !availableRoomTypes.includes(roomType)) setRoomType(availableRoomTypes[0]);
   }, [availableRoomTypes, roomType]);
@@ -413,10 +413,10 @@ export default function ReservationModal({
           border: 1px solid #bae6fd; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
         .price-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #bae6fd; padding-bottom: 10px; }
-        .nights-pill { background: #0ea5e9; color: #fff; padding: 2px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; }
+        .nights-pill { background: #b45309; color: #fff; padding: 2px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; }
         .p-item { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.85rem; font-weight: 500; }
         .p-total { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding-top: 15px; border-top: 2px dashed #bae6fd; }
-        .total-val { font-size: 1.3rem; color: #0284c7; font-weight: 800; }
+        .total-val { font-size: 1.3rem; color: #92400e; font-weight: 800; }
         .rate-breakdown-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; margin-top: 12px; }
         .rate-breakdown-table th { text-align: left; padding: 6px 8px; color: #64748b; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
         .rate-breakdown-table td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; color: #334155; }
@@ -424,8 +424,8 @@ export default function ReservationModal({
         .rate-breakdown-wrap { max-height: 180px; overflow-y: auto; margin-top: 8px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; }
         
         .ocean-modal-footer { padding: 20px 35px; background: #f8fafc; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #e2e8f0; }
-        .ocean-btn-primary { background: #0ea5e9; color: #fff; border: none; padding: 12px 25px; border-radius: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s ease; }
-        .ocean-btn-primary:hover { background: #0284c7; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(14, 165, 233, 0.3); }
+        .ocean-btn-primary { background: #b45309; color: #fff; border: none; padding: 12px 25px; border-radius: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s ease; }
+        .ocean-btn-primary:hover { background: #92400e; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(120, 53, 15, 0.3); }
         .ocean-btn-secondary { background: #fff; border: 1.5px solid #e2e8f0; padding: 12px 25px; border-radius: 12px; color: #64748b; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
         .ocean-btn-secondary:hover { background: #f8fafc; border-color: #cbd5e1; }
         
@@ -544,9 +544,9 @@ export default function ReservationModal({
         <div className="ocean-modal-card">
           <div className="ocean-modal-header">
             <div className="reservation-modal-brand">
-              <img src="/logo.png" alt="Ocean Stay" className="reservation-logo" />
+              <img src="/logo.png" alt="Ocean Blue Lagoon" className="reservation-logo" />
               <div className="brand-text">
-                <h1 className="brand-name">Ocean Stay</h1>
+                <h1 className="brand-name">Ocean Blue Lagoon</h1>
                 <span className="brand-sub">Maldives</span>
                 <span className="brand-badge">Reservation</span>
               </div>
@@ -559,7 +559,7 @@ export default function ReservationModal({
               
               <div className="ocean-col-inputs">
                 <div className="ocean-section">
-                  <h4 className="section-label"><FaUser size={13} color="#0ea5e9"/> Guest Information</h4>
+                  <h4 className="section-label"><FaUser size={13} color="#b45309"/> Guest Information</h4>
                   <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'15px'}}>
                     <div className="field"><label>First Name <span style={{color: '#ef4444'}}>*</span></label><input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} required /></div>
                     <div className="field"><label>Last Name <span style={{color: '#ef4444'}}>*</span></label><input type="text" value={lastName} onChange={e => setLastName(e.target.value)} required /></div>
@@ -571,7 +571,7 @@ export default function ReservationModal({
                 </div>
 
                 <div className="ocean-section">
-                  <h4 className="section-label"><FaCalendarAlt size={13} color="#0ea5e9"/> Stay & Room</h4>
+                  <h4 className="section-label"><FaCalendarAlt size={13} color="#b45309"/> Stay & Room</h4>
                   <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'15px'}}>
                     <div className="field"><label>Check-In</label><input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} /></div>
                     <div className="field"><label>Check-Out</label><input type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)} /></div>
@@ -611,7 +611,7 @@ export default function ReservationModal({
 
                 {pricing.ok && pricing.rateSnapshots?.length > 0 && (
                   <div className="ocean-section">
-                    <h4 className="section-label"><FaConciergeBell size={13} color="#0ea5e9"/> Rate & package snapshot</h4>
+                    <h4 className="section-label"><FaConciergeBell size={13} color="#b45309"/> Rate & package snapshot</h4>
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                       {pricing.rateSnapshots.map((snap, i) => (
                         <div key={i} style={{ padding: "12px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 2px 5px rgba(0,0,0,0.03)" }}>
@@ -654,7 +654,7 @@ export default function ReservationModal({
                 </div>
 
                 <div className="ocean-section" style={{marginTop:'20px'}}>
-                  <h4 className="section-label"><FaCreditCard size={13} color="#0ea5e9"/> Settlement</h4>
+                  <h4 className="section-label"><FaCreditCard size={13} color="#b45309"/> Settlement</h4>
                   <div className="field"><label>Channel <span style={{color: '#ef4444'}}>*</span></label><select value={channel} onChange={e => setChannel(e.target.value)} required>{BOOKING_CHANNELS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
                   <div className="field"><label>Payment method <span style={{color: '#ef4444'}}>*</span></label><select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} required>{PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
                   <div className="field"><label>Status</label><select value={status} onChange={e => setStatus(e.target.value)} style={{background:'#f0fdf4', color:'#166534', fontWeight: 800}}>{STATUS_LIST.map(s => <option key={s} value={s}>{s}</option>)}</select></div>

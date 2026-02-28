@@ -25,7 +25,7 @@ const HOTEL_LOGO = "/logo.png";
 
 // --- الثوابت والألوان (كما في الملف الأصلي) ---
 const theme = {
-  primary: "#0ea5e9",    
+  primary: "#b45309",    
   secondary: "#6366f1",  
   success: "#10b981",    
   danger: "#f43f5e",     
@@ -578,7 +578,7 @@ export default function DashboardPage({ reservations = [], rooms = [], expenses 
         label: selectedTrendKpi,
         data: values,
         borderColor: theme.primary,
-        backgroundColor: "rgba(14, 165, 233, 0.08)",
+        backgroundColor: "rgba(180, 83, 9, 0.08)",
         borderWidth: 3,
         fill: true,
         tension: 0.4,
@@ -646,7 +646,7 @@ headerCard: {
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: "24px",
-        border: "1px solid rgba(20, 184, 166, 0.2)",
+        border: "1px solid rgba(180, 83, 9, 0.22)",
         minHeight: "96px"
     },
     logoImage: {
@@ -654,17 +654,17 @@ headerCard: {
         height: "72px",
         objectFit: "cover",
         borderRadius: "50%",
-        border: "3px solid rgba(20, 184, 166, 0.35)", 
-        boxShadow: "0 6px 16px rgba(13, 148, 136, 0.15)", 
+        border: "3px solid rgba(180, 83, 9, 0.35)", 
+        boxShadow: "0 6px 16px rgba(120, 53, 15, 0.15)", 
     },
     pillContainer: {
         background: "#fff",
         padding: "5px",
         borderRadius: "50px",
-        boxShadow: "0 2px 10px rgba(13, 148, 136, 0.06)",
+        boxShadow: "0 2px 10px rgba(120, 53, 15, 0.08)",
         display: "flex",
         gap: "4px",
-        border: "1px solid rgba(20, 184, 166, 0.2)"
+        border: "1px solid rgba(180, 83, 9, 0.22)"
     },
     pillButton: (active) => ({
         padding: "8px 16px",
@@ -674,7 +674,7 @@ headerCard: {
         fontWeight: "600",
         fontSize: "12px",
         transition: "0.2s",
-        background: active ? "#0d9488" : "transparent",
+        background: active ? "#b45309" : "transparent",
         color: active ? "#fff" : "#54716e"
     }),
     // حاوية الجزء الأيمن (الأزرار + التاريخ تحتها)
@@ -720,17 +720,17 @@ headerCard: {
         
         {/* Left: Logo & Hotel Name */}
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <img src={HOTEL_LOGO} alt="Ocean Stay" style={headerStyles.logoImage} onError={(e) => e.target.style.display='none'} />
+          <img src={HOTEL_LOGO} alt="Ocean Blue Lagoon" style={headerStyles.logoImage} onError={(e) => e.target.style.display='none'} />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <h1 className="app-page-title">Ocean Stay</h1>
+            <h1 className="app-page-title">Ocean Blue Lagoon</h1>
             <span className="app-page-subtitle" style={{ marginTop: "5px" }}>Maldives</span>
           </div>
         </div>
 
         {/* Center: Intelligence Center (Absolute) */}
         <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "10px" }}>
-           <span className="app-page-address" style={{ fontSize: "22px", fontWeight: "600", color: "#134e4a", lineHeight: "1" }}>Intelligence Center</span>
-           <FaChartLine style={{ fontSize: "22px", color: "#0d9488", opacity: 0.95 }} />
+           <span className="app-page-address" style={{ fontSize: "22px", fontWeight: "600", color: "#0f172a", lineHeight: "1" }}>Intelligence Center</span>
+           <FaChartLine style={{ fontSize: "22px", color: "#b45309", opacity: 0.95 }} />
         </div>
         
         {/* Right: Controls (Buttons ABOVE, Inputs BELOW) */}
@@ -1070,20 +1070,20 @@ headerCard: {
         <div style={{ gridColumn: "span 3", ...cardStyle, padding: "24px" }}>
           <h3 style={sectionTitle}>Revenue Mix</h3>
           <div style={{ height: "140px", position: "relative" }}>
-            <Doughnut data={getDoughnutData(kpi.revData, ["#0ea5e9", "#10b981", "#a855f7", "#f43f5e", "#f97316", "#64748b"])} options={doughnutOptions} />
+            <Doughnut data={getDoughnutData(kpi.revData, ["#b45309", "#10b981", "#a855f7", "#f43f5e", "#f97316", "#64748b"])} options={doughnutOptions} />
           </div>
           <div style={{ marginTop: "20px" }}>
-             <IconDataGrid data={kpi.revData} colors={["#0ea5e9", "#10b981", "#a855f7", "#f43f5e", "#f97316", "#64748b"]} />
+             <IconDataGrid data={kpi.revData} colors={["#b45309", "#10b981", "#a855f7", "#f43f5e", "#f97316", "#64748b"]} />
           </div>
         </div>
 
         <div style={{ gridColumn: "span 3", ...cardStyle, padding: "24px", borderTop: `4px solid ${theme.danger}` }}>
           <h3 style={sectionTitle}>Expense Mix</h3>
           <div style={{ height: "140px", position: "relative" }}>
-            <Doughnut data={getDoughnutData(kpi.expData, ["#6366f1", "#f59e0b", "#eab308", "#0ea5e9", "#10b981", "#94a3b8"])} options={doughnutOptions} />
+            <Doughnut data={getDoughnutData(kpi.expData, ["#6366f1", "#f59e0b", "#eab308", "#b45309", "#10b981", "#94a3b8"])} options={doughnutOptions} />
           </div>
           <div style={{ marginTop: "20px" }}>
-             <IconDataGrid data={kpi.expData} colors={["#6366f1", "#f59e0b", "#eab308", "#0ea5e9", "#10b981", "#94a3b8"]} />
+             <IconDataGrid data={kpi.expData} colors={["#6366f1", "#f59e0b", "#eab308", "#b45309", "#10b981", "#94a3b8"]} />
           </div>
         </div>
 

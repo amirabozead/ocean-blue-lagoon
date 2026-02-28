@@ -22,8 +22,8 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, set
 
   const sidebarStyle = useMemo(
     () => ({
-      background: "linear-gradient(185deg, #0f766e 0%, #134e4a 45%, #0d4441 100%)",
-      color: "#f0fdfa",
+      background: "#5c3a1e",
+      color: "#f5f5f4",
       display: "flex",
       flexDirection: "column",
       height: "100%",
@@ -55,7 +55,7 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, set
       >
         <img
           src={HOTEL_LOGO}
-          alt="Ocean Stay"
+          alt="Ocean Blue Lagoon"
           style={{
             width: 64,
             height: 64,
@@ -75,12 +75,12 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, set
               fontFamily: "'Dancing Script', cursive",
               letterSpacing: "0.6px",
               fontWeight: 600,
-              color: "#f0fdfa",
-              textShadow: "0 2px 10px rgba(0,0,0,0.2)",
+              color: "#ffffff",
+              textShadow: "0 2px 10px rgba(0, 0, 0, 0.35)",
               whiteSpace: "nowrap",
             }}
           >
-            Ocean Stay
+            Ocean Blue Lagoon
           </div>
 
           <div
@@ -90,7 +90,7 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, set
               fontFamily: "'Dancing Script', cursive",
               fontWeight: 600,
               letterSpacing: "0.5px",
-              color: "rgba(245, 158, 11, 0.95)",
+              color: "#fbbf24",
               whiteSpace: "nowrap",
             }}
           >
@@ -208,8 +208,8 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, set
             style={{
               borderRadius: 16,
               padding: 12,
-              background: "rgba(255,255,255,0.10)",
-              border: "1px solid rgba(255,255,255,0.16)",
+              background: "rgba(180, 83, 9, 0.14)",
+              border: "1px solid rgba(245, 158, 11, 0.28)",
               boxShadow: "0 16px 26px rgba(0,0,0,0.22)",
               backdropFilter: "blur(6px)",
             }}
@@ -227,8 +227,8 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, set
                     display: "grid",
                     placeItems: "center",
                     fontWeight: 950,
-                    color: "#134e4a",
-                    background: "rgba(240,253,250,0.98)",
+                    color: "#1f1b19",
+                    background: "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)",
                     boxShadow: "0 8px 14px rgba(0,0,0,0.15)",
                     flexShrink: 0,
                     fontSize: 16,
@@ -251,7 +251,7 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, set
                   >
                     {currentUser.name || "Admin"}
                   </span>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: "rgba(255,255,255,0.78)" }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "rgba(254, 243, 199, 0.95)" }}>
                     {currentUser.role || "Manager"}
                   </span>
                 </div>
@@ -268,8 +268,8 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, set
                     width: 38,
                     height: 38,
                     borderRadius: 10,
-                    border: "1px solid rgba(255,255,255,0.20)",
-                    background: "rgba(255,255,255,0.12)",
+                    border: "1px solid rgba(245, 158, 11, 0.34)",
+                    background: "rgba(180, 83, 9, 0.32)",
                     color: "#fff",
                     cursor: "pointer",
                     display: "grid",
@@ -277,8 +277,8 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, set
                     fontSize: 14,
                     transition: "0.2s",
                   }}
-                  onMouseOver={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.2)"}
-                  onMouseOut={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.12)"}
+                  onMouseOver={(e) => e.currentTarget.style.background = "rgba(217, 119, 6, 0.62)"}
+                  onMouseOut={(e) => e.currentTarget.style.background = "rgba(180, 83, 9, 0.32)"}
                 >
                   {isLocked ? <FaLock /> : <FaUnlock />}
                 </button>
@@ -291,9 +291,9 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, set
                     width: 38,
                     height: 38,
                     borderRadius: 10,
-                    border: "1px solid rgba(255, 80, 80, 0.4)", // حدود حمراء خفيفة
-                    background: "rgba(255, 80, 80, 0.15)", // خلفية حمراء شفافة
-                    color: "#ffcccc",
+                    border: "1px solid rgba(245, 158, 11, 0.42)",
+                    background: "rgba(146, 64, 14, 0.55)",
+                    color: "#fde68a",
                     cursor: "pointer",
                     display: "grid",
                     placeItems: "center",
@@ -301,14 +301,14 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, set
                     transition: "all 0.2s",
                   }}
                   onMouseOver={(e) => {
-                    e.currentTarget.style.background = "rgba(255, 60, 60, 0.8)";
+                    e.currentTarget.style.background = "rgba(194, 65, 12, 0.95)";
                     e.currentTarget.style.color = "white";
-                    e.currentTarget.style.borderColor = "transparent";
+                    e.currentTarget.style.borderColor = "rgba(254, 243, 199, 0.35)";
                   }}
                   onMouseOut={(e) => {
-                    e.currentTarget.style.background = "rgba(255, 80, 80, 0.15)";
-                    e.currentTarget.style.color = "#ffcccc";
-                    e.currentTarget.style.borderColor = "rgba(255, 80, 80, 0.4)";
+                    e.currentTarget.style.background = "rgba(146, 64, 14, 0.55)";
+                    e.currentTarget.style.color = "#fde68a";
+                    e.currentTarget.style.borderColor = "rgba(245, 158, 11, 0.42)";
                   }}
                 >
                   <FaSignOutAlt />
@@ -322,15 +322,15 @@ export default function Sidebar({ page, setPage, currentUser, mobileNavOpen, set
                 marginTop: 10,
                 borderRadius: 10,
                 padding: "8px 10px",
-                background: "rgba(0,0,0,0.14)",
-                border: "1px solid rgba(255,255,255,0.08)",
+                background: "rgba(120, 53, 15, 0.35)",
+                border: "1px solid rgba(245, 158, 11, 0.22)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
                 gap: 10,
               }}
             >
-              <span style={{ fontSize: 13, fontWeight: 900, color: "rgba(255,255,255,0.85)" }}>Navigation</span>
+              <span style={{ fontSize: 13, fontWeight: 900, color: "rgba(254, 243, 199, 0.95)" }}>Navigation</span>
               <span style={{ fontSize: 13, fontWeight: 950, color: "#fff", opacity: 0.9 }}>
                 {isLocked ? "Locked" : "Unlocked"}
               </span>
@@ -357,13 +357,13 @@ function SidebarItem({ icon, label, active, onClick, locked }) {
         padding: "10px 16px",
         border: "none",
         cursor: locked ? "not-allowed" : "pointer",
-        background: active ? "rgba(255,255,255,0.16)" : "transparent",
-        color: "#fff",
+        background: active ? "rgba(245, 158, 11, 0.22)" : "transparent",
+        color: "#f8fafc",
         borderRadius: 16,
         margin: "3px 12px",
         fontWeight: 500,
         textAlign: "left",
-        boxShadow: active ? "0 14px 26px rgba(0,0,0,0.18)" : "none",
+        boxShadow: active ? "0 12px 22px rgba(245, 158, 11, 0.22)" : "none",
         outline: "none",
         opacity: locked ? 0.75 : 1,
       }}

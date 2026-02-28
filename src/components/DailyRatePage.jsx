@@ -20,18 +20,18 @@ const HOTEL_LOGO = "/logo.png";
 
 // Project theme (aligned with Dashboard & Reports)
 const theme = {
-  primary: "#0ea5e9",
-  secondary: "#6366f1",
+  primary: "#b45309",
+  secondary: "#92400e",
   success: "#10b981",
   danger: "#f43f5e",
-  warning: "#f59e0b",
+  warning: "#d97706",
   bg: "#f8fafc",
   textMain: "#1e293b",
   textSub: "#64748b",
   card: "#ffffff",
   border: "#e2e8f0",
-  ocean: "#0b6a8a",
-  oceanDark: "#084e68",
+  ocean: "#78350f",
+  oceanDark: "#451a03",
 };
 
 export default function DailyRatePage({ reservations = [] }) {
@@ -375,7 +375,7 @@ export default function DailyRatePage({ reservations = [] }) {
       justifyContent: "space-between",
       alignItems: "center",
       marginBottom: "24px",
-      border: "1px solid rgba(20, 184, 166, 0.2)",
+      border: "1px solid rgba(180, 83, 9, 0.22)",
       minHeight: "96px",
     },
     logoImage: {
@@ -383,8 +383,8 @@ export default function DailyRatePage({ reservations = [] }) {
       height: "72px",
       objectFit: "cover",
       borderRadius: "50%",
-      border: "3px solid rgba(20, 184, 166, 0.35)",
-      boxShadow: "0 6px 16px rgba(13, 148, 136, 0.15)",
+      border: "3px solid rgba(180, 83, 9, 0.35)",
+      boxShadow: "0 6px 16px rgba(120, 53, 15, 0.15)",
     },
     card: {
       background: theme.card,
@@ -464,9 +464,9 @@ export default function DailyRatePage({ reservations = [] }) {
     <div style={styles.container}>
       <div style={styles.headerCard}>
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <img src={HOTEL_LOGO} alt="Ocean Stay" style={styles.logoImage} onError={(e) => (e.target.style.display = "none")} />
+          <img src={HOTEL_LOGO} alt="Ocean Blue Lagoon" style={styles.logoImage} onError={(e) => (e.target.style.display = "none")} />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <h1 className="app-page-title">Ocean Stay</h1>
+            <h1 className="app-page-title">Ocean Blue Lagoon</h1>
             <span className="app-page-subtitle" style={{ marginTop: "5px" }}>Maldives</span>
           </div>
         </div>
@@ -483,7 +483,7 @@ export default function DailyRatePage({ reservations = [] }) {
       </div>
 
       <div style={{ ...styles.card, marginBottom: "24px" }}>
-        <div style={{ ...styles.cardHeader, background: "linear-gradient(135deg, #0d9488 0%, #0f766e 100%)" }}>
+        <div style={{ ...styles.cardHeader, background: "linear-gradient(135deg, #b45309 0%, #92400e 100%)" }}>
           <FaChartLine /> Rate analysis from reservations
         </div>
         <div style={{ padding: "20px 24px" }}>
@@ -745,7 +745,7 @@ export default function DailyRatePage({ reservations = [] }) {
 
       {/* Room type × Channel: RN, Min / Avg / Max rate (secondary theme) */}
       <div style={{ ...styles.card, marginBottom: "24px" }}>
-        <div style={{ ...styles.cardHeader, background: "linear-gradient(135deg, #0f766e 0%, #134e4a 100%)" }}>
+        <div style={{ ...styles.cardHeader, background: "linear-gradient(135deg, #92400e 0%, #78350f 100%)" }}>
           <FaChartLine /> Room type × Channel — RN, Min / Avg / Max rate by channel
         </div>
         <div style={{ padding: "20px 24px", overflowX: "auto" }}>
@@ -757,7 +757,7 @@ export default function DailyRatePage({ reservations = [] }) {
               <tr style={styles.tableHead}>
                 <th style={{ textAlign: "left", padding: "10px 12px", color: theme.textSub, fontWeight: "600", position: "sticky", left: 0, background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)" }}>Room type</th>
                 {BOOKING_CHANNELS.map((ch) => (
-                  <th key={ch} colSpan={4} style={{ padding: "10px 12px", color: "#0f766e", fontWeight: "600", textAlign: "center", borderLeft: `1px solid ${theme.border}` }}>
+                  <th key={ch} colSpan={4} style={{ padding: "10px 12px", color: "#b45309", fontWeight: "600", textAlign: "center", borderLeft: `1px solid ${theme.border}` }}>
                     {ch}
                   </th>
                 ))}

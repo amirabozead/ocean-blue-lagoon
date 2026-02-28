@@ -104,14 +104,14 @@ headerCard: {
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: "20px",
-        border: "1px solid #bae6fd" 
+        border: "1px solid rgba(180, 83, 9, 0.2)" 
     },
     logoImage: {
         width: "80px",
         height: "80px",
         objectFit: "cover",
         borderRadius: "50%",
-        border: "3px solid #e0f2fe", 
+        border: "3px solid rgba(245, 158, 11, 0.3)", 
         boxShadow: "0 4px 6px rgba(0,0,0,0.1)", 
     },
     statsBar: {
@@ -139,25 +139,25 @@ headerCard: {
       {/* HEADER */}
       <div style={headerStyles.headerCard}>
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <img src={HOTEL_LOGO} alt="Ocean Stay" style={headerStyles.logoImage} onError={(e) => e.target.style.display='none'} />
+          <img src={HOTEL_LOGO} alt="Ocean Blue Lagoon" style={headerStyles.logoImage} onError={(e) => e.target.style.display='none'} />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <h1 className="app-page-title">Ocean Stay</h1>
+            <h1 className="app-page-title">Ocean Blue Lagoon</h1>
             <span className="app-page-subtitle" style={{ marginTop: "5px" }}>Maldives</span>
           </div>
         </div>
 
         <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "10px" }}>
            <span className="app-page-address" style={{ fontSize: "24px", fontWeight: "bold", color: "#1e293b", lineHeight: "1" }}>Rooms Manager</span>
-           <FaBed style={{ fontSize: "22px", color: "#0d9488", opacity: 0.95 }} />
+           <FaBed style={{ fontSize: "22px", color: "#b45309", opacity: 0.95 }} />
         </div>
         
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "10px" }}>
           <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
             <div style={{ background: "white", padding: "5px", borderRadius: "12px", boxShadow: "0 2px 5px rgba(0,0,0,0.05)", display: "flex", gap: "5px", border: "1px solid #e2e8f0" }}>
-                <button onClick={() => setViewMode("grid")} style={{ padding: "8px 12px", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", background: viewMode === "grid" ? "#0d9488" : "transparent", color: viewMode === "grid" ? "white" : "#54716e" }}>
+                <button onClick={() => setViewMode("grid")} style={{ padding: "8px 12px", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", background: viewMode === "grid" ? "#b45309" : "transparent", color: viewMode === "grid" ? "white" : "#54716e" }}>
                     <FaThLarge /> Grid
                 </button>
-                <button onClick={() => setViewMode("timeline")} style={{ padding: "8px 12px", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", background: viewMode === "timeline" ? "#0d9488" : "transparent", color: viewMode === "timeline" ? "white" : "#54716e" }}>
+                <button onClick={() => setViewMode("timeline")} style={{ padding: "8px 12px", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", background: viewMode === "timeline" ? "#b45309" : "transparent", color: viewMode === "timeline" ? "white" : "#54716e" }}>
                     <FaCalendarAlt /> Calendar
                 </button>
             </div>
@@ -232,9 +232,9 @@ headerCard: {
               <div><span style={{ display: "block", fontSize: "11px", color: "#64748b", fontWeight: "bold", textTransform: "uppercase" }}>Total Rooms</span><span style={{ fontSize: "24px", fontWeight: "900", color: "#1e293b" }}>{stats.total}</span></div>
               <div style={{ background: "#eef2ff", padding: "10px", borderRadius: "50%", color: "#6366f1" }}><FaLayerGroup size={20} /></div>
           </div>
-          <div style={headerStyles.statCard("#0ea5e9", "#f0f9ff")}>
-              <div><span style={{ display: "block", fontSize: "11px", color: "#64748b", fontWeight: "bold", textTransform: "uppercase" }}>Available</span><span style={{ fontSize: "24px", fontWeight: "900", color: "#0ea5e9" }}>{stats.available}</span></div>
-              <div style={{ background: "#f0f9ff", padding: "10px", borderRadius: "50%", color: "#0ea5e9" }}><FaDoorOpen size={20} /></div>
+          <div style={headerStyles.statCard("#b45309", "#fffbeb")}>
+              <div><span style={{ display: "block", fontSize: "11px", color: "#64748b", fontWeight: "bold", textTransform: "uppercase" }}>Available</span><span style={{ fontSize: "24px", fontWeight: "900", color: "#b45309" }}>{stats.available}</span></div>
+              <div style={{ background: "#fffbeb", padding: "10px", borderRadius: "50%", color: "#b45309" }}><FaDoorOpen size={20} /></div>
           </div>
 
           {/* ✅ Housekeeping بدل Total Clean */}
@@ -374,7 +374,7 @@ function RoomTimelineView({ rooms, reservations, roomPhysicalStatus = {}, oosPer
         fontSize: "12px"
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <div style={{ width: "20px", height: "12px", background: "#0d9488", borderRadius: "3px" }}></div>
+          <div style={{ width: "20px", height: "12px", background: "#b45309", borderRadius: "3px" }}></div>
           <span style={{ color: "#64748b" }}>Booked</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -550,15 +550,15 @@ function RoomTimelineView({ rooms, reservations, roomPhysicalStatus = {}, oosPer
                   borderColor = "#fecaca";
                 } else if (res) {
                   // Reservation: Color based on status
-                  let barColor = "#0d9488"; // Default blue for Booked
-                  let barBg = "#dbeafe";
+                  let barColor = "#b45309"; // Default booked color
+                  let barBg = "#ffedd5";
                   
                   if (isCheckedIn) {
                     barColor = "#10b981"; // Green for Checked-in/In House
                     barBg = "#d1fae5";
                   } else if (isBooked) {
-                    barColor = "#0d9488"; // Blue for Booked
-                    barBg = "#dbeafe";
+                    barColor = "#b45309";
+                    barBg = "#ffedd5";
                   }
                   
                   const reservationBarStyle = {
@@ -682,7 +682,7 @@ function RoomTimelineView({ rooms, reservations, roomPhysicalStatus = {}, oosPer
 // Styles Update
 const btnStyle = { background: "#f1f5f9", border: "none", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", fontWeight: "bold", color: "#475569" };
 const thStyle = { padding: "10px", textAlign: "center", borderBottom: "2px solid #e2e8f0", background: "white" };
-const barStyle = { height: "25px", background: "#0d9488", width: "100%", marginTop: "12px", opacity: 0.8 };
+const barStyle = { height: "25px", background: "#b45309", width: "100%", marginTop: "12px", opacity: 0.8 };
 
 const selectStyle = {
     padding: "8px 30px 8px 12px", 

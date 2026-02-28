@@ -134,11 +134,11 @@ headerCard: {
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: "30px",
-        border: "1px solid #bae6fd" 
+        border: "1px solid rgba(180, 83, 9, 0.22)" 
     },
     logoImage: {
         width: "80px", height: "80px", objectFit: "cover", borderRadius: "50%",
-        border: "3px solid #e0f2fe", boxShadow: "0 4px 6px rgba(0,0,0,0.1)", 
+        border: "3px solid rgba(245, 158, 11, 0.3)", boxShadow: "0 4px 6px rgba(0,0,0,0.1)", 
     },
     headerTitleBox: { display: "flex", flexDirection: "column", alignItems: "center" },
     
@@ -220,7 +220,7 @@ headerCard: {
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
           <img src={HOTEL_LOGO} alt="Logo" style={styles.logoImage} onError={(e) => e.target.style.display='none'} />
           <div style={styles.headerTitleBox}>
-            <h1 style={styles.hotelName}>Ocean Stay</h1>
+            <h1 style={styles.hotelName}>Ocean Blue Lagoon</h1>
             <span style={styles.subTitle}>Maldives</span>
           </div>
         </div>
@@ -245,9 +245,9 @@ headerCard: {
 
       {/* === STATS BAR === */}
       <div style={styles.statsBar}>
-          <div style={styles.statCard("#6366f1", "#eef2ff")}>
+          <div style={styles.statCard("#b45309", "#ffedd5")}>
               <div><span style={{ display: "block", fontSize: "11px", color: "#64748b", fontWeight: "bold", textTransform: "uppercase" }}>Total SKUs</span><span style={{ fontSize: "24px", fontWeight: "900", color: "#1e293b" }}>{kpis.totalItems}</span></div>
-              <div style={styles.statIcon("#6366f1", "#eef2ff")}><FaBoxes size={20} /></div>
+              <div style={styles.statIcon("#b45309", "#ffedd5")}><FaBoxes size={20} /></div>
           </div>
           <div style={styles.statCard("#10b981", "#ecfdf5")}>
               <div><span style={{ display: "block", fontSize: "11px", color: "#64748b", fontWeight: "bold", textTransform: "uppercase" }}>Total Value</span><span style={{ fontSize: "24px", fontWeight: "900", color: "#10b981" }}>{money(kpis.invValue)}</span></div>
@@ -257,9 +257,9 @@ headerCard: {
               <div><span style={{ display: "block", fontSize: "11px", color: "#64748b", fontWeight: "bold", textTransform: "uppercase" }}>Low Stock</span><span style={{ fontSize: "24px", fontWeight: "900", color: kpis.lowCount > 0 ? "#dc2626" : "#f59e0b" }}>{kpis.lowCount}</span></div>
               <div style={styles.statIcon(kpis.lowCount > 0 ? "#dc2626" : "#f59e0b", kpis.lowCount > 0 ? "#fef2f2" : "#fffbeb")}><FaExclamationTriangle size={20} /></div>
           </div>
-          <div style={styles.statCard("#0ea5e9", "#f0f9ff")}>
-              <div><span style={{ display: "block", fontSize: "11px", color: "#64748b", fontWeight: "bold", textTransform: "uppercase" }}>Suppliers</span><span style={{ fontSize: "24px", fontWeight: "900", color: "#0ea5e9" }}>{supplierNames.length - 1}</span></div>
-              <div style={styles.statIcon("#0ea5e9", "#f0f9ff")}><FaTruckLoading size={20} /></div>
+          <div style={styles.statCard("#b45309", "#fffbeb")}>
+              <div><span style={{ display: "block", fontSize: "11px", color: "#64748b", fontWeight: "bold", textTransform: "uppercase" }}>Suppliers</span><span style={{ fontSize: "24px", fontWeight: "900", color: "#b45309" }}>{supplierNames.length - 1}</span></div>
+              <div style={styles.statIcon("#b45309", "#fffbeb")}><FaTruckLoading size={20} /></div>
           </div>
       </div>
 
@@ -332,7 +332,7 @@ headerCard: {
                                         <div style={{ textAlign: "right", fontFamily: "monospace", color: "#475569" }}>{money(it.cost)}</div>
                                         <div style={{ textAlign: "right", fontWeight: "700", color: "#334155" }}>{money(stock * it.cost)}</div>
                                         <div style={{ display: "flex", justifyContent: "center", gap: "8px" }}>
-                                            <button onClick={() => openEdit(it)} style={{ border: "none", background: "none", color: "#3b82f6", cursor: "pointer" }} title="Edit"><FaEdit size={16} /></button>
+                                            <button onClick={() => openEdit(it)} style={{ border: "none", background: "none", color: "#b45309", cursor: "pointer" }} title="Edit"><FaEdit size={16} /></button>
                                             <button onClick={() => deleteItem(it.id)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer" }} title="Delete"><FaTrash size={16} /></button>
                                         </div>
                                     </div>
@@ -348,7 +348,7 @@ headerCard: {
                 <div style={{ ...styles.panel, padding: "30px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "30px", alignItems: "center" }}>
                         <h2 style={{ margin: 0, color: "#1e293b", fontSize: "20px", display: "flex", alignItems: "center", gap: "10px" }}>
-                            <FaHistory style={{ color: "#3b82f6" }} /> Movement History
+                            <FaHistory style={{ color: "#b45309" }} /> Movement History
                         </h2>
                         <div style={{ display: "flex", gap: "10px" }}>
                             <button onClick={() => setMoveModal({ open: true, type: "IN" })} style={{...styles.btnPrimary, background: "#10b981"}}><FaArrowLeft /> Stock In</button>
@@ -404,7 +404,7 @@ headerCard: {
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
                                     <div>
                                         <h3 style={{ margin: 0, color: "#0f172a", fontSize: "18px" }}>{s.name}</h3>
-                                        <span style={{ fontSize: "12px", color: "#3b82f6", background: "#eff6ff", padding: "2px 8px", borderRadius: "10px", fontWeight: "600" }}>Vendor</span>
+                                        <span style={{ fontSize: "12px", color: "#92400e", background: "#ffedd5", padding: "2px 8px", borderRadius: "10px", fontWeight: "600" }}>Vendor</span>
                                     </div>
                                     <div style={{ width: "40px", height: "40px", background: "#f1f5f9", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}><FaTruckLoading /></div>
                                 </div>
@@ -424,12 +424,12 @@ headerCard: {
             
             {/* Quick Actions */}
             <div style={styles.panel}>
-                <div style={{ padding: "20px", background: "#0c4a6e", color: "white" }}>
-                    <div style={styles.sideTitle}><FaClipboardList style={{color: "#38bdf8"}} /> Quick Actions</div>
+                <div style={{ padding: "20px", background: "linear-gradient(135deg, #92400e 0%, #78350f 100%)", color: "white" }}>
+                    <div style={styles.sideTitle}><FaClipboardList style={{color: "#b45309"}} /> Quick Actions</div>
                     <p style={{ margin: 0, fontSize: "12px", opacity: 0.8 }}>Manage inventory flow</p>
                 </div>
                 <div style={{ padding: "20px" }}>
-                    <button style={{ ...styles.actionBtn, background: "#f0f9ff", color: "#0284c7", border: "1px solid #bae6fd" }} onClick={() => setMoveModal({ open: true, type: "IN" })}>
+                    <button style={{ ...styles.actionBtn, background: "#fffbeb", color: "#92400e", border: "1px solid #fed7aa" }} onClick={() => setMoveModal({ open: true, type: "IN" })}>
                         <FaPlus /> Record Stock In
                     </button>
                     <button style={{ ...styles.actionBtn, background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca" }} onClick={() => setMoveModal({ open: true, type: "OUT" })}>
@@ -462,9 +462,9 @@ headerCard: {
             </div>
 
             {/* Tip Card */}
-            <div style={{ background: "linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%)", borderRadius: "16px", padding: "20px", border: "1px solid #bfdbfe", textAlign: "center" }}>
+            <div style={{ background: "linear-gradient(135deg, #ffedd5 0%, #fffbeb 100%)", borderRadius: "16px", padding: "20px", border: "1px solid #fed7aa", textAlign: "center" }}>
                  <div style={{ fontSize: "24px", marginBottom: "10px" }}>💡</div>
-                 <p style={{ margin: 0, fontSize: "13px", color: "#1e40af", lineHeight: "1.5" }}>
+                 <p style={{ margin: 0, fontSize: "13px", color: "#78350f", lineHeight: "1.5" }}>
                     Tip: Set <strong>Min Stock</strong> levels for your items to see alerts in the stats bar automatically.
                  </p>
             </div>
@@ -489,7 +489,7 @@ const modalStyle = {
     title: { fontSize: "22px", fontWeight: "800", color: "#1e293b", marginBottom: "5px" },
     label: { display: "block", fontSize: "13px", fontWeight: "600", color: "#64748b", marginBottom: "8px" },
     input: { width: "100%", padding: "12px", borderRadius: "10px", border: "1px solid #cbd5e1", outline: "none", fontSize: "14px", background: "#f8fafc", transition: "border 0.2s" },
-    btnPrimary: { padding: "12px 24px", borderRadius: "10px", border: "none", background: "#3b82f6", color: "white", fontWeight: "bold", cursor: "pointer", fontSize: "14px", boxShadow: "0 4px 6px -1px rgba(59, 130, 246, 0.4)" },
+    btnPrimary: { padding: "12px 24px", borderRadius: "10px", border: "none", background: "#b45309", color: "white", fontWeight: "bold", cursor: "pointer", fontSize: "14px", boxShadow: "0 4px 6px -1px rgba(120, 53, 15, 0.35)" },
     btnSec: { padding: "12px 24px", borderRadius: "10px", border: "none", background: "#f1f5f9", color: "#475569", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }
 };
 
@@ -589,7 +589,7 @@ function SuppliersModal({ suppliers, onClose, onChange }) {
             <div style={modalStyle.title}>Manage Suppliers</div>
             <button onClick={() => { onChange(list); onClose(); }} style={modalStyle.btnPrimary}>Done & Save</button>
          </div>
-         <button onClick={add} style={{ width: "100%", padding: "15px", background: "#f0f9ff", color: "#0ea5e9", border: "2px dashed #bae6fd", borderRadius: "12px", marginBottom: "20px", cursor: "pointer", fontWeight: "bold", fontSize: "14px" }}>+ Add New Supplier</button>
+         <button onClick={add} style={{ width: "100%", padding: "15px", background: "#fffbeb", color: "#b45309", border: "2px dashed #fed7aa", borderRadius: "12px", marginBottom: "20px", cursor: "pointer", fontWeight: "bold", fontSize: "14px" }}>+ Add New Supplier</button>
          <div style={{ maxHeight: "400px", overflowY: "auto", paddingRight: "5px" }}>
             {list.map(s => (
                 <div key={s.id} style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr auto", gap: "15px", marginBottom: "15px", alignItems: "center", background: "#f8fafc", padding: "15px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>

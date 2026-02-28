@@ -299,7 +299,7 @@ function SupabaseLoginInline({ supabase, onLogin, onOpenCloudSettings }) {
   const [err, setErr] = useState("");
 
   const settings = storeLoad("ocean_settings_v1") || {};
-  const hotelName = settings.hotelName || "Ocean Stay";
+  const hotelName = settings.hotelName || "Ocean Blue Lagoon";
   const logoUrl = settings.logoUrl || "/logo.png";
   const BG_IMAGE = "/maldives.jpg";
 
@@ -2165,7 +2165,7 @@ useEffect(() => {
   const exportBackup = () => {
     try {
       const payload = {
-        app: "Ocean Stay Admin",
+        app: "Ocean Blue Lagoon Admin",
         schemaVersion: 1,
         exportedAt: new Date().toISOString(),
         keys: {},
@@ -2221,7 +2221,7 @@ useEffect(() => {
         String(data.app || "").toLowerCase().includes("stay");
       if (!isOceanStay) {
         const ok = window.confirm(
-          "This backup file doesn't look like Ocean Stay Admin.\n\nDo you want to continue anyway?"
+          "This backup file doesn't look like Ocean Blue Lagoon Admin.\n\nDo you want to continue anyway?"
         );
         if (!ok) return;
       }
@@ -2275,7 +2275,7 @@ useEffect(() => {
     } catch (e) {
       console.error(e);
       alert(
-        "Restore failed. Make sure you selected a valid Ocean Stay backup JSON file."
+        "Restore failed. Make sure you selected a valid Ocean Blue Lagoon backup JSON file."
       );
     }
   };
@@ -2329,7 +2329,7 @@ useEffect(() => {
             <button
               onClick={exportBackup}
               style={{
-                background: "#0ea5e9",
+                background: "#b45309",
                 color: "#fff",
                 border: "none",
                 padding: "10px 14px",

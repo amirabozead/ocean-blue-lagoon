@@ -148,18 +148,18 @@ headerCard: {
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: "20px",
-        border: "1px solid rgba(20, 184, 166, 0.2)" 
+        border: "1px solid rgba(180, 83, 9, 0.22)" 
     },
     logoImage: {
         width: "72px",
         height: "72px",
         objectFit: "cover",
         borderRadius: "50%",
-        border: "3px solid rgba(20, 184, 166, 0.35)", 
-        boxShadow: "0 6px 16px rgba(13, 148, 136, 0.15)", 
+        border: "3px solid rgba(180, 83, 9, 0.35)", 
+        boxShadow: "0 6px 16px rgba(120, 53, 15, 0.15)", 
     },
     actionBtn: {
-        background: "linear-gradient(135deg, #0d9488, #0f766e)",
+        background: "linear-gradient(135deg, #b45309, #92400e)",
         color: "white",
         border: "none",
         padding: "10px 20px",
@@ -170,23 +170,23 @@ headerCard: {
         alignItems: "center",
         gap: "8px",
         fontSize: "14px",
-        boxShadow: "0 4px 14px rgba(13, 148, 136, 0.3)"
+        boxShadow: "0 4px 14px rgba(120, 53, 15, 0.3)"
     }
   };
 
   // --- Styles Injection ---
   const styles = `
-    .expenses-container { font-family: DM Sans, system-ui, sans-serif; color: #134e4a; padding: 0; min-height: 100%; }
+    .expenses-container { font-family: DM Sans, system-ui, sans-serif; color: #0f172a; padding: 0; min-height: 100%; }
     
-    .toolbar-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; background: white; padding: 14px 18px; border-radius: 14px; border: 1px solid rgba(20, 184, 166, 0.18); box-shadow: 0 4px 20px rgba(13, 148, 136, 0.06); }
-    .period-group { display: flex; gap: 4px; background: rgba(20, 184, 166, 0.08); padding: 5px; border-radius: 10px; }
-    .period-btn { border: none; background: transparent; padding: 6px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #54716e; cursor: pointer; transition: all 0.2s; }
-    .period-btn.active { background: white; color: #134e4a; box-shadow: 0 2px 8px rgba(13, 148, 136, 0.15); }
+    .toolbar-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; background: white; padding: 14px 18px; border-radius: 14px; border: 1px solid rgba(180, 83, 9, 0.18); box-shadow: 0 4px 20px rgba(120, 53, 15, 0.08); }
+    .period-group { display: flex; gap: 4px; background: rgba(180, 83, 9, 0.1); padding: 5px; border-radius: 10px; }
+    .period-btn { border: none; background: transparent; padding: 6px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #475569; cursor: pointer; transition: all 0.2s; }
+    .period-btn.active { background: white; color: #0f172a; box-shadow: 0 2px 8px rgba(120, 53, 15, 0.15); }
     
     .toggle-group { display: flex; gap: 8px; }
-    .toggle-btn { display: flex; align-items: center; gap: 6px; border: 1px solid rgba(20, 184, 166, 0.22); background: white; color: #54716e; padding: 8px 16px; border-radius: 10px; cursor: pointer; font-weight: 500; font-size: 0.9rem; transition: all 0.2s; }
-    .toggle-btn:hover { background: #f0fdfa; color: #134e4a; border-color: rgba(20, 184, 166, 0.35); }
-    .toggle-btn.active { background: rgba(13, 148, 136, 0.12); color: #0f766e; border-color: rgba(13, 148, 136, 0.3); }
+    .toggle-btn { display: flex; align-items: center; gap: 6px; border: 1px solid rgba(180, 83, 9, 0.22); background: white; color: #475569; padding: 8px 16px; border-radius: 10px; cursor: pointer; font-weight: 500; font-size: 0.9rem; transition: all 0.2s; }
+    .toggle-btn:hover { background: #fffbeb; color: #0f172a; border-color: rgba(180, 83, 9, 0.35); }
+    .toggle-btn.active { background: rgba(180, 83, 9, 0.12); color: #92400e; border-color: rgba(180, 83, 9, 0.3); }
 
     /* Filters Section (Collapsible) */
     .filters-section { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; animation: slideDown 0.2s ease-out; }
@@ -194,7 +194,7 @@ headerCard: {
     .search-box { position: relative; flex: 1; min-width: 200px; }
     .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
     .search-input { width: 100%; padding: 10px 10px 10px 36px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; transition: border-color 0.2s; }
-    .search-input:focus { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15); }
+    .search-input:focus { border-color: #b45309; box-shadow: 0 0 0 3px rgba(180, 83, 9, 0.15); }
     .filter-select { padding: 10px 30px 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; background-color: white; color: #334155; cursor: pointer; outline: none; }
     
     /* Stats Cards */
@@ -212,16 +212,16 @@ headerCard: {
     /* Table & General */
     .table-container { background: white; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
     .pro-table { width: 100%; border-collapse: collapse; }
-    .pro-table th { background: linear-gradient(180deg, #f0fdfa 0%, #fff 100%); text-align: left; padding: 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #54716e; border-bottom: 2px solid rgba(20, 184, 166, 0.18); }
-    .pro-table td { padding: 1rem; border-bottom: 1px solid rgba(20, 184, 166, 0.12); color: #134e4a; font-size: 0.95rem; vertical-align: middle; }
-    .pro-table tr:hover td { background-color: rgba(13, 148, 136, 0.04); }
-    .cat-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: #e0f2fe; color: #0284c7; }
+    .pro-table th { background: linear-gradient(180deg, #fffbeb 0%, #fff 100%); text-align: left; padding: 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #475569; border-bottom: 2px solid rgba(180, 83, 9, 0.18); }
+    .pro-table td { padding: 1rem; border-bottom: 1px solid rgba(180, 83, 9, 0.12); color: #0f172a; font-size: 0.95rem; vertical-align: middle; }
+    .pro-table tr:hover td { background-color: rgba(180, 83, 9, 0.04); }
+    .cat-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: #ffedd5; color: #92400e; }
     .cat-badge.salary { background: #dcfce7; color: #166534; }
     .cat-badge.fb { background: #ffedd5; color: #9a3412; }
     .amount-cell { font-family: 'Courier New', Courier, monospace; font-weight: 700; color: #0f172a; text-align: right; }
     .actions-cell { display: flex; gap: 8px; justifyContent: center; }
     .action-btn { border: none; background: transparent; color: #94a3b8; cursor: pointer; padding: 6px; font-size: 1rem; transition: color 0.2s; }
-    .action-btn:hover { color: #0d9488; }
+    .action-btn:hover { color: #b45309; }
     .action-btn.del:hover { color: #ef4444; }
 
     /* Animations */
@@ -231,14 +231,14 @@ headerCard: {
     /* Modal Styles (Injected) */
     .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
     .modal-content { background: white; border-radius: 16px; width: 100%; max-width: 600px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); overflow: hidden; }
-    .modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid rgba(20, 184, 166, 0.18); display: flex; justify-content: space-between; align-items: center; background: #f0fdfa; }
+    .modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid rgba(180, 83, 9, 0.18); display: flex; justify-content: space-between; align-items: center; background: #fffbeb; }
     .modal-body { padding: 1.5rem; }
     .form-grid { display: grid; gap: 1.25rem; }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
     .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 0.5rem; }
     .form-input { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; box-sizing: border-box; }
     .form-input:focus { border-color: #3b82f6; }
-    .btn-save { padding: 0.75rem 2rem; border: none; background: linear-gradient(135deg, #0d9488, #0f766e); color: white; border-radius: 12px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 14px rgba(13, 148, 136, 0.25); }
+    .btn-save { padding: 0.75rem 2rem; border: none; background: linear-gradient(135deg, #b45309, #92400e); color: white; border-radius: 12px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 14px rgba(120, 53, 15, 0.25); }
     .btn-cancel { padding: 0.75rem 1.5rem; border: 1px solid #cbd5e1; background: white; color: #475569; border-radius: 8px; cursor: pointer; font-weight: 600; }
   `;
 
@@ -250,9 +250,9 @@ headerCard: {
       <div style={headerStyles.headerCard}>
         {/* Left: Logo & Title */}
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <img src={HOTEL_LOGO} alt="Ocean Stay" style={headerStyles.logoImage} onError={(e) => e.target.style.display='none'} />
+          <img src={HOTEL_LOGO} alt="Ocean Blue Lagoon" style={headerStyles.logoImage} onError={(e) => e.target.style.display='none'} />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <h1 className="app-page-title">Ocean Stay</h1>
+            <h1 className="app-page-title">Ocean Blue Lagoon</h1>
             <span className="app-page-subtitle" style={{ marginTop: "5px" }}>Maldives</span>
           </div>
         </div>
@@ -260,7 +260,7 @@ headerCard: {
         {/* Center: Page Title */}
         <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "10px" }}>
            <span className="app-page-address" style={{ fontSize: "24px", fontWeight: "bold", color: "#1e293b", lineHeight: "1" }}>Expenses Manager</span>
-           <FaWallet style={{ fontSize: "22px", color: "#3b82f6", opacity: 0.9 }} />
+           <FaWallet style={{ fontSize: "22px", color: "#b45309", opacity: 0.9 }} />
         </div>
         
         {/* Right: Add Button */}

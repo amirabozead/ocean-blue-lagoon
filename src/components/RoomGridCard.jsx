@@ -17,7 +17,7 @@ export default function RoomGridCard({ room, onStatusChange, onClick, allowStatu
 
   const getStatusColor = (st) => {
     switch (st) {
-      case "Clean": return "#0ea5e9"; 
+      case "Clean": return "#b45309";
       case "Dirty": return "#d97706"; 
       case "OutOfOrder": return "#dc2626"; 
       default: return "#cbd5e1";
@@ -34,10 +34,10 @@ export default function RoomGridCard({ room, onStatusChange, onClick, allowStatu
   } else {
     if (roomStatus === "Clean") {
       badgeText = "Available";
-      badgeColor = "#0ea5e9"; 
+      badgeColor = "#b45309";
       headerBg = "#f0f9ff";   
       headerTxt = "#0c4a6e";  
-      borderColor = "#0ea5e9"; 
+      borderColor = "#b45309";
 
     } else if (roomStatus === "OutOfOrder") {
       badgeText = "OOS";
@@ -118,7 +118,7 @@ export default function RoomGridCard({ room, onStatusChange, onClick, allowStatu
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-               <div style={{ background: "#f0f9ff", padding: "8px", borderRadius: "50%", color: "#0ea5e9" }}><FaClock size={12}/></div>
+               <div style={{ background: "#ffedd5", padding: "8px", borderRadius: "50%", color: "#b45309" }}><FaClock size={12}/></div>
                <div>
                 <span style={{ display: "block", fontSize: "10px", color: "#64748b", textTransform: "uppercase", fontWeight: "bold" }}>Stay Dates</span>
                 <span style={{ fontSize: "12px", color: "#334155", fontWeight: "500" }}>
@@ -141,8 +141,8 @@ export default function RoomGridCard({ room, onStatusChange, onClick, allowStatu
                 </>
             ) : (
                 <>
-                    <FaBed size={32} color="#0ea5e9" />
-                    <p style={{ margin: "5px 0 0", fontSize: "13px", fontWeight: "bold", color: "#0ea5e9" }}>Vacant</p>
+                    <FaBed size={32} color="#b45309" />
+                    <p style={{ margin: "5px 0 0", fontSize: "13px", fontWeight: "bold", color: "#b45309" }}>Vacant</p>
                 </>
             )}
           </div>

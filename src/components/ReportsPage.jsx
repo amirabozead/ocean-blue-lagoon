@@ -60,7 +60,7 @@ const getCountryCode = (countryName) => {
 
 const REVENUE_CATS = [
   { key: "F&B", label: "F&B", icon: <FaUtensils />, color: "#f59e0b" },
-  { key: "Laundry", label: "Laundry", icon: <FaTshirt />, color: "#3b82f6" },
+  { key: "Laundry", label: "Laundry", icon: <FaTshirt />, color: "#b45309" },
   { key: "Spa", label: "Spa", icon: <FaSpa />, color: "#ec4899" },
   { key: "Activities", label: "Activities", icon: <FaSnowboarding />, color: "#8b5cf6" },
   { key: "Services", label: "Services", icon: <FaConciergeBell />, color: "#10b981" },
@@ -71,7 +71,7 @@ const EXPENSE_CATS = [
   { key: "Utilities", label: "Utilities (Elec/Water)", icon: <FaBolt />, color: "#f59e0b" },
   { key: "Maintenance", label: "Maintenance", icon: <FaTools />, color: "#64748b" },
   { key: "Supplies", label: "Supplies & Amenities", icon: <FaBoxOpen />, color: "#8b5cf6" },
-  { key: "Marketing", label: "Marketing", icon: <FaBullhorn />, color: "#3b82f6" },
+  { key: "Marketing", label: "Marketing", icon: <FaBullhorn />, color: "#b45309" },
   { key: "Housekeeping", label: "Housekeeping", icon: <FaBroom />, color: "#10b981" },
 ];
 
@@ -497,14 +497,14 @@ headerCard: {
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: "20px",
-        border: "1px solid #bae6fd" 
+        border: "1px solid rgba(180, 83, 9, 0.22)" 
     },
     logoImage: {
         width: "80px",
         height: "80px",
         objectFit: "cover",
         borderRadius: "50%",
-        border: "3px solid #e0f2fe", 
+        border: "3px solid rgba(245, 158, 11, 0.3)", 
         boxShadow: "0 4px 6px rgba(0,0,0,0.1)", 
     }
   };
@@ -591,7 +591,7 @@ headerCard: {
                     <div className="summary-banner" style={{marginBottom: '24px'}}>
                          <div className="sb-item">
                             <span>Total Revenue</span>
-                            <strong style={{color:'#6366f1', fontSize: '20px'}}>{fmtMoney(m.revenue)}</strong>
+                            <strong style={{color:'#b45309', fontSize: '20px'}}>{fmtMoney(m.revenue)}</strong>
                          </div>
                          <div className="sb-item">
                             <span>Total Expenses</span>
@@ -623,7 +623,7 @@ headerCard: {
                         </div>
                         <div style={{background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0'}}>
                             <div style={{fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '8px'}}>Rooms Sold</div>
-                            <div style={{fontSize: '24px', fontWeight: 800, color: '#6366f1'}}>{fmtInt(m.roomsSold)}</div>
+                            <div style={{fontSize: '24px', fontWeight: 800, color: '#b45309'}}>{fmtInt(m.roomsSold)}</div>
                         </div>
                     </div>
 
@@ -631,7 +631,7 @@ headerCard: {
                     <div className="breakdown-columns" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '24px'}}>
                         {/* Revenue Column */}
                         <div className="bd-col" style={{background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0'}}>
-                            <h4 className="bd-title" style={{color:'#6366f1', marginBottom: '16px', fontSize: '16px', fontWeight: 700}}>
+                            <h4 className="bd-title" style={{color:'#b45309', marginBottom: '16px', fontSize: '16px', fontWeight: 700}}>
                                 <FaChartLine style={{marginRight: '8px'}} /> Revenue Breakdown
                             </h4>
                             <div className="bd-list">
@@ -684,14 +684,14 @@ headerCard: {
                             <span style={{marginLeft: 'auto', fontSize: '14px', fontWeight: 800, color: '#0f172a'}}>{fmtMoney(monthTotalTaxes)}</span>
                         </h4>
                         <div style={{display: 'flex', gap: '8px', marginBottom: '16px', height: '12px', borderRadius: '6px', overflow: 'hidden'}}>
-                            <div style={{width: `${monthTaxPcts.city}%`, background: '#3b82f6', height: '100%'}}></div>
+                            <div style={{width: `${monthTaxPcts.city}%`, background: '#b45309', height: '100%'}}></div>
                             <div style={{width: `${monthTaxPcts.service}%`, background: '#f59e0b', height: '100%'}}></div>
                             <div style={{width: `${monthTaxPcts.vat}%`, background: '#10b981', height: '100%'}}></div>
                         </div>
                         <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px'}}>
                             <div>
                                 <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px'}}>
-                                    <span style={{width: '10px', height: '10px', borderRadius: '50%', background: '#3b82f6'}}></span>
+                                    <span style={{width: '10px', height: '10px', borderRadius: '50%', background: '#b45309'}}></span>
                                     <span style={{fontSize: '13px', color: '#475569', fontWeight: 600}}>City Tax</span>
                                 </div>
                                 <div style={{fontSize: '18px', fontWeight: 800, color: '#0f172a'}}>{fmtMoney(m.cityTax || 0)}</div>
@@ -754,7 +754,7 @@ headerCard: {
                             <div>
                                 {PAYMENT_METHODS.map((pm) => {
                                     const val = m.paymentRevenue?.[pm] ?? 0;
-                                    const color = pm === "Cash" ? "#10b981" : "#3b82f6";
+                                    const color = pm === "Cash" ? "#10b981" : "#b45309";
                                     const pct = m.revenue > 0 ? (val / m.revenue) * 100 : 0;
                                     return (
                                         <div key={pm} style={{marginBottom: '12px'}}>
@@ -804,7 +804,7 @@ headerCard: {
                                             </div>
                                         </div>
                                         <div style={{textAlign: 'right'}}>
-                                            <div style={{fontWeight: 700, color: '#6366f1', fontSize: '16px'}}>{item.percentage}%</div>
+                                            <div style={{fontWeight: 700, color: '#b45309', fontSize: '16px'}}>{item.percentage}%</div>
                                             <div style={{fontSize: '11px', color: '#94a3b8', marginTop: '2px'}}>#{idx + 1}</div>
                                         </div>
                                     </div>
@@ -861,7 +861,7 @@ headerCard: {
                         </div>
 
                         {/* Bank Balance */}
-                        <div style={{background: '#eff6ff', padding: '20px', borderRadius: '12px', border: '1px solid #bfdbfe'}}>
+                        <div style={{background: '#fffbeb', padding: '20px', borderRadius: '12px', border: '1px solid #fed7aa'}}>
                             <h4 style={{color: '#0f172a', marginBottom: '16px', fontSize: '16px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px'}}>
                                 <FaUniversity /> Bank Balance
                             </h4>
@@ -869,7 +869,7 @@ headerCard: {
                                 <div style={{
                                     fontSize: '32px',
                                     fontWeight: 800,
-                                    color: '#6366f1',
+                                    color: '#b45309',
                                     marginBottom: '8px',
                                     fontFamily: 'monospace'
                                 }}>
@@ -884,7 +884,7 @@ headerCard: {
                                 gridTemplateColumns: '1fr 1fr',
                                 gap: '12px',
                                 paddingTop: '16px',
-                                borderTop: '1px solid #bfdbfe'
+                                borderTop: '1px solid #fed7aa'
                             }}>
                                 <div style={{textAlign: 'left'}}>
                                     <div style={{fontSize: '11px', color: '#64748b', fontWeight: 600, marginBottom: '4px'}}>Cash Revenue</div>
@@ -894,7 +894,7 @@ headerCard: {
                                 </div>
                                 <div style={{textAlign: 'right'}}>
                                     <div style={{fontSize: '11px', color: '#64748b', fontWeight: 600, marginBottom: '4px'}}>Credit Card Revenue</div>
-                                    <div style={{fontSize: '16px', fontWeight: 700, color: '#3b82f6'}}>
+                                    <div style={{fontSize: '16px', fontWeight: 700, color: '#b45309'}}>
                                         {fmtMoney(monthCreditCardRevenue)}
                                     </div>
                                 </div>
@@ -914,16 +914,16 @@ headerCard: {
       {/* HEADER */}
       <div style={headerStyles.headerCard}>
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <img src={HOTEL_LOGO} alt="Ocean Stay" style={headerStyles.logoImage} onError={(e) => e.target.style.display='none'} />
+          <img src={HOTEL_LOGO} alt="Ocean Blue Lagoon" style={headerStyles.logoImage} onError={(e) => e.target.style.display='none'} />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <h1 className="app-page-title">Ocean Stay</h1>
+            <h1 className="app-page-title">Ocean Blue Lagoon</h1>
             <span className="app-page-subtitle" style={{ marginTop: "5px" }}>Maldives</span>
           </div>
         </div>
 
         <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "10px" }}>
            <span className="app-page-address" style={{ fontSize: "24px", fontWeight: "bold", color: "#1e293b", lineHeight: "1" }}>Financial Reports</span>
-           <FaChartLine style={{ fontSize: "22px", color: "#3b82f6", opacity: 0.9 }} />
+           <FaChartLine style={{ fontSize: "22px", color: "#b45309", opacity: 0.9 }} />
         </div>
         
         <div style={{ background: "white", padding: "8px 16px", borderRadius: "12px", boxShadow: "0 2px 5px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: "10px", border: "1px solid #e2e8f0" }}>
@@ -951,7 +951,7 @@ headerCard: {
 
       {/* KPI Stats */}
       <div className="stats-grid">
-        <ModernKpi label="Total Revenue" value={fmtMoney(metrics.revenue)} icon={<FaDollarSign />} color="#6366f1" />
+        <ModernKpi label="Total Revenue" value={fmtMoney(metrics.revenue)} icon={<FaDollarSign />} color="#b45309" />
         <ModernKpi label="Net Profit" value={fmtMoney(metrics.net)} icon={<FaChartLine />} color="#10b981" />
         <ModernKpi label="Expenses" value={fmtMoney(metrics.expenses)} icon={<FaWallet />} color="#ef4444" />
         <ModernKpi label="Occupancy Rate" value={`${Math.round(metrics.occupancy * 100)}%`} icon={<FaBed />} color="#f59e0b" />
@@ -966,14 +966,14 @@ headerCard: {
             <div className="tax-total-badge">{fmtMoney(totalTaxes)}</div>
           </div>
           <div className="tax-vis-bar">
-             <div className="vis-segment" style={{width: `${taxPcts.city}%`, background: '#3b82f6'}}></div>
+             <div className="vis-segment" style={{width: `${taxPcts.city}%`, background: '#b45309'}}></div>
              <div className="vis-segment" style={{width: `${taxPcts.service}%`, background: '#f59e0b'}}></div>
              <div className="vis-segment" style={{width: `${taxPcts.vat}%`, background: '#10b981'}}></div>
           </div>
           <div className="panel-list" style={{marginTop: 15}}>
             <div className="list-item tax-item">
                 <div className="tax-label">
-                    <span className="dot-indicator" style={{background:'#3b82f6'}}></span>
+                    <span className="dot-indicator" style={{background:'#b45309'}}></span>
                     <span>City Tax</span>
                 </div>
                 <div style={{textAlign:'right'}}>
@@ -1031,7 +1031,7 @@ headerCard: {
           <div className="panel-list">
             {PAYMENT_METHODS.map((pm) => {
               const val = metrics.paymentRevenue?.[pm] ?? 0;
-              const color = pm === "Cash" ? "#10b981" : "#3b82f6";
+              const color = pm === "Cash" ? "#10b981" : "#b45309";
               return (
                 <div key={pm} className="channel-row">
                   <div className="row-head">
@@ -1051,7 +1051,7 @@ headerCard: {
             <div className="panel-list scrollable-list">
                 <div className="list-item">
                     <div style={{display:'flex', alignItems:'center', gap: 8}}>
-                        <div className="icon-tiny" style={{background: '#6366f1'}}><FaBed style={{color:'white'}}/></div>
+                        <div className="icon-tiny" style={{background: '#b45309'}}><FaBed style={{color:'white'}}/></div>
                         <span>Room Revenue</span>
                     </div>
                     <strong>{fmtMoney(metrics.roomRevenue)}</strong>
@@ -1114,7 +1114,7 @@ headerCard: {
                                     </div>
                                 </div>
                                 <div style={{textAlign: 'right'}}>
-                                    <div style={{fontWeight: 700, color: '#6366f1', fontSize: '16px'}}>{item.percentage}%</div>
+                                    <div style={{fontWeight: 700, color: '#b45309', fontSize: '16px'}}>{item.percentage}%</div>
                                     <div style={{fontSize: '11px', color: '#94a3b8', marginTop: '2px'}}>#{idx + 1}</div>
                                 </div>
                             </div>
@@ -1175,7 +1175,7 @@ headerCard: {
                 <div style={{
                     fontSize: '36px',
                     fontWeight: 800,
-                    color: '#6366f1',
+                    color: '#b45309',
                     marginBottom: '8px',
                     fontFamily: 'monospace'
                 }}>
@@ -1200,7 +1200,7 @@ headerCard: {
                     </div>
                     <div style={{textAlign: 'right'}}>
                         <div style={{fontSize: '11px', color: '#64748b', fontWeight: 600, marginBottom: '4px'}}>Credit Card Revenue</div>
-                        <div style={{fontSize: '18px', fontWeight: 700, color: '#3b82f6'}}>
+                        <div style={{fontSize: '18px', fontWeight: 700, color: '#b45309'}}>
                             {fmtMoney(metrics.paymentRevenue?.["Credit Card"] || 0)}
                         </div>
                     </div>
@@ -1271,7 +1271,7 @@ headerCard: {
                             </td>
 
                             <td style={{textAlign:'center', color: '#64748b'}}>{fmtInt(m.roomsAvailable)}</td>
-                            <td style={{textAlign:'center', color: '#6366f1', fontWeight: 700}}>{fmtInt(m.roomsSold)}</td>
+                            <td style={{textAlign:'center', color: '#b45309', fontWeight: 700}}>{fmtInt(m.roomsSold)}</td>
                             <td style={{textAlign:'center'}}>
                                 <span className={`status-badge ${m.occupancy >= 0.7 ? 'plus' : m.occupancy >= 0.4 ? 'mid' : 'minus'}`} style={{background: 'transparent', border: '1px solid #e2e8f0'}}>
                                     {Math.round(m.occupancy * 100)}%
@@ -1301,7 +1301,7 @@ headerCard: {
                     </td>
 
                     <td style={{textAlign:'center', color: '#64748b', fontWeight: 700}}>{fmtInt(yearTotals.roomsAvailable)}</td>
-                    <td style={{textAlign:'center', color: '#6366f1', fontWeight: 900}}>{fmtInt(yearTotals.roomsSold)}</td>
+                    <td style={{textAlign:'center', color: '#b45309', fontWeight: 900}}>{fmtInt(yearTotals.roomsSold)}</td>
                     <td style={{textAlign:'center'}}>
                         <span className={`status-badge ${yearTotals.occupancy >= 0.7 ? 'plus' : yearTotals.occupancy >= 0.4 ? 'mid' : 'minus'}`} style={{background: 'white', border: '1px solid #cbd5e1'}}>
                             {Math.round(yearTotals.occupancy * 100)}%
@@ -1341,7 +1341,7 @@ headerCard: {
           color: #64748b; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s;
         }
         .filter-btn:hover { background: #f8fafc; }
-        .filter-btn.active { background: #eff6ff; color: #2563eb; }
+        .filter-btn.active { background: #ffedd5; color: #92400e; }
         .custom-date-picker { display: flex; align-items: center; gap: 10px; padding-left: 15px; border-left: 1px solid #e2e8f0; }
         .filter-input { border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: 8px; color: #475569; font-size: 13px; }
 
@@ -1437,7 +1437,7 @@ headerCard: {
         .table-row:hover { background-color: #f8fafc; }
         
         .month-name { font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px; }
-        .tag-current { background: #6366f1; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+        .tag-current { background: #b45309; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
         .val-cell { font-family: 'Segoe UI', sans-serif; }
 
         .status-badge { 
@@ -1448,7 +1448,7 @@ headerCard: {
         .status-badge.mid { background: #fff7ed; color: #c2410c; }
         .status-badge.minus { background: #fee2e2; color: #991b1b; }
         
-        .current-month-row { background-color: #eff6ff; border-left: 3px solid #6366f1; }
+        .current-month-row { background-color: #fffbeb; border-left: 3px solid #b45309; }
         
         .total-row:hover { background-color: #f1f5f9 !important; }
 

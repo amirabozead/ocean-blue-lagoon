@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 /** =========================
- *  Ocean Stay — Cloud-aware DB
+ *  Ocean Blue Lagoon — Cloud-aware DB
  *  Uses Supabase if config exists, else falls back to window.db
  *  ========================= */
 

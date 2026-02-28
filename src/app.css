@@ -7,37 +7,37 @@
 }
 
 :root {
-  /* Page background – warm sand/stone gradient (cohesive) */
-  --bg: #f6f4f1;
-  --bg-alt: #ebe7e2;
-  --text: #1c1917;
-  --text-soft: #44403c;
+  /* Page background – charcoal/stone with warm accents */
+  --bg: #f5f5f4;
+  --bg-alt: #e7e5e4;
+  --text: #0f172a;
+  --text-soft: #334155;
   --muted: #57534e;
   --card: #ffffff;
   --card-tint: #fafaf9;
-  --border: rgba(28, 25, 23, 0.08);
-  --shadow: 0 4px 24px rgba(28, 25, 23, 0.06);
-  --shadow-hover: 0 12px 40px rgba(28, 25, 23, 0.1);
+  --border: rgba(15, 23, 42, 0.08);
+  --shadow: 0 4px 24px rgba(28, 25, 23, 0.08);
+  --shadow-hover: 0 12px 40px rgba(28, 25, 23, 0.14);
   --radius-card: 16px;
 
   /* Header card – one consistent look for all pages */
-  --header-card-bg: linear-gradient(145deg, #ffffff 0%, #fafaf9 50%, #f5f3f0 100%);
-  --header-card-shadow: 0 4px 24px rgba(28, 25, 23, 0.06);
-  --header-card-border: 1px solid rgba(28, 25, 23, 0.06);
+  --header-card-bg: linear-gradient(145deg, #ffffff 0%, #fafaf9 55%, #f5f5f4 100%);
+  --header-card-shadow: 0 4px 24px rgba(28, 25, 23, 0.1);
+  --header-card-border: 1px solid rgba(28, 25, 23, 0.08);
 
-  /* Primary & accent – teal & gold (brand) */
-  --primary: #0d9488;
-  --primary2: #0f766e;
-  --primary-light: rgba(13, 148, 136, 0.12);
-  --accent: #f59e0b;
-  --accent-soft: rgba(245, 158, 11, 0.12);
+  /* Primary & accent – warm bronze/orange */
+  --primary: #b45309;
+  --primary2: #92400e;
+  --primary-light: rgba(180, 83, 9, 0.14);
+  --accent: #d97706;
+  --accent-soft: rgba(217, 119, 6, 0.14);
 
-  --emerald1: #059669;
-  --emerald2: #10b981;
-  --amber1: #d97706;
-  --amber2: #f59e0b;
-  --slate1: #134e4a;
-  --slate2: #0f766e;
+  --emerald1: #16a34a;
+  --emerald2: #22c55e;
+  --amber1: #b45309;
+  --amber2: #d97706;
+  --slate1: #292524;
+  --slate2: #44403c;
 }
 
 html {
@@ -128,14 +128,14 @@ body {
   overflow-x: hidden;
 }
 
-/* ========== SIDEBAR (teal & gold – matches page theme) ========== */
+/* ========== SIDEBAR (light blue theme) ========== */
 .sidebar {
   width: 320px;
   min-width: 320px;
   max-width: 320px;
   flex-shrink: 0;
-  background: linear-gradient(185deg, #0f766e 0%, #134e4a 42%, #0d4441 100%);
-  color: #f0fdfa;
+  background: linear-gradient(185deg, #0c4a6e 0%, #075985 45%, #0369a1 100%);
+  color: #e0f2fe;
   display: flex;
   flex-direction: column;
   padding: 20px 14px;
@@ -168,7 +168,7 @@ body {
   font-family: "Dancing Script", cursive;
   font-size: 30px;
   font-weight: 600;
-  color: #f0fdfa;
+  color: #e0f2fe;
   letter-spacing: 0.5px;
   line-height: 1.2;
 }
@@ -178,7 +178,7 @@ body {
   font-size: 18px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  color: rgba(245, 158, 11, 0.95);
+  color: rgba(125, 211, 252, 0.95);
   margin-top: 4px;
   text-transform: none;
 }
@@ -218,36 +218,36 @@ body {
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  color: rgba(240, 253, 250, 0.88);
+  color: rgba(224, 242, 254, 0.92);
   transition: all 0.22s ease;
 }
 
 .menu-item svg {
   font-size: 17px;
-  color: rgba(94, 234, 212, 0.8);
+  color: #ffffff;
   transition: 0.22s;
 }
 
 .menu-item:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: #f0fdfa;
+  color: #e0f2fe;
   transform: translateX(5px);
 }
 .menu-item:hover svg {
-  color: #5eead4;
+  color: #ffffff;
 }
 
 .menu-item.active {
-  background: rgba(245, 158, 11, 0.22);
-  color: #f0fdfa;
+  background: rgba(56, 189, 248, 0.24);
+  color: #e0f2fe;
   font-weight: 700;
-  box-shadow: 0 2px 14px rgba(245, 158, 11, 0.2);
-  border: 1px solid rgba(245, 158, 11, 0.35);
+  box-shadow: 0 2px 14px rgba(56, 189, 248, 0.24);
+  border: 1px solid rgba(56, 189, 248, 0.45);
 }
 
 .menu-item.active svg {
-  color: #fcd34d;
-  filter: drop-shadow(0 0 8px rgba(252, 211, 77, 0.4));
+  color: #ffffff;
+  filter: drop-shadow(0 0 8px rgba(186, 230, 253, 0.45));
 }
 
 .sidebarUser {
@@ -263,12 +263,12 @@ body {
 .userAvatar {
   width: 38px; height: 38px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #0d9488, #0f766e);
+  background: linear-gradient(135deg, #b45309, #92400e);
   color: #fff;
   display: grid;
   place-items: center;
   font-weight: 700;
-  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
+  box-shadow: 0 4px 12px rgba(120, 53, 15, 0.35);
 }
 /* ========== HEADERS ========== */
 h1 {
@@ -3775,7 +3775,7 @@ select.input { cursor: pointer; }
 /* ================= P&L MASTER CARD (OCEAN THEME) ================= */
 .pl-master-card {
   /* ✅ التعديل هنا: تدرج أزرق محيطي بدل الأسود */
-  background: linear-gradient(135deg, #0ea5e9 0%, #4338ca 100%); /* من سماوي لأزرق غامق */
+  background: linear-gradient(135deg, #b45309 0%, #78350f 100%);
   
   border-radius: 24px;
   padding: 28px;

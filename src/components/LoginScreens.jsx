@@ -19,7 +19,7 @@ const styles = `
     display: flex;
     height: 100vh;
     width: 100vw;
-    background: #134e4a;
+    background: #1f1b19;
     overflow: hidden;
   }
 
@@ -28,7 +28,7 @@ const styles = `
     flex: 1.4;
     min-width: 0;
     height: 100%;
-    background-color: #134e4a;
+    background-color: #1f1b19;
     background-image: url('${BG_IMAGE}');
     background-size: cover;
     background-position: center;
@@ -40,7 +40,7 @@ const styles = `
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, rgba(19, 78, 74, 0.94) 0%, rgba(13, 148, 136, 0.4) 50%, rgba(19, 78, 74, 0.85) 100%);
+    background: linear-gradient(135deg, rgba(31, 27, 25, 0.95) 0%, rgba(120, 53, 15, 0.42) 50%, rgba(31, 27, 25, 0.88) 100%);
     pointer-events: none;
   }
 
@@ -113,7 +113,7 @@ const styles = `
     align-items: center;
     justify-content: center;
     padding: 48px 56px;
-    background: linear-gradient(180deg, #ffffff 0%, #f0fdfa 100%);
+    background: linear-gradient(180deg, #ffffff 0%, #fafaf9 100%);
     max-width: 520px;
     min-width: 400px;
     box-sizing: border-box;
@@ -156,7 +156,7 @@ const styles = `
     height: 88px;
     border-radius: 50%;
     object-fit: cover;
-    border: 3px solid rgba(13, 148, 136, 0.25);
+    border: 3px solid rgba(180, 83, 9, 0.2);
     display: block;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   }
@@ -189,11 +189,11 @@ const styles = `
 
   .form-content {
     width: 100%;
-    background: #fff;
+    background: linear-gradient(180deg, #ffffff 0%, #fffbeb 100%);
     padding: 32px;
     border-radius: 16px;
-    border: 1px solid rgba(226, 232, 240, 0.8);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    box-shadow: 0 8px 20px rgba(120, 53, 15, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
   }
 
   .input-group {
@@ -216,7 +216,7 @@ const styles = `
     content: '';
     width: 3px;
     height: 12px;
-    background: linear-gradient(180deg, #0d9488 0%, #0f766e 100%);
+    background: linear-gradient(180deg, #b45309 0%, #92400e 100%);
     border-radius: 2px;
   }
 
@@ -230,7 +230,7 @@ const styles = `
     background: #fafbfc;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     box-sizing: border-box;
-    color: #134e4a;
+    color: #0f172a;
     font-weight: 500;
   }
 
@@ -240,9 +240,9 @@ const styles = `
   }
 
   .input-field:focus {
-    border-color: #0d9488;
+    border-color: #b45309;
     background: #fff;
-    box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.15), 0 2px 8px rgba(13, 148, 136, 0.1);
+    box-shadow: 0 0 0 4px rgba(180, 83, 9, 0.14), 0 2px 8px rgba(120, 53, 15, 0.12);
     outline: none;
     transform: translateY(-1px);
   }
@@ -264,7 +264,7 @@ const styles = `
   .login-btn {
     width: 100%;
     padding: 17px;
-    background: linear-gradient(180deg, #0d9488 0%, #0f766e 100%);
+    background: linear-gradient(180deg, #b45309 0%, #92400e 100%);
     color: #fff;
     font-weight: 700;
     font-size: 15px;
@@ -275,7 +275,7 @@ const styles = `
     margin-top: 8px;
     letter-spacing: 0.8px;
     text-transform: uppercase;
-    box-shadow: 0 4px 16px rgba(13, 148, 136, 0.25), 0 2px 4px rgba(13, 148, 136, 0.15);
+    box-shadow: 0 4px 16px rgba(120, 53, 15, 0.3), 0 2px 4px rgba(120, 53, 15, 0.18);
     position: relative;
     overflow: hidden;
   }
@@ -290,9 +290,9 @@ const styles = `
   }
 
   .login-btn:hover {
-    background: linear-gradient(180deg, #14b8a6 0%, #0d9488 100%);
+    background: linear-gradient(180deg, #c2410c 0%, #9a3412 100%);
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(13, 148, 136, 0.35), 0 4px 8px rgba(13, 148, 136, 0.2);
+    box-shadow: 0 8px 24px rgba(120, 53, 15, 0.36), 0 4px 8px rgba(120, 53, 15, 0.24);
   }
 
   .login-btn:hover::before {
@@ -301,7 +301,7 @@ const styles = `
 
   .login-btn:active {
     transform: translateY(0);
-    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
+    box-shadow: 0 4px 12px rgba(120, 53, 15, 0.3);
   }
 
   .error-msg {
@@ -342,15 +342,15 @@ const styles = `
   }
 
   .show-pin-label:hover {
-    background: #e6fffa;
-    color: #475569;
+    background: #fffbeb;
+    color: #92400e;
   }
 
   .show-pin-label input[type="checkbox"] {
     width: 18px;
     height: 18px;
     cursor: pointer;
-    accent-color: #0d9488;
+    accent-color: #b45309;
   }
 
   .bottom-actions {
@@ -363,9 +363,9 @@ const styles = `
   }
 
   .system-config-btn {
-    background: #fff;
-    border: 1.5px solid #e2e8f0;
-    color: #475569;
+    background: linear-gradient(180deg, #fff7ed 0%, #fffbeb 100%);
+    border: 1.5px solid rgba(180, 83, 9, 0.25);
+    color: #92400e;
     font-size: 11px;
     cursor: pointer;
     padding: 11px 22px;
@@ -377,15 +377,15 @@ const styles = `
     align-items: center;
     gap: 8px;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(120, 53, 15, 0.1);
   }
 
   .system-config-btn:hover {
-    background: #f0fdfa;
-    color: #0d9488;
-    border-color: #cbd5e1;
+    background: linear-gradient(180deg, #fef3c7 0%, #fde68a 100%);
+    color: #78350f;
+    border-color: rgba(146, 64, 14, 0.35);
     transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 12px rgba(120, 53, 15, 0.16);
   }
 
   .system-config-btn:active {
@@ -437,7 +437,7 @@ const styles = `
   }
 
   input:checked + .slider {
-    background-color: #0d9488;
+    background-color: #b45309;
   }
 
   input:checked + .slider:before {
@@ -507,7 +507,7 @@ const oldStyleLoginStyles = `
     font-family: 'Dancing Script', cursive;
     font-weight: 600;
     text-align: center;
-    color: #0d9488;
+    color: #b45309;
     margin-bottom: 8px;
   }
 
@@ -538,12 +538,12 @@ const oldStyleLoginStyles = `
     margin-bottom: 16px;
     background: #fafbfc;
     box-sizing: border-box;
-    color: #134e4a;
+    color: #0f172a;
     transition: border-color 0.2s;
   }
 
   .old-input-field:focus {
-    border-color: #0d9488;
+    border-color: #b45309;
     background: #fff;
     outline: none;
   }
@@ -551,7 +551,7 @@ const oldStyleLoginStyles = `
   .old-login-btn {
     width: 100%;
     padding: 14px;
-    background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+    background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
     color: white;
     font-weight: 800;
     font-size: 15px;
@@ -565,9 +565,9 @@ const oldStyleLoginStyles = `
   }
 
   .old-login-btn:hover {
-    background: linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%);
+    background: linear-gradient(135deg, #92400e 0%, #78350f 100%);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+    box-shadow: 0 4px 12px rgba(120, 53, 15, 0.3);
   }
 
   .old-error-msg {
@@ -612,8 +612,8 @@ const oldStyleLoginStyles = `
   }
 
   .old-system-config-btn:hover {
-    background: #f0fdfa;
-    color: #0d9488;
+    background: #fffbeb;
+    color: #b45309;
     border-color: #cbd5e1;
   }
 `;
@@ -625,7 +625,7 @@ export function OldStyleSecurityLoginScreen({ users, onLogin, onOpenCloudSetting
   const [showPin, setShowPin] = useState(false);
 
   const settings = storeLoad("ocean_settings_v1") || {};
-  const hotelName = settings.hotelName || "Ocean Stay";
+  const hotelName = settings.hotelName || "Ocean Blue Lagoon";
   const logoUrl = settings.logoUrl || "/logo.png";
 
   const tryLogin = () => {
@@ -662,7 +662,7 @@ export function OldStyleSecurityLoginScreen({ users, onLogin, onOpenCloudSetting
             className="old-login-logo"
             onError={(e) => (e.target.style.display = "none")}
           />
-          <h1 className="old-login-title">Ocean Stay</h1>
+          <h1 className="old-login-title">Ocean Blue Lagoon</h1>
           <p className="old-login-subtitle">Maldives</p>
 
           <label className="old-input-label">Select Administrator</label>
@@ -693,7 +693,7 @@ export function OldStyleSecurityLoginScreen({ users, onLogin, onOpenCloudSetting
           {err && <div className="old-error-msg">⚠ {err}</div>}
 
           <button className="old-login-btn" onClick={tryLogin}>
-            Access Ocean Stay
+            Access Ocean Blue Lagoon
           </button>
 
           <div style={{ textAlign: "center" }}>
@@ -726,7 +726,7 @@ export function SecurityLoginScreen({ users, onLogin, onOpenCloudSettings }) {
   const [showPin, setShowPin] = useState(false);
 
   const settings = storeLoad("ocean_settings_v1") || {};
-  const hotelName = settings.hotelName || "Ocean Stay";
+  const hotelName = settings.hotelName || "Ocean Blue Lagoon";
   const logoUrl = settings.logoUrl || "/logo.png";
 
   const tryLogin = () => {
@@ -767,7 +767,7 @@ export function SecurityLoginScreen({ users, onLogin, onOpenCloudSettings }) {
               className="brand-logo"
               onError={(e) => (e.target.style.display = "none")}
             />
-            <h1 className="brand-name">Ocean Stay</h1>
+            <h1 className="brand-name">Ocean Blue Lagoon</h1>
             <p className="brand-tagline">Maldives</p>
             <p className="brand-footer">Confidential · Authorized personnel only</p>
           </div>
@@ -856,7 +856,7 @@ export function PreAuthCloudSyncScreen({ sbCfg, sbSaveCfg, onBack }) {
   const [enabled, setEnabled] = useState(!!sbCfg?.enabled);
 
   const settings = storeLoad("ocean_settings_v1") || {};
-  const hotelName = settings.hotelName || "Ocean Stay";
+  const hotelName = settings.hotelName || "Ocean Blue Lagoon";
   const logoUrl = settings.logoUrl || "/logo.png";
 
   const doSave = () => { 
@@ -878,7 +878,7 @@ export function PreAuthCloudSyncScreen({ sbCfg, sbSaveCfg, onBack }) {
               className="brand-logo"
               onError={(e) => (e.target.style.display = "none")}
             />
-            <h1 className="brand-name">Ocean Stay</h1>
+            <h1 className="brand-name">Ocean Blue Lagoon</h1>
             <p className="brand-tagline">Maldives</p>
             <p className="brand-footer">Sync your data · Stay connected</p>
           </div>
@@ -959,8 +959,8 @@ export function PreAuthCloudSyncScreen({ sbCfg, sbSaveCfg, onBack }) {
                     transition: "all 0.2s"
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.background = "#f0fdfa";
-                    e.target.style.color = "#0d9488";
+                    e.target.style.background = "#fffbeb";
+                    e.target.style.color = "#b45309";
                   }}
                   onMouseLeave={(e) => {
                     e.target.style.background = "none";
@@ -980,7 +980,7 @@ export function PreAuthCloudSyncScreen({ sbCfg, sbSaveCfg, onBack }) {
 
 export function SupabaseLoginScreen({ supabase, onOpenCloudSettings }) {
   const settings = storeLoad("ocean_settings_v1") || {};
-  const hotelName = settings.hotelName || "Ocean Stay";
+  const hotelName = settings.hotelName || "Ocean Blue Lagoon";
   const logoUrl = settings.logoUrl || "/logo.png";
 
   return (
@@ -997,7 +997,7 @@ export function SupabaseLoginScreen({ supabase, onOpenCloudSettings }) {
               className="brand-logo"
               onError={(e) => (e.target.style.display = "none")}
             />
-            <h1 className="brand-name">Ocean Stay</h1>
+            <h1 className="brand-name">Ocean Blue Lagoon</h1>
             <p className="brand-tagline">Maldives</p>
             <p className="brand-footer">Cloud Authentication · Secure Access</p>
           </div>
